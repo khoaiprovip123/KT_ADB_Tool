@@ -1,0 +1,1057 @@
+{
+  "meta": {
+    "title": "Xiaomi HyperOS / MIUI — Bloatware Removal Database",
+    "source": "XDA Forums · Technastic · GitHub community",
+    "tested_on": "HyperOS 1/2 | NON-ROOT (ADB only)",
+    "legend": {
+      "SAFE": "Xóa/tắt an toàn, không ảnh hưởng hệ thống",
+      "RISKY": "Cần cân nhắc, có thể ảnh hưởng tính năng",
+      "KEEP": "KHÔNG XÓA",
+      "Tracking": "Thu thập dữ liệu / Telemetry",
+      "Google Bloat": "Ứng dụng Google cài sẵn không cần thiết"
+    }
+  },
+  "quick_guide": {
+    "step1_prepare": [
+      "Bật Developer Options: Settings → About phone → Nhấn 7 lần vào OS version",
+      "Bật USB Debugging trong Developer Options",
+      "Tải Android SDK Platform Tools: developer.android.com/tools/releases/platform-tools",
+      "Giải nén vào thư mục C:\\adb (hoặc bất kỳ đâu)",
+      "Cắm điện thoại vào PC, mở CMD trong thư mục platform-tools",
+      "Chạy: adb devices → Cho phép trên điện thoại khi được hỏi"
+    ],
+    "step2_commands": {
+      "disable": "adb shell pm disable-user --user 0 <package>",
+      "uninstall": "adb shell pm uninstall -k --user 0 <package>",
+      "restore_disabled": "adb shell pm enable --user 0 <package>",
+      "restore_uninstalled": "adb shell cmd package install-existing <package>"
+    },
+    "step3_verify": [
+      "Khởi động lại điện thoại và dùng bình thường 30 phút",
+      "Nếu có lỗi: dùng restore command hoặc factory reset để rollback",
+      "Factory reset sẽ restore toàn bộ app đã uninstall bằng --user 0"
+    ],
+    "gui_tools": [
+      {
+        "name": "ADB AppControl 1.8.6",
+        "platform": "Windows GUI",
+        "note": "Recommended nhất"
+      },
+      {
+        "name": "Universal Android Debloater (UAD)",
+        "platform": "Cross platform",
+        "note": "Open source"
+      },
+      {
+        "name": "Canta",
+        "platform": "Android app",
+        "note": "Dùng Shizuku, không cần PC"
+      }
+    ],
+    "do_not_remove": [
+      "com.miui.core",
+      "com.miui.securitycenter",
+      "com.google.android.gms",
+      "com.android.phone",
+      "com.android.contacts",
+      "com.android.settings"
+    ]
+  },
+  "packages": [
+    {
+      "id": 1,
+      "package": "com.miui.analytics",
+      "name": "MIUI Analytics",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.analytics",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.analytics",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.analytics",
+      "side_effects": "Không ảnh hưởng tính năng người dùng",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 2,
+      "package": "com.miui.msa.global",
+      "name": "MSA / MIUI Ad Services",
+      "group": "Tracking / Ads",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.msa.global",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.msa.global",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.msa.global",
+      "side_effects": "Tắt quảng cáo trong MIUI apps",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 3,
+      "package": "com.miui.systemAdSolution",
+      "name": "System Ad Solution",
+      "group": "Tracking / Ads",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.systemAdSolution",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.systemAdSolution",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.systemAdSolution",
+      "side_effects": "Tắt hệ thống quảng cáo tích hợp",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 4,
+      "package": "com.miui.hybrid",
+      "name": "Quick Apps (Data Mining)",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.hybrid",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.hybrid",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.hybrid",
+      "side_effects": "Tắt Quick Apps, không ảnh hưởng hệ thống",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 5,
+      "package": "com.miui.hybrid.accessory",
+      "name": "Quick Apps Accessory",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.hybrid.accessory",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.hybrid.accessory",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.hybrid.accessory",
+      "side_effects": "Đi kèm Quick Apps, disable cùng hybrid",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 6,
+      "package": "com.miui.contentcatcher",
+      "name": "Content Catcher",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.contentcatcher",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.contentcatcher",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.contentcatcher",
+      "side_effects": "Thu thập nội dung người dùng",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 7,
+      "package": "com.miui.bugreport",
+      "name": "Bug Report App",
+      "group": "Telemetry",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.bugreport",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.bugreport",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.bugreport",
+      "side_effects": "Gửi crash log về Xiaomi server",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 8,
+      "package": "com.xiaomi.joyose",
+      "name": "Joyose (Game Analytics)",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.joyose",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.joyose",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.joyose",
+      "side_effects": "Analytics gaming, không ảnh hưởng gameplay",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 9,
+      "package": "com.xiaomi.gamecenter.sdk.service",
+      "name": "Game Center SDK",
+      "group": "Tracking",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.gamecenter.sdk.service",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.gamecenter.sdk.service",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.gamecenter.sdk.service",
+      "side_effects": "SDK tracking game center, tắt an toàn",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 10,
+      "package": "com.xiaomi.aiasst.service",
+      "name": "Xiaomi AI Assistant Service",
+      "group": "Tracking / AI",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.aiasst.service",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.aiasst.service",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.aiasst.service",
+      "side_effects": "AI assistant background service",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 11,
+      "package": "com.xiaomi.aicr",
+      "name": "Xiaomi AI Engine",
+      "group": "Tracking / AI",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.aicr",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.aicr",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.aicr",
+      "side_effects": "AI recognition engine, tắt an toàn",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 12,
+      "package": "com.miui.personalassistant",
+      "name": "App Vault / Personal Assistant",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.personalassistant",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.personalassistant",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.personalassistant",
+      "side_effects": "Tắt trang App Vault (swipe trái màn hình)",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 13,
+      "package": "com.mi.globalminusscreen",
+      "name": "App Vault (Minus Screen)",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.mi.globalminusscreen",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.mi.globalminusscreen",
+      "cmd_restore": "adb shell pm enable --user 0 com.mi.globalminusscreen",
+      "side_effects": "Trang minus screen App Vault",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 14,
+      "package": "com.miui.voiceassist",
+      "name": "Voice Assistant",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.voiceassist",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.voiceassist",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.voiceassist",
+      "side_effects": "Trợ lý giọng nói Xiaomi",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 15,
+      "package": "com.miui.videoplayer",
+      "name": "Mi Video",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.videoplayer",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.videoplayer",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.videoplayer",
+      "side_effects": "Trình phát video Xiaomi",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 16,
+      "package": "com.miui.player",
+      "name": "Mi Music",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.player",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.player",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.player",
+      "side_effects": "Trình nghe nhạc Mi, thay bằng Spotify/YTM",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 17,
+      "package": "com.mi.globalbrowser",
+      "name": "Mi Browser",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.mi.globalbrowser",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.mi.globalbrowser",
+      "cmd_restore": "adb shell cmd package install-existing com.mi.globalbrowser",
+      "side_effects": "Trình duyệt Mi, thay bằng Chrome/Firefox",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 18,
+      "package": "com.miui.cleanmaster",
+      "name": "System Cleaner (Mi Clean)",
+      "group": "Xiaomi App / Ads",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.cleanmaster",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.cleanmaster",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.cleanmaster",
+      "side_effects": "Dọn rác kèm quảng cáo, hoàn toàn vô dụng",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 19,
+      "package": "com.miui.compass",
+      "name": "Mi Compass",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.compass",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.compass",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.compass",
+      "side_effects": "Ứng dụng la bàn, ít dùng",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 20,
+      "package": "com.miui.android.fashiongallery",
+      "name": "Wallpaper Carousel",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.android.fashiongallery",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.android.fashiongallery",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.android.fashiongallery",
+      "side_effects": "Slideshow hình nền tự thay đổi",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 21,
+      "package": "com.miui.yellowpage",
+      "name": "Mi Yellow Pages",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.yellowpage",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.yellowpage",
+      "cmd_restore": "adb shell cmd package install-existing com.miui.yellowpage",
+      "side_effects": "Danh bạ doanh nghiệp, không cần thiết",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 22,
+      "package": "com.miui.mishare.connectivity",
+      "name": "Mi Share",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.mishare.connectivity",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.mishare.connectivity",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.mishare.connectivity",
+      "side_effects": "Chia sẻ file qua Mi Share, thay bằng Nearby Share",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 23,
+      "package": "com.mi.global.shop",
+      "name": "Mi Store / GetApps Shop",
+      "group": "Ads",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.mi.global.shop",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.mi.global.shop",
+      "cmd_restore": "adb shell cmd package install-existing com.mi.global.shop",
+      "side_effects": "Cửa hàng Xiaomi kèm quảng cáo",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 24,
+      "package": "com.xiaomi.mipicks",
+      "name": "GetApps / Mi Picks",
+      "group": "Ads",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.mipicks",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.mipicks",
+      "cmd_restore": "adb shell cmd package install-existing com.xiaomi.mipicks",
+      "side_effects": "App quảng cáo, đề xuất app trả phí",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 25,
+      "package": "com.miui.nextpay",
+      "name": "Mi Pay (next)",
+      "group": "Regional",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.nextpay",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.nextpay",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.nextpay",
+      "side_effects": "Thanh toán Xiaomi, không dùng ở VN",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 26,
+      "package": "com.mipay.wallet.id",
+      "name": "Mi Wallet (Indonesia)",
+      "group": "Regional",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.mipay.wallet.id",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.mipay.wallet.id",
+      "cmd_restore": "adb shell pm enable --user 0 com.mipay.wallet.id",
+      "side_effects": "Ví điện tử vùng ID, không dùng ở VN",
+      "tested_on": [
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 27,
+      "package": "com.mi.health",
+      "name": "Mi Health / Fitness",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.mi.health",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.mi.health",
+      "cmd_restore": "adb shell cmd package install-existing com.mi.health",
+      "side_effects": "App sức khỏe Xiaomi",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 28,
+      "package": "com.miui.miservice",
+      "name": "Services & Feedback",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.miservice",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.miui.miservice",
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.miservice",
+      "side_effects": "Góp ý phản hồi Xiaomi",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 29,
+      "package": "com.xiaomi.gamecenter",
+      "name": "Game Center",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.gamecenter",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.gamecenter",
+      "cmd_restore": "adb shell cmd package install-existing com.xiaomi.gamecenter",
+      "side_effects": "Mất Game Center shortcut, game vẫn chạy bình thường",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 30,
+      "package": "com.xiaomi.miplay_client",
+      "name": "Mi Play Client",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.miplay_client",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.miplay_client",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.miplay_client",
+      "side_effects": "Client casting nhạc Xiaomi",
+      "tested_on": [
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 31,
+      "package": "com.xiaomi.mirror",
+      "name": "Xiaomi Mirror",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.mirror",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.xiaomi.mirror",
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.mirror",
+      "side_effects": "Mirror màn hình sang TV Mi",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 32,
+      "package": "com.xiaomi.powerchecker",
+      "name": "Power Checker",
+      "group": "Xiaomi App",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.powerchecker",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.powerchecker",
+      "side_effects": "Kiểm tra sạc/pin Xiaomi",
+      "tested_on": [
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 33,
+      "package": "cn.wps.xiaomi.abroad.lite",
+      "name": "WPS Office Lite (Xiaomi)",
+      "group": "3rd Party",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 cn.wps.xiaomi.abroad.lite",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 cn.wps.xiaomi.abroad.lite",
+      "cmd_restore": "adb shell cmd package install-existing cn.wps.xiaomi.abroad.lite",
+      "side_effects": "WPS Office gắn Xiaomi branding",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 34,
+      "package": "com.tencent.soter.soterserver",
+      "name": "Tencent Soter Server",
+      "group": "3rd Party",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.tencent.soter.soterserver",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.tencent.soter.soterserver",
+      "cmd_restore": "adb shell pm enable --user 0 com.tencent.soter.soterserver",
+      "side_effects": "Tencent auth service, không dùng ở VN",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 41,
+      "package": "com.miui.accessibility",
+      "name": "Mi Ditto (Accessibility)",
+      "group": "Xiaomi App",
+      "classification": "RISKY",
+      "method": "disable",
+      "risk": "MEDIUM",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.accessibility",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.accessibility",
+      "side_effects": "App trợ năng Mi, có thể ảnh hưởng tính năng accessibility",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 42,
+      "package": "com.android.egg",
+      "name": "Android Easter Egg",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.egg",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.egg",
+      "cmd_restore": "adb shell cmd package install-existing com.android.egg",
+      "side_effects": "Trò chơi ẩn Android, hoàn toàn vô dụng",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 43,
+      "package": "com.android.bips",
+      "name": "Default Print Service",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.bips",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.bips",
+      "cmd_restore": "adb shell pm enable --user 0 com.android.bips",
+      "side_effects": "In qua WiFi, disable nếu không có máy in",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 44,
+      "package": "com.android.printspooler",
+      "name": "Print Spooler",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.printspooler",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.printspooler",
+      "cmd_restore": "adb shell pm enable --user 0 com.android.printspooler",
+      "side_effects": "Quản lý hàng đợi in",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 45,
+      "package": "com.android.stk",
+      "name": "SIM Toolkit",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.stk",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.stk",
+      "cmd_restore": "adb shell pm enable --user 0 com.android.stk",
+      "side_effects": "STK SIM card, không cần với SIM hiện đại",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 46,
+      "package": "com.android.wallpaper.livepicker",
+      "name": "Live Wallpaper Picker",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.wallpaper.livepicker",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.wallpaper.livepicker",
+      "cmd_restore": "adb shell cmd package install-existing com.android.wallpaper.livepicker",
+      "side_effects": "Trình chọn Live wallpaper",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 47,
+      "package": "com.android.chrome",
+      "name": "Google Chrome",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.android.chrome",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.android.chrome",
+      "cmd_restore": "adb shell cmd package install-existing com.android.chrome",
+      "side_effects": "Dùng trình duyệt khác thì gỡ an toàn",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 48,
+      "package": "com.google.android.apps.tachyon",
+      "name": "Google Meet",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.apps.tachyon",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.apps.tachyon",
+      "cmd_restore": "adb shell cmd package install-existing com.google.android.apps.tachyon",
+      "side_effects": "Google Meet, cài lại từ Play Store khi cần",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 49,
+      "package": "com.google.android.apps.youtube.music",
+      "name": "YouTube Music",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.apps.youtube.music",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.apps.youtube.music",
+      "cmd_restore": "adb shell cmd package install-existing com.google.android.apps.youtube.music",
+      "side_effects": "YTMusic, cài lại từ Play Store khi cần",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 50,
+      "package": "com.google.android.apps.docs",
+      "name": "Google Docs",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.apps.docs",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.apps.docs",
+      "cmd_restore": "adb shell cmd package install-existing com.google.android.apps.docs",
+      "side_effects": "Google Docs, cài lại từ Play Store khi cần",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 51,
+      "package": "com.google.android.apps.photos",
+      "name": "Google Photos",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.apps.photos",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.apps.photos",
+      "cmd_restore": "adb shell cmd package install-existing com.google.android.apps.photos",
+      "side_effects": "Google Photos, cài lại từ Play Store nếu cần",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 52,
+      "package": "com.google.android.apps.wellbeing",
+      "name": "Digital Wellbeing",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.apps.wellbeing",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.apps.wellbeing",
+      "cmd_restore": "adb shell pm enable --user 0 com.google.android.apps.wellbeing",
+      "side_effects": "App quản lý thời gian dùng màn hình",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 53,
+      "package": "com.google.android.marvin.talkback",
+      "name": "TalkBack",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.marvin.talkback",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.marvin.talkback",
+      "cmd_restore": "adb shell pm enable --user 0 com.google.android.marvin.talkback",
+      "side_effects": "Accessibility cho người khiếm thị",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 54,
+      "package": "com.google.android.videos",
+      "name": "Google TV / Play Movies",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.videos",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.videos",
+      "cmd_restore": "adb shell cmd package install-existing com.google.android.videos",
+      "side_effects": "Google TV app, không cần ở VN",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 55,
+      "package": "com.google.ar.lens",
+      "name": "Google Lens (AR)",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "uninstall",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.ar.lens",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.ar.lens",
+      "cmd_restore": "adb shell cmd package install-existing com.google.ar.lens",
+      "side_effects": "AR Lens standalone, Lens vẫn chạy qua Google app",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1"
+      ]
+    },
+    {
+      "id": 56,
+      "package": "com.google.android.as.oss",
+      "name": "Google Private Compute Services",
+      "group": "Google",
+      "classification": "SAFE",
+      "method": "disable",
+      "risk": "LOW",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.google.android.as.oss",
+      "cmd_uninstall": "adb shell pm uninstall -k --user 0 com.google.android.as.oss",
+      "cmd_restore": "adb shell pm enable --user 0 com.google.android.as.oss",
+      "side_effects": "Google AI on-device, ít ảnh hưởng nếu không dùng AI features",
+      "tested_on": [
+        "MIUI14",
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 57,
+      "package": "com.miui.cloudbackup",
+      "name": "Mi Cloud Backup",
+      "group": "Cloud",
+      "classification": "RISKY",
+      "method": "disable",
+      "risk": "MEDIUM",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.cloudbackup",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.cloudbackup",
+      "side_effects": "Backup trước khi disable",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 58,
+      "package": "com.xiaomi.micloud.sdk",
+      "name": "Mi Cloud SDK",
+      "group": "Cloud",
+      "classification": "RISKY",
+      "method": "disable",
+      "risk": "MEDIUM",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.xiaomi.micloud.sdk",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.xiaomi.micloud.sdk",
+      "side_effects": "Backup trước khi disable",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 59,
+      "package": "com.miui.cloudservice",
+      "name": "Mi Cloud Service",
+      "group": "Cloud",
+      "classification": "RISKY",
+      "method": "disable",
+      "risk": "MEDIUM",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.cloudservice",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.cloudservice",
+      "side_effects": "Backup trước khi disable",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    },
+    {
+      "id": 60,
+      "package": "com.miui.micloudsync",
+      "name": "Mi Cloud Sync",
+      "group": "Cloud",
+      "classification": "RISKY",
+      "method": "disable",
+      "risk": "MEDIUM",
+      "root_required": false,
+      "cmd_disable": "adb shell pm disable-user --user 0 com.miui.micloudsync",
+      "cmd_uninstall": null,
+      "cmd_restore": "adb shell pm enable --user 0 com.miui.micloudsync",
+      "side_effects": "Backup trước khi disable",
+      "tested_on": [
+        "HyperOS1",
+        "HyperOS2"
+      ]
+    }
+  ]
+}
