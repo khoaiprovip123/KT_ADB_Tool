@@ -129,7 +129,7 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 relative">
+        <div className="flex-1 overflow-hidden p-8 relative">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'system' && <AppManager />}
           {activeTab === 'settings' && <Settings />}

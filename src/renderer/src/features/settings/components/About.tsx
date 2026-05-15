@@ -14,7 +14,7 @@ export default function About() {
         </div>
         <div>
           <h1 className="text-4xl font-black text-slate-800 tracking-tighter">KT ADB Tool <span className="text-blue-600">Pro</span></h1>
-          <p className="text-lg font-bold text-slate-400 mt-1 tracking-tight">Phiên bản 2.0.0-PRO-MAX</p>
+          <p className="text-lg font-bold text-slate-400 mt-1 tracking-tight">Phiên bản 2.1.0-PRO-MAX</p>
           <div className="flex gap-2 mt-3">
             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest border border-blue-100">Premium</span>
             <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black uppercase tracking-widest border border-emerald-100">Stable</span>
@@ -38,11 +38,11 @@ export default function About() {
           <h3 className="text-xl font-black text-slate-800 tracking-tight">Tính năng cốt lõi</h3>
           <ul className="space-y-2.5">
             {[
-              'Quản lý Ứng dụng & Bloatware (v2.0)',
-              'Thao tác hàng loạt đa năng',
+              'App Manager Glassmorphism (v2.1)',
+              'Thanh tác vụ hàng loạt dạng nổi (Floating Bar)',
+              'Hệ thống lọc & Tìm kiếm thông minh mới',
+              'Tối ưu hóa không gian hiển thị (No-Scroll)',
               'Cài đặt APK thông minh (Shell mode)',
-              'Giao diện Liquid Glass độc bản',
-              'Hệ thống an toàn (Blacklist Core)',
               'Nhật ký lệnh thời gian thực'
             ].map((feature, i) => (
               <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm">

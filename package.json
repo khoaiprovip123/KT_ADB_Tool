@@ -1,6 +1,6 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.0.0-PRO-MAX",
+  "version": "2.1.0-PRO-MAX",
   "description": "KT ADB Tool Pro - Giải pháp quản lý Android chuyên nghiệp và tối ưu",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
@@ -22,12 +22,16 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@types/react-window": "^1.8.8",
     "adbkit": "^2.11.1",
     "adm-zip": "^0.5.17",
     "axios": "^1.16.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.1.7",
     "lucide-react": "^0.378.0",
+    "react-virtualized-auto-sizer": "^2.0.3",
+    "react-window": "^1.8.10",
     "tailwind-merge": "^2.3.0",
     "zustand": "^4.5.2"
   },

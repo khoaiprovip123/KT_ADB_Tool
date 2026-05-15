@@ -46,7 +46,7 @@ export function Dashboard() {
   }, [activeDevice])
 
   return (
-    <div className="max-w-6xl mx-auto h-full flex flex-col">
+    <div className="max-w-6xl mx-auto h-full flex flex-col overflow-y-auto custom-scrollbar pr-2">
       {!activeDevice ? (
         <div className="text-center p-12 bg-white/60 backdrop-blur-2xl rounded-3xl border border-white shadow-xl shadow-slate-200/50 flex-1 flex flex-col items-center justify-center">
           <div className="w-24 h-24 bg-slate-100 rounded-full mx-auto mb-6 flex items-center justify-center">
