@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Monitor, Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Monitor, Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-react'
 import { useDeviceStore } from './store/deviceStore'
 import { LogTerminal } from './components/layout/LogTerminal'
 import { FloatingQuickBoot } from './components/layout/FloatingQuickBoot'
 import { Dashboard } from './components/features/Dashboard'
 import { AppManager } from './components/features/AppManager'
+import { FileManager } from './components/features/FileManager'
 import Settings from './features/settings/Settings'
 import { ControlCenterModal } from './components/layout/ControlCenterModal'
 import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
@@ -66,7 +67,7 @@ function App() {
           <nav className="space-y-2">
             <NavItem icon={<LayoutGrid />} label="Tổng quan" active={activeTab === 'dashboard'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
             <NavItem icon={<Cpu />} label="Quản lý ứng dụng" active={activeTab === 'system'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('system')} />
-            <NavItem icon={<Monitor />} label="Phản chiếu màn hình" active={activeTab === 'mirror'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('mirror')} />
+            <NavItem icon={<FolderOpen />} label="Quản lý tệp tin" active={activeTab === 'files'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('files')} />
           </nav>
         </div>
 
@@ -81,7 +82,7 @@ function App() {
           <h2 className="text-xl font-semibold capitalize text-slate-800">
             {activeTab === 'dashboard' ? 'Tổng quan' :
               activeTab === 'system' ? 'Quản lý ứng dụng' :
-                activeTab === 'mirror' ? 'Phản chiếu màn hình' :
+                activeTab === 'files' ? 'Quản lý tệp tin' :
                   activeTab === 'settings' ? 'Cài đặt' : activeTab}
           </h2>
 
@@ -132,6 +133,7 @@ function App() {
         <div className="flex-1 overflow-hidden p-8 relative">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'system' && <AppManager />}
+          {activeTab === 'files' && <FileManager />}
           {activeTab === 'settings' && <Settings />}
           {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'settings' && (
             <div className="flex items-center justify-center h-full text-slate-400">

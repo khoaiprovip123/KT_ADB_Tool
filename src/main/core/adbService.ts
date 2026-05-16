@@ -5,7 +5,9 @@ import path from 'path'
 import { app } from 'electron'
 import { spawn } from 'child_process'
 
-export let adbClient = adb.createClient()
+export const adbState = {
+  client: adb.createClient()
+}
 
 export async function initAdb(onProgress: (msg: string) => void) {
   try {
@@ -14,11 +16,13 @@ export async function initAdb(onProgress: (msg: string) => void) {
       : path.join(__dirname, '../../resources/bin')
       
     const adbExe = await ensureAdb(binPath, onProgress)
-    await ensureScrcpy(binPath, onProgress) // Đảm bảo luôn tải Scrcpy
     
-    // Tạo lại client với bin path trỏ tới file tải về
-    adbClient = adb.createClient({ bin: adbExe })
+    // Update the client in our state object
+    adbState.client = adb.createClient({ bin: adbExe })
     onProgress('ADB Client connected successfully.')
+
+    ensureScrcpy(binPath, onProgress).catch(() => {})
+
     return true
   } catch (err: any) {
     onProgress(`Init failed: ${err.message}`)
@@ -28,7 +32,7 @@ export async function initAdb(onProgress: (msg: string) => void) {
 
 export async function getDevices() {
   try {
-    const devices = await adbClient.listDevices()
+    const devices = await adbState.client.listDevices()
     return devices
   } catch (error) {
     console.error('Error listing devices:', error)
@@ -38,7 +42,7 @@ export async function getDevices() {
 
 export async function watchDevices(onUpdate: (devices: any[]) => void) {
   try {
-    const tracker = await adbClient.trackDevices()
+    const tracker = await adbState.client.trackDevices()
     tracker.on('add', async () => {
       const devs = await getDevices()
       onUpdate(devs)
@@ -58,7 +62,7 @@ export async function runAdbCommand(deviceId: string, command: string, onLog: (l
   try {
     const shellCommand = command.startsWith('adb shell ') ? command.replace('adb shell ', '') : command;
     // Bọc qua adbkit hoặc child_process
-    const stream = await adbClient.shell(deviceId, shellCommand)
+    const stream = await adbState.client.shell(deviceId, shellCommand)
     
     // Đọc stream
     stream.on('data', (data) => {
@@ -233,7 +237,7 @@ export async function getDeviceInfo(deviceId: string) {
   try {
     const getPropRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'getprop').then(s => {
+      adbState.client.shell(deviceId, 'getprop').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -241,7 +245,7 @@ export async function getDeviceInfo(deviceId: string) {
 
     const wmSizeRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'wm size').then(s => {
+      adbState.client.shell(deviceId, 'wm size').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -249,7 +253,7 @@ export async function getDeviceInfo(deviceId: string) {
 
     const uptimeRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'uptime').then(s => {
+      adbState.client.shell(deviceId, 'uptime').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -272,7 +276,7 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy IP address chuẩn xác qua ip route
     const ipRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'ip route').then(s => {
+      adbState.client.shell(deviceId, 'ip route').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       }).catch(() => resolve(''))
@@ -329,7 +333,7 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số Storage
     const storageRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'df').then(s => {
+      adbState.client.shell(deviceId, 'df').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -380,14 +384,14 @@ export async function getDeviceInfo(deviceId: string) {
     
     const selinux = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'getenforce').then(s => {
+      adbState.client.shell(deviceId, 'getenforce').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data.trim()))
       }).catch(() => resolve('Unknown'))
     })
     
     const suExists = await new Promise<boolean>((resolve) => {
-      adbClient.shell(deviceId, 'which su').then(s => {
+      adbState.client.shell(deviceId, 'which su').then(s => {
         s.on('data', () => resolve(true))
         s.on('end', () => resolve(false))
       }).catch(() => resolve(false))
@@ -397,7 +401,7 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số pin
     const batteryRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'dumpsys battery').then(s => {
+      adbState.client.shell(deviceId, 'dumpsys battery').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -411,7 +415,7 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số RAM
     const ramRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, 'dumpsys meminfo').then(s => {
+      adbState.client.shell(deviceId, 'dumpsys meminfo').then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -465,7 +469,7 @@ export async function getPackages(deviceId: string, filter: 'all' | 'system' | '
     const execCmd = async (cmd: string): Promise<string[]> => {
       const output = await new Promise<string>((resolve) => {
         let data = ''
-        adbClient.shell(deviceId, cmd).then(s => {
+        adbState.client.shell(deviceId, cmd).then(s => {
           s.on('data', c => data += c)
           s.on('end', () => resolve(data))
         }).catch(() => resolve(''))
@@ -554,7 +558,7 @@ export async function manageApp(deviceId: string, pkgName: string, action: 'unin
     
     const output = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, cmd).then(s => {
+      adbState.client.shell(deviceId, cmd).then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data))
       })
@@ -579,7 +583,7 @@ export async function extractApp(deviceId: string, pkgName: string, destPath: st
     // 1. Lấy đường dẫn APK trên thiết bị
     const pathOutput = await new Promise<string>((resolve) => {
       let data = ''
-      adbClient.shell(deviceId, `pm path ${pkgName}`).then(s => {
+      adbState.client.shell(deviceId, `pm path ${pkgName}`).then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data.trim()))
       })
@@ -591,7 +595,7 @@ export async function extractApp(deviceId: string, pkgName: string, destPath: st
     onLog(`Đường dẫn: ${apkPath}`)
     
     // 2. Pull file về PC
-    const transfer = await adbClient.pull(deviceId, apkPath)
+    const transfer = await adbState.client.pull(deviceId, apkPath)
     return new Promise((resolve, reject) => {
       const fs = require('fs')
       const outStream = fs.createWriteStream(destPath)
@@ -620,7 +624,7 @@ export async function installApk(deviceId: string, apkPath: string, onLog: (log:
     onLog(`Đang cài đặt APK: ${apkPath}...`)
     // Đẩy file lên thiết bị trước
     const remotePath = `/data/local/tmp/${Date.now()}.apk`
-    const transfer = await adbClient.push(deviceId, apkPath, remotePath)
+    const transfer = await adbState.client.push(deviceId, apkPath, remotePath)
     await new Promise((resolve, reject) => {
       transfer.on('end', resolve)
       transfer.on('error', reject)
@@ -630,14 +634,14 @@ export async function installApk(deviceId: string, apkPath: string, onLog: (log:
     const output = await new Promise<string>((resolve) => {
       let data = ''
       // -r: Reinstall, -d: Allow downgrade, -t: Allow test packages, -g: Grant all permissions
-      adbClient.shell(deviceId, `pm install -r -d -t -g "${remotePath}"`).then(s => {
+      adbState.client.shell(deviceId, `pm install -r -d -t -g "${remotePath}"`).then(s => {
         s.on('data', c => data += c)
         s.on('end', () => resolve(data.trim()))
       })
     })
 
     // Xoá file tạm
-    await adbClient.shell(deviceId, `rm "${remotePath}"`)
+    await adbState.client.shell(deviceId, `rm "${remotePath}"`)
 
     if (output.toLowerCase().includes('success')) {
       onLog('Cài đặt hoàn tất thành công!')
@@ -649,5 +653,230 @@ export async function installApk(deviceId: string, apkPath: string, onLog: (log:
   } catch (err: any) {
     onLog(`Lỗi hệ thống: ${err.message}`)
     return false
+  }
+}
+// --- File Manager Operations ---
+
+export async function listDirectory(deviceId: string, remotePath: string) {
+  try {
+    if (!deviceId) throw new Error('Device ID is required')
+    
+    // Timeout for readdir
+    const files = await Promise.race([
+      adbState.client.readdir(deviceId, remotePath),
+      new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('Read Directory Timeout')), 8000))
+    ])
+
+    return files.map(file => ({
+      name: file.name,
+      size: file.size,
+      mtime: file.mtime,
+      mode: file.mode,
+      isDir: (file.mode & 0o040000) === 0o040000,
+      isFile: (file.mode & 0o100000) === 0o100000
+    })).sort((a, b) => {
+      if (a.isDir && !b.isDir) return -1
+      if (!a.isDir && b.isDir) return 1
+      return a.name.localeCompare(b.name)
+    })
+  } catch (err: any) {
+    console.error(`Failed to list directory ${remotePath}:`, err)
+    throw err
+  }
+}
+
+export async function createDirectory(deviceId: string, remotePath: string) {
+  try {
+    await adbState.client.shell(deviceId, `mkdir -p "${remotePath}"`)
+    return true
+  } catch (err) {
+    console.error(`Failed to create directory ${remotePath}:`, err)
+    return false
+  }
+}
+
+export async function deleteFile(deviceId: string, remotePath: string) {
+  try {
+    // rm -rf for both files and directories
+    await adbState.client.shell(deviceId, `rm -rf "${remotePath}"`)
+    return true
+  } catch (err) {
+    console.error(`Failed to delete ${remotePath}:`, err)
+    return false
+  }
+}
+
+export async function renameFile(deviceId: string, oldPath: string, newPath: string) {
+  try {
+    await adbState.client.shell(deviceId, `mv "${oldPath}" "${newPath}"`)
+    return true
+  } catch (err) {
+    console.error(`Failed to rename ${oldPath} to ${newPath}:`, err)
+    return false
+  }
+}
+
+export async function pushFile(deviceId: string, localPath: string, remotePath: string, onLog: (log: string) => void) {
+  try {
+    onLog(`Đang tải lên: ${path.basename(localPath)} -> ${remotePath}`)
+    const transfer = await adbState.client.push(deviceId, localPath, remotePath)
+    return new Promise((resolve, reject) => {
+      transfer.on('progress', (stats) => {
+        onLog(`Đang đẩy file: ${((stats.bytesTransferred / 1024) / 1024).toFixed(2)} MB...`)
+      })
+      transfer.on('end', () => {
+        onLog(`Tải lên thành công!`)
+        resolve(true)
+      })
+      transfer.on('error', (err) => {
+        onLog(`Lỗi tải lên: ${err.message}`)
+        reject(err)
+      })
+    })
+  } catch (err: any) {
+    onLog(`Lỗi hệ thống khi đẩy file: ${err.message}`)
+    return false
+  }
+}
+
+export async function pullFile(deviceId: string, remotePath: string, localPath: string, onLog: (log: string) => void) {
+  try {
+    onLog(`Đang tải về: ${remotePath} -> ${localPath}`)
+    const transfer = await adbState.client.pull(deviceId, remotePath)
+    return new Promise((resolve, reject) => {
+      const fs = require('fs')
+      const outStream = fs.createWriteStream(localPath)
+      transfer.on('progress', (stats) => {
+        onLog(`Đang kéo file: ${((stats.bytesTransferred / 1024) / 1024).toFixed(2)} MB...`)
+      })
+      transfer.on('end', () => {
+        onLog(`Tải về thành công!`)
+        resolve(true)
+      })
+      transfer.on('error', (err) => {
+        onLog(`Lỗi tải về: ${err.message}`)
+        reject(err)
+      })
+      transfer.pipe(outStream)
+    })
+  } catch (err: any) {
+    onLog(`Lỗi hệ thống khi kéo file: ${err.message}`)
+    return false
+  }
+}
+
+export async function getFileBase64(deviceId: string, remotePath: string) {
+  try {
+    const transfer = await adbState.client.pull(deviceId, remotePath)
+    return new Promise<string>((resolve, reject) => {
+      const chunks: Buffer[] = []
+      transfer.on('data', (chunk: Buffer) => chunks.push(chunk))
+      transfer.on('end', () => {
+        const buffer = Buffer.concat(chunks)
+        resolve(buffer.toString('base64'))
+      })
+      transfer.on('error', (err) => {
+        console.error('Transfer error:', err)
+        reject(err)
+      })
+    })
+  } catch (err: any) {
+    console.error(`getFileBase64 Error: ${err.message}`)
+    throw err
+  }
+}
+
+export async function getStoragePoints(deviceId: string) {
+  // Clean deviceId (remove any parentheses or extra info)
+  const cleanId = deviceId.split(' ')[0].trim()
+  
+  try {
+    const output = await Promise.race([
+      new Promise<string>((resolve, reject) => {
+        let data = ''
+        adbState.client.shell(cleanId, 'df').then(s => {
+          s.on('data', c => data += c)
+          s.on('end', () => resolve(data))
+          s.on('error', reject)
+        }).catch(reject)
+      }),
+      new Promise<string>((_, reject) => setTimeout(() => reject(new Error('ADB Timeout')), 4000))
+    ])
+
+    console.log(`Raw DF Output: ${output}`)
+    const lines = output.split('\n')
+    const storagePoints: any[] = []
+
+    const getPhysicalSize = (totalGB: number) => {
+      const standards = [8, 16, 32, 64, 128, 256, 512, 1024]
+      for (const s of standards) {
+        if (totalGB <= s * 0.95) return s
+      }
+      return Math.ceil(totalGB / 128) * 128
+    }
+
+    // Parse Internal Storage (/data or /sdcard or /storage/emulated/0)
+    let internalLine = lines.find(l => l.includes(' /data')) || lines.find(l => l.includes('/storage/emulated')) || lines.find(l => l.includes('/sdcard'))
+    
+    if (internalLine) {
+      const parts = internalLine.trim().split(/\s+/)
+      if (parts.length >= 4) {
+        const total1K = parseInt(parts[1]) || 0
+        const avail1K = parseInt(parts[3]) || 0
+        const totalGB = total1K / 1024 / 1024
+        const availGB = avail1K / 1024 / 1024
+        const physicalGB = getPhysicalSize(totalGB)
+        const usedGB = Math.max(0, physicalGB - availGB)
+        
+        storagePoints.push({
+          name: 'Bộ nhớ trong',
+          path: '/sdcard',
+          type: 'internal',
+          total: physicalGB * 1024 * 1024 * 1024,
+          used: usedGB * 1024 * 1024 * 1024,
+          percent: Math.max(0, Math.min(100, Math.round((usedGB / physicalGB) * 100)))
+        })
+      }
+    }
+
+    // Parse External Storage
+    lines.forEach(line => {
+      if (line.includes('/storage/') && !line.includes('/emulated') && !line.includes('self')) {
+        const parts = line.trim().split(/\s+/)
+        if (parts.length >= 4) {
+          const mountPath = parts[parts.length - 1]
+          const id = mountPath.split('/').pop()
+          const total1K = parseInt(parts[1]) || 0
+          const avail1K = parseInt(parts[3]) || 0
+          if (total1K > 0) {
+            storagePoints.push({
+              name: `Thẻ nhớ (${id})`,
+              path: mountPath,
+              type: 'external',
+              total: total1K * 1024,
+              used: (total1K - avail1K) * 1024,
+              percent: Math.max(0, Math.min(100, Math.round(((total1K - avail1K) / total1K) * 100)))
+            })
+          }
+        }
+      }
+    })
+
+    // Fallback: If no storage points found, at least provide /sdcard
+    if (storagePoints.length === 0) {
+      storagePoints.push({
+        name: 'Bộ nhớ trong',
+        path: '/sdcard',
+        type: 'internal',
+        total: 0,
+        used: 0,
+        percent: 0
+      })
+    }
+
+    return storagePoints
+  } catch (err) {
+    console.error('getStoragePoints Error:', err)
+    return [{ name: 'Bộ nhớ trong', path: '/sdcard', type: 'internal', total: 0, used: 0, percent: 0 }]
   }
 }

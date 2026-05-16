@@ -20,6 +20,17 @@ const api = {
   extractApp: (deviceId: string, pkgName: string, destPath: string) => ipcRenderer.invoke('adb:extract-app', { deviceId, pkgName, destPath }),
   installApk: (deviceId: string, apkPath: string) => ipcRenderer.invoke('adb:install-apk', { deviceId, apkPath }),
   openApkDialog: () => ipcRenderer.invoke('dialog:open-apk'),
+  // File Manager
+  listDirectory: (deviceId: string, remotePath: string) => ipcRenderer.invoke('adb:list-directory', { deviceId, remotePath }),
+  createDirectory: (deviceId: string, remotePath: string) => ipcRenderer.invoke('adb:create-directory', { deviceId, remotePath }),
+  deleteFile: (deviceId: string, remotePath: string) => ipcRenderer.invoke('adb:delete-file', { deviceId, remotePath }),
+  renameFile: (deviceId: string, oldPath: string, newPath: string) => ipcRenderer.invoke('adb:rename-file', { deviceId, oldPath, newPath }),
+  pushFile: (deviceId: string, localPath: string, remotePath: string) => ipcRenderer.invoke('adb:push-file', { deviceId, localPath, remotePath }),
+  pullFile: (deviceId: string, remotePath: string, localPath: string) => ipcRenderer.invoke('adb:pull-file', { deviceId, remotePath, localPath }),
+  getFileBase64: (deviceId: string, remotePath: string) => ipcRenderer.invoke('adb:get-file-base64', { deviceId, remotePath }),
+  getStoragePoints: (deviceId: string) => ipcRenderer.invoke('adb:get-storage-points', { deviceId }),
+  saveFileDialog: (defaultName: string) => ipcRenderer.invoke('dialog:save-file', { defaultName }),
+  openFileDialog: () => ipcRenderer.invoke('dialog:open-file'),
   onLogStream: (callback: (log: string) => void) => {
     ipcRenderer.on('adb:log-stream', (_event, log) => callback(log))
   }

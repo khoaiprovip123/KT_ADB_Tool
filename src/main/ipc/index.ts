@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron'
-import { getDevices, watchDevices, runAdbCommand, initAdb, getDeviceInfo, runScrcpy, connectWifi, connectIp, pairDevice, getPackages, manageApp, extractApp, installApk } from '../core/adbService'
+import { getDevices, watchDevices, runAdbCommand, initAdb, getDeviceInfo, runScrcpy, connectWifi, connectIp, pairDevice, getPackages, manageApp, extractApp, installApk, listDirectory, createDirectory, deleteFile, renameFile, pushFile, pullFile, getFileBase64, getStoragePoints } from '../core/adbService'
 
 export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   ipcMain.handle('adb:init', async () => {
@@ -112,5 +112,67 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
         mainWindow.webContents.send('adb:log-stream', log)
       }
     })
+  })
+
+  // --- File Manager Handlers ---
+  ipcMain.handle('adb:list-directory', async (event, { deviceId, remotePath }) => {
+    return await listDirectory(deviceId, remotePath)
+  })
+
+  ipcMain.handle('adb:create-directory', async (event, { deviceId, remotePath }) => {
+    return await createDirectory(deviceId, remotePath)
+  })
+
+  ipcMain.handle('adb:delete-file', async (event, { deviceId, remotePath }) => {
+    return await deleteFile(deviceId, remotePath)
+  })
+
+  ipcMain.handle('adb:rename-file', async (event, { deviceId, oldPath, newPath }) => {
+    return await renameFile(deviceId, oldPath, newPath)
+  })
+
+  ipcMain.handle('adb:push-file', async (event, { deviceId, localPath, remotePath }) => {
+    return await pushFile(deviceId, localPath, remotePath, (log) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('adb:log-stream', log)
+      }
+    })
+  })
+
+  ipcMain.handle('adb:pull-file', async (_, { deviceId, remotePath, localPath }) => {
+    return await pullFile(deviceId, remotePath, localPath, (log) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('adb:log-stream', log)
+      }
+    })
+  })
+
+  ipcMain.handle('adb:get-file-base64', async (_, { deviceId, remotePath }) => {
+    return await getFileBase64(deviceId, remotePath)
+  })
+
+  ipcMain.handle('adb:get-storage-points', async (event, args) => {
+    try {
+      const { deviceId } = args || {}
+      if (!deviceId) return []
+      return await getStoragePoints(deviceId)
+    } catch (err) {
+      console.error('IPC Error (get-storage-points):', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('dialog:save-file', async (event, { defaultName }) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: defaultName
+    })
+    return result.filePath
+  })
+
+  ipcMain.handle('dialog:open-file', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile']
+    })
+    return result.filePaths[0]
   })
 }

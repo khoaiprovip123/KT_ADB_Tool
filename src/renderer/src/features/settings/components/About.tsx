@@ -39,6 +39,7 @@ export default function About() {
           <ul className="space-y-2.5">
             {[
               'App Manager Glassmorphism (v2.1)',
+              'File Manager Pro (Immersive Preview)',
               'Thanh tác vụ hàng loạt dạng nổi (Floating Bar)',
               'Hệ thống lọc & Tìm kiếm thông minh mới',
               'Tối ưu hóa không gian hiển thị (No-Scroll)',

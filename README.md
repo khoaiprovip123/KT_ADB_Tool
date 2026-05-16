@@ -10,6 +10,11 @@
 - **Thao tác hàng loạt**: Gỡ cài đặt, Vô hiệu hóa, Bật lại và Khôi phục hàng chục ứng dụng cùng lúc với giao diện Selection Bar chuyên nghiệp.
 - **Cài đặt APK**: Hỗ trợ cài đặt file APK kéo thả với cơ chế shell install an toàn.
 
+### 📂 Quản lý Tệp tin (File Manager Pro)
+- **Truy cập Immersive**: Duyệt file với giao diện rộng rãi, hỗ trợ bộ nhớ trong và thẻ nhớ ngoài.
+- **Trình xem ảnh thông minh**: Xem trước hình ảnh 4K với chế độ Zoom & Pan mượt mà bằng chuột.
+- **Thao tác nhanh**: Hỗ trợ sao chép, di chuyển, xóa và tải tệp tin từ thiết bị về máy tính.
+
 ### 🛡️ Bảo mật & Hệ thống
 - **Tối ưu hóa**: Các tinh chỉnh hệ thống giúp máy chạy mượt hơn, tiết kiệm pin.
 - **An toàn tuyệt đối**: Tích hợp danh sách Blacklist ngăn chặn việc gỡ bỏ các thành phần cốt lõi gây lỗi máy.
