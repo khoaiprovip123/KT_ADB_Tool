@@ -1,0 +1,830 @@
+KT ADB TOOL - DEV PHASE CHECKLIST
+Ngay soan: 2026-05-19
+Pham vi: phat trien dev, chua dong goi exe
+
+======================================================================
+0. MUC TIEU VA RANH GIOI
+======================================================================
+
+[ ] G-001 Muc tieu chinh: dua app ve trang thai dev on dinh, co the tiep tuc xay menu lon moi.
+[ ] G-002 Chua lam dong goi exe, chua toi uu electron-builder, chua can build:win.
+[ ] G-003 Giu rieng menu "Tinh chinh he thong" cho cac tweak hien co: debloat, display/DPI, security, game, animation, controls, multitasking.
+[ ] G-004 Giu rieng menu "Toi uu he thong" cho batch toi uu he thong da co.
+[ ] G-005 Co 2 menu moi can xay tiep:
+          - "Trai nghiem nguoi dung": tuy bien trai nghiem Xiaomi/MIUI/HyperOS bang cac flag/lenh an, co detect theo thiet bi.
+          - "Nang cao ADB": can thiep sau vao ADB cho power-user, co guard an toan va log ro rang.
+[ ] G-006 Khong hardcode nut bam nguy hiem truc tiep vao UI neu chua co validate o main process.
+[ ] G-007 Moi thao tac nguy hiem phai co: mo ta rui ro, confirm, log command, log output, ket qua success/fail.
+[ ] G-008 Moi phase xong phai chay it nhat: npm run typecheck hoac typecheck theo phan lien quan.
+
+======================================================================
+1. HIEN TRANG DA GHI NHAN
+======================================================================
+
+[ ] S-001 App hien co cac menu trong src/renderer/src/App.tsx:
+          - Tong quan
+          - Quan ly ung dung
+          - Quan ly tep tin
+          - Toi uu he thong
+          - Tinh chinh he thong
+          - Cai dat
+
+[ ] S-002 Chua co menu "Trai nghiem nguoi dung".
+[ ] S-002B Chua co menu "Nang cao ADB".
+[ ] S-003 src/main/core/adbService.ts dang qua lon, vua xu ly device, app, file, tweak, debloat, display.
+[ ] S-004 src/main/ipc/index.ts dang gom nhieu IPC handler trong 1 file.
+[ ] S-005 src/preload/index.ts expose window.api dang tang nhanh, chua co type chung cho renderer.
+[ ] S-006 Renderer con dung @ts-ignore va (window as any).api o nhieu noi.
+[ ] S-007 npm run typecheck hien chua pass.
+[ ] S-008 xiaomi_bloatware_removal.json co schema root object { meta, quick_guide, packages }, khong phai array truc tiep.
+[ ] S-009 File Manager co bug xoa 1 file do setSelectedFiles roi goi handleDelete ngay, state chua kip cap nhat.
+[ ] S-010 SystemOptimization dang co kha nang bao success du lenh ADB fail vi khong check ket qua tung command.
+[ ] S-011 App.tsx dang filter bot mot so log loi shell, can can nhac khong che loi that.
+
+======================================================================
+2. PHASE 0 - CHOT BASELINE DEV
+======================================================================
+
+Muc tieu:
+Tao moc kiem tra hien trang truoc khi sua, tranh sua lan man.
+
+[ ] P0-001 Chay git status --short va ghi lai file dang thay doi.
+[ ] P0-002 Chay npm run typecheck:node, luu cac nhom loi chinh.
+[ ] P0-003 Chay npm run typecheck:web, luu cac nhom loi chinh.
+[ ] P0-004 Khong chay npm run lint neu script con co --fix va chua muon auto-sua code.
+[ ] P0-005 Xac dinh file nao la source dang dung, file nao chi la ban nhap trong folder New/.
+[ ] P0-006 Quyet dinh folder New/ se giu lam reference hay xoa/chuyen vao plans sau khi merge xong.
+
+Files lien quan:
+- package.json
+- tsconfig.node.json
+- tsconfig.web.json
+- src/main/core/adbService.ts
+- src/main/ipc/index.ts
+- src/preload/index.ts
+- src/renderer/src/App.tsx
+- New/
+
+Dieu kien xong:
+[ ] Co danh sach loi typecheck da gom nhom.
+[ ] Co quy uoc: moi phase khong duoc lam tang so loi typecheck.
+
+======================================================================
+3. PHASE 1 - SUA TYPECHECK VA TYPE WINDOW.API
+======================================================================
+
+Muc tieu:
+Lam nen TypeScript sach de tiep tuc phat trien cac menu moi khong can @ts-ignore.
+
+[ ] P1-001 Sua import fs/path trong main core cho dung voi tsconfig hien tai.
+[ ] P1-002 Them declaration toi thieu cho module adbkit neu chua co @types.
+[ ] P1-003 Them declaration toi thieu cho module adm-zip neu chua co @types.
+[ ] P1-004 Sua loi fs chua import trong adbService.ts.
+[ ] P1-005 Dinh nghia type return cho runAdbCommand:
+          { success: boolean; output: string; error?: string }
+[ ] P1-006 Sua ipc/index.ts de output khong con type unknown.
+[ ] P1-007 Doi cac tham so event khong dung thanh _event.
+[ ] P1-008 Xoa hoac su dung cac bien/import unused trong renderer.
+[ ] P1-009 Tao file type chung cho preload API.
+          De xuat: src/renderer/src/types/preload.d.ts
+[ ] P1-010 Khai bao Window.api day du trong preload.d.ts.
+[ ] P1-011 Thay cac @ts-ignore lien quan window.api bang type dung.
+[ ] P1-012 Thay cac (window as any).api bang window.api.
+
+Files lien quan:
+- src/main/core/adbService.ts
+- src/main/core/adbDownloader.ts
+- src/main/core/scrcpyDownloader.ts
+- src/main/ipc/index.ts
+- src/preload/index.ts
+- src/renderer/src/types/preload.d.ts
+- src/renderer/src/App.tsx
+- src/renderer/src/components/features/*.tsx
+- src/renderer/src/components/layout/*.tsx
+
+Dieu kien xong:
+[ ] npm run typecheck:node pass.
+[ ] npm run typecheck:web pass.
+[ ] npm run typecheck pass.
+[ ] Khong con @ts-ignore cho window.api trong App.tsx.
+
+======================================================================
+4. PHASE 2 - TACH NHOM SERVICE VA IPC
+======================================================================
+
+Muc tieu:
+Khong tiep tuc nhoi moi thu vao adbService.ts va ipc/index.ts.
+
+[ ] P2-001 Giu adbService.ts lam core ADB runner va cac ham dung chung.
+[ ] P2-002 Tao service rieng cho device:
+          src/main/core/deviceService.ts
+[ ] P2-003 Tao service rieng cho app manager:
+          src/main/core/appService.ts
+[ ] P2-004 Tao service rieng cho file manager:
+          src/main/core/fileService.ts
+[ ] P2-005 Tao service rieng cho system tweaks:
+          src/main/core/systemTweaksService.ts
+[ ] P2-006 Tao service rieng cho optimization:
+          src/main/core/optimizationService.ts
+[ ] P2-007 Tao service moi cho menu Trai nghiem nguoi dung:
+          src/main/core/xiaomiExperienceService.ts
+[ ] P2-007B Tao registry cho lenh an Xiaomi/HyperOS:
+          src/main/core/xiaomiExperienceRegistry.ts
+[ ] P2-007C Tao IPC rieng cho menu Trai nghiem nguoi dung:
+          src/main/ipc/xiaomiExperienceHandlers.ts
+[ ] P2-008 Tao service moi cho menu Nang cao ADB:
+          src/main/core/advancedAdbService.ts
+[ ] P2-009 Tach IPC theo module:
+          src/main/ipc/deviceHandlers.ts
+          src/main/ipc/appHandlers.ts
+          src/main/ipc/fileHandlers.ts
+          src/main/ipc/systemTweaksHandlers.ts
+          src/main/ipc/optimizationHandlers.ts
+          src/main/ipc/xiaomiExperienceHandlers.ts
+          src/main/ipc/advancedAdbHandlers.ts
+[ ] P2-010 src/main/ipc/index.ts chi con goi register cac handler con.
+[ ] P2-011 Giu backward compatibility tam thoi voi ten channel cu de UI khong vo.
+
+Dieu kien xong:
+[ ] App van khoi dong duoc bang npm run dev.
+[ ] npm run typecheck pass.
+[ ] Cac menu hien co van render.
+[ ] Chua doi behavior nguoi dung trong phase nay, chi tach code.
+
+Ghi chu:
+- Neu phase nay qua lon, chia thanh 2.1: tach IPC truoc, 2.2: tach service sau.
+
+======================================================================
+5. PHASE 3 - SUA CAC TINH NANG HIEN CO TRUOC KHI THEM MENU MOI
+======================================================================
+
+Muc tieu:
+Menu moi khong nen xay tren nen cac menu cu con bug nghiem trong.
+
+----------------------------------------------------------------------
+3A. Bloatware DB va Tinh chinh he thong
+----------------------------------------------------------------------
+
+[ ] P3A-001 Sua getBloatwareDb de doc parsed.packages thay vi parsed.filter truc tiep.
+[ ] P3A-002 Map classification SAFE/RISKY/KEEP thanh risk dung cua app.
+[ ] P3A-003 Map group thanh category.
+[ ] P3A-004 Map side_effects hoac name thanh description neu description khong co.
+[ ] P3A-005 Map method disable thanh preferDisable true.
+[ ] P3A-006 Neu JSON loi schema, log warning co path, khong silent catch hoan toan.
+[ ] P3A-007 Gop BLACKLIST va PROTECTED_PACKAGES thanh mot danh sach duy nhat.
+[ ] P3A-008 Them cac package trong quick_guide.do_not_remove vao protected list.
+[ ] P3A-009 Validate package name truoc khi debloat/disable/restore.
+[ ] P3A-010 Sau moi thao tac tweak, reload lai status that tu device.
+
+Dieu kien xong:
+[ ] Menu Tinh chinh he thong load duoc DB that tu xiaomi_bloatware_removal.json.
+[ ] Package core khong the bi uninstall/disable tu UI.
+[ ] Neu package thao tac fail, UI bao fail, khong bao success gia.
+
+----------------------------------------------------------------------
+3B. File Manager
+----------------------------------------------------------------------
+
+[ ] P3B-001 Sua row click va selection flow cho ro:
+          - click vao folder: mo folder
+          - click vao file: preview neu support
+          - checkbox hoac action rieng: chon file
+[ ] P3B-002 Sua xoa 1 file: tao ham deleteFiles(names: string[]) khong phu thuoc state async.
+[ ] P3B-003 Sua xoa nhieu file: handleDelete lay danh sach selected tai thoi diem confirm.
+[ ] P3B-004 Validate remotePath o main process:
+          - khong rong
+          - khong phai /
+          - khong phai /system
+          - khong phai /data
+          - khong chua quote/control characters
+[ ] P3B-005 Them log cho push/pull/delete/rename.
+
+Dieu kien xong:
+[ ] Xoa 1 file bang hover action thanh cong.
+[ ] Xoa multi-select dung danh sach da chon.
+[ ] Khong the xoa root path hoac system path.
+
+----------------------------------------------------------------------
+3C. SystemOptimization
+----------------------------------------------------------------------
+
+[ ] P3C-001 Moi step ADB phai check res.success.
+[ ] P3C-002 Neu step fail, modal hien failed hoac partial success.
+[ ] P3C-003 Khong set SUCCESS neu co step fail.
+[ ] P3C-004 Cac lenh reboot, rm -rf, trim-caches, compile all phai co confirm rieng.
+[ ] P3C-005 Bo filter che loi shell trong App.tsx hoac chuyen thanh log level debug.
+[ ] P3C-006 Log command va output cho tung step.
+
+Dieu kien xong:
+[ ] Lenh fail thi UI bao fail.
+[ ] User thay du command/output de debug.
+[ ] Khong reboot may neu user chua confirm.
+
+----------------------------------------------------------------------
+3D. LogTerminal va Device Store
+----------------------------------------------------------------------
+
+[ ] P3D-001 Chuan hoa log object neu can:
+          { ts, level, source, message }
+[ ] P3D-002 Giu toi da 1000 hoac 2000 log, co export txt/json.
+[ ] P3D-003 Them filter level: info, success, warn, error.
+[ ] P3D-004 Khong removeAllListeners neu co nhieu component cung can listener, dung unsubscribe ro rang.
+
+Dieu kien xong:
+[ ] Log khong bi duplicate.
+[ ] Log loi that khong bi an.
+[ ] Export log doc duoc va co timestamp.
+
+======================================================================
+6. PHASE 4A - THIET KE MENU MOI: TRAI NGHIEM NGUOI DUNG
+======================================================================
+
+Muc tieu:
+Them menu rieng de tuy bien trai nghiem nguoi dung tren Xiaomi/MIUI/HyperOS bang cac flag/setting an.
+Menu nay khong phai "Tinh chinh he thong" co ban va khong phai raw ADB power-user.
+
+Ten menu de xuat:
+[ ] "Trai nghiem nguoi dung"
+
+Vi tri:
+[ ] Them vao sidebar sau "Toi uu he thong" va truoc "Tinh chinh he thong".
+
+Scope cua menu Trai nghiem nguoi dung:
+[ ] UX-001 Dung cho cac tuy bien trai nghiem ma Xiaomi an theo dong may/ROM.
+[ ] UX-002 Co device profile rieng de biet may la Xiaomi/Redmi/POCO, MIUI hay HyperOS.
+[ ] UX-003 Co capability detection: tinh nang nao may co thi enable, may khong co thi disabled.
+[ ] UX-004 Khong hien nut apply nhu nhau tren moi may neu key/package/command khong ton tai.
+[ ] UX-005 Moi tuy chon co read current truoc khi apply.
+[ ] UX-006 Moi tuy chon co rollback neu co the doc gia tri cu.
+[ ] UX-007 Tinh nang rui ro phai co badge va confirm.
+
+Khong dua vao menu Trai nghiem nguoi dung:
+[ ] UX-008 Debloat app rac: de o Tinh chinh he thong.
+[ ] UX-009 DPI/resolution/animation scale co ban: de o Tinh chinh he thong.
+[ ] UX-010 Batch toi uu performance/cache/reboot: de o Toi uu he thong.
+[ ] UX-011 Raw shell, AppOps, permission manager sau: de o Nang cao ADB.
+
+Trang thai ho tro can co:
+[ ] UX-012 SUPPORTED_ON: may ho tro va dang bat.
+[ ] UX-013 SUPPORTED_OFF: may ho tro va dang tat.
+[ ] UX-014 UNSUPPORTED: may/ROM khong co key, package hoac command.
+[ ] UX-015 UNKNOWN: khong doc duoc trang thai.
+[ ] UX-016 ERROR: command detect loi.
+
+Nhom tinh nang du kien:
+[ ] UX-017 Hien thi va man hinh:
+          - refresh rate/display mode neu key ton tai
+          - show refresh rate
+          - reading mode/display enhancement neu ROM ho tro
+          - notch/fullscreen/gesture bar neu co key
+[ ] UX-018 Cam ung va dieu huong:
+          - touch response hidden flags neu co
+          - haptic feedback level neu co
+          - gesture navigation hidden flags neu co
+          - long press/touch delay nang cao neu khac voi setting co ban
+[ ] UX-019 Launcher va recent apps:
+          - blur recent apps neu co key
+          - app drawer/minus screen flags neu co
+          - icon animation/launcher animation hidden flags neu co
+          - memory extension display neu co
+[ ] UX-020 Am thanh va rung:
+          - sound assistant package/setting neu co
+          - dolby/dirac package flags neu co
+          - volume steps hidden setting neu co
+          - haptic preset neu co
+[ ] UX-021 Game va hien thi trai nghiem:
+          - game turbo flags neu package ton tai
+          - fps/refresh overlay neu ROM ho tro
+          - video toolbox/MEMC neu package/key ton tai
+[ ] UX-022 Quang cao va goi y trong UI he thong:
+          - personalized ads flags
+          - recommendations flags
+          - getapps/service suggestions neu package/key ton tai
+
+Kien truc du kien:
+[ ] UX-023 Tao type XiaomiExperienceItem:
+          id
+          title
+          description
+          category
+          risk
+          detectStrategy
+          readCommand
+          enableCommand
+          disableCommand
+          rollbackStrategy
+          supportedBrands
+          requiredPackages
+          requiredProps
+          requiredSettingsKeys
+[ ] UX-024 Tao xiaomiExperienceRegistry.ts chua metadata, khong hardcode trong UI.
+[ ] UX-025 Tao xiaomiExperienceService.ts xu ly detect/read/apply/rollback.
+[ ] UX-026 Tao IPC:
+          xiaomi:get-device-profile
+          xiaomi:get-experience-capabilities
+          xiaomi:read-experience-item
+          xiaomi:apply-experience-item
+          xiaomi:rollback-experience-item
+[ ] UX-027 Renderer chi gui itemId + params, khong gui raw command cho menu nay.
+
+Files du kien:
+- src/renderer/src/components/features/UserExperience.tsx
+- src/renderer/src/components/features/experience/ExperienceCategoryList.tsx
+- src/renderer/src/components/features/experience/ExperienceItemCard.tsx
+- src/renderer/src/components/features/experience/ExperienceDeviceProfile.tsx
+- src/renderer/src/components/features/experience/ExperienceApplyModal.tsx
+- src/main/core/xiaomiExperienceService.ts
+- src/main/core/xiaomiExperienceRegistry.ts
+- src/main/ipc/xiaomiExperienceHandlers.ts
+
+Dieu kien xong:
+[ ] Sidebar co menu "Trai nghiem nguoi dung".
+[ ] Menu render duoc khi chua co device.
+[ ] Khi co device, hien device profile va danh sach capability.
+[ ] Item unsupported bi disabled, khong chay command.
+[ ] It nhat 1 nhom read-only va 1 setting write an toan duoc lam end-to-end.
+
+======================================================================
+7. PHASE 4B - THIET KE MENU MOI: NANG CAO ADB
+======================================================================
+
+Muc tieu:
+Them menu moi cho cac thao tac can thiep sau bang ADB, khong trung lap voi "Tinh chinh he thong".
+
+Ten menu de xuat:
+[ ] "Nang cao ADB"
+
+Vi tri:
+[ ] Them vao sidebar sau "Tinh chinh he thong" hoac truoc "Cai dat".
+
+Scope cua menu moi:
+[ ] A-001 Cho nguoi dung ky thuat can thiep sau vao ADB.
+[ ] A-002 Co command catalog, device profile, capability detection, command runner.
+[ ] A-003 Co che do "Doc truoc, sua sau": read command truoc khi apply.
+[ ] A-004 Co confirm nghiem ngat voi command rui ro.
+[ ] A-005 Co lich su lenh va export ket qua.
+
+Khong dua vao menu moi:
+[ ] A-006 Debloat co ban: de o Tinh chinh he thong.
+[ ] A-007 DPI/resolution/animation co ban: de o Tinh chinh he thong.
+[ ] A-008 Batch toi uu performance: de o Toi uu he thong.
+[ ] A-009 File browser co ban: de o Quan ly tep tin.
+[ ] A-010 Hidden Xiaomi UX flags co detect theo dong may: de o Trai nghiem nguoi dung.
+
+Files du kien:
+- src/renderer/src/components/features/AdvancedAdb.tsx
+- src/renderer/src/components/features/advanced/DeviceProfilePanel.tsx
+- src/renderer/src/components/features/advanced/CommandCatalogPanel.tsx
+- src/renderer/src/components/features/advanced/CommandRunnerPanel.tsx
+- src/renderer/src/components/features/advanced/AdvancedHistoryPanel.tsx
+- src/renderer/src/components/features/advanced/RiskConfirmModal.tsx
+- src/main/core/advancedAdbService.ts
+- src/main/core/advancedCommandRegistry.ts
+- src/main/core/adbValidators.ts
+- src/main/ipc/advancedAdbHandlers.ts
+
+======================================================================
+8. PHASE 5 - NEN TANG AN TOAN CHO NANG CAO ADB
+======================================================================
+
+Muc tieu:
+Truoc khi co UI nut bam sau, phai co registry va guard.
+
+[ ] P5-001 Tao enum risk level:
+          SAFE
+          MEDIUM
+          RISKY
+          DANGEROUS
+
+[ ] P5-002 Tao enum command mode:
+          READ_ONLY
+          WRITE_SETTING
+          PACKAGE_OP
+          FILE_OP
+          REBOOT_OP
+          RAW_SHELL
+
+[ ] P5-003 Tao type AdvancedCommandDefinition:
+          id
+          title
+          description
+          category
+          risk
+          mode
+          readCommand
+          applyCommand
+          rollbackCommand
+          requiredPackages
+          requiredProps
+          supportedBrands
+          androidMin
+          androidMax
+          needsConfirmText
+          outputParsers
+
+[ ] P5-004 Tao registry command dau tien chi gom READ_ONLY.
+[ ] P5-005 Tao validatePackageName().
+[ ] P5-006 Tao validateSettingsKey().
+[ ] P5-007 Tao validateDeviceConfigNamespace().
+[ ] P5-008 Tao validateRemotePath().
+[ ] P5-009 Tao buildShellCommand tu template, khong noi string tuy tien.
+[ ] P5-010 Tao executeAdvancedCommand() o main process.
+[ ] P5-011 Renderer chi gui commandId + params, khong gui raw shell cho preset command.
+[ ] P5-012 Raw shell neu co thi dat trong tab rieng, can bat "Advanced raw mode".
+
+Dieu kien xong:
+[ ] Co the chay command READ_ONLY tu registry.
+[ ] Command WRITE/DANGEROUS chua can enable.
+[ ] npm run typecheck pass.
+
+======================================================================
+9. PHASE 6 - DEVICE PROFILE VA CAPABILITY DETECTION DUNG CHUNG
+======================================================================
+
+Muc tieu:
+May cao cap co gi thi hien, may cap thap khong co thi danh dau unsupported/unknown.
+Phase nay dung chung cho ca "Trai nghiem nguoi dung" va "Nang cao ADB".
+
+[ ] P6-001 Tao getDeviceProfile gom:
+          - ro.product.brand
+          - ro.product.manufacturer
+          - ro.product.model
+          - ro.product.device
+          - ro.build.version.release
+          - ro.build.version.sdk
+          - ro.miui.ui.version.name
+          - ro.miui.ui.version.code
+          - ro.mi.os.version.name neu co
+          - ro.build.version.incremental
+
+[ ] P6-002 Tao getInstalledPackageSet:
+          - pm list packages
+          - pm list packages -d
+
+[ ] P6-003 Tao readSettingsSnapshot:
+          - settings list system
+          - settings list secure
+          - settings list global
+
+[ ] P6-004 Tao readDeviceConfigSnapshot neu supported:
+          - device_config list
+          - fallback neu command khong co
+
+[ ] P6-005 Tao capability state:
+          SUPPORTED_ON
+          SUPPORTED_OFF
+          UNSUPPORTED
+          UNKNOWN
+          ERROR
+
+[ ] P6-006 Moi command trong registry co detect strategy:
+          - by getprop
+          - by settings key exists
+          - by package exists
+          - by command output
+          - by Android SDK version
+
+[ ] P6-007 UI hien badge:
+          - Ho tro
+          - Khong ho tro
+          - Khong xac dinh
+          - Rui ro
+
+Dieu kien xong:
+[ ] Vao menu Trai nghiem nguoi dung va Nang cao ADB thay profile thiet bi.
+[ ] Cac command unsupported bi disabled.
+[ ] Non-Xiaomi device khong bi crash.
+
+======================================================================
+10. PHASE 7 - CAC NHOM TINH NANG CUA NANG CAO ADB
+======================================================================
+
+Lam theo thu tu tu it rui ro den rui ro cao.
+
+----------------------------------------------------------------------
+7A. Device Diagnostics - READ ONLY
+----------------------------------------------------------------------
+
+[ ] P7A-001 Xem getprop co filter/search.
+[ ] P7A-002 Xem settings list global/system/secure co search.
+[ ] P7A-003 Xem device_config list neu support.
+[ ] P7A-004 Xem dumpsys co ban:
+          - battery
+          - power
+          - display
+          - window
+          - activity top
+          - package <pkg>
+[ ] P7A-005 Export diagnostics ra txt/json.
+
+Dieu kien xong:
+[ ] Chua co lenh write nao trong nhom nay.
+[ ] Chay tren may khong root.
+[ ] Output dai khong lam treo UI.
+
+----------------------------------------------------------------------
+7B. Secure Command Catalog - PRESET COMMANDS
+----------------------------------------------------------------------
+
+[ ] P7B-001 UI hien command theo category.
+[ ] P7B-002 Moi command co nut Read current.
+[ ] P7B-003 Moi command write co nut Apply rieng.
+[ ] P7B-004 Moi command co nut Copy command.
+[ ] P7B-005 Moi command co rollbackCommand neu co the.
+[ ] P7B-006 Ket qua moi lan chay luu vao history.
+
+Dieu kien xong:
+[ ] User khong can go raw shell van chay duoc preset.
+[ ] Command fail hien output that.
+
+----------------------------------------------------------------------
+7C. AppOps Manager - ADVANCED
+----------------------------------------------------------------------
+
+[ ] P7C-001 Nhap package name va validate.
+[ ] P7C-002 Doc appops get <pkg>.
+[ ] P7C-003 Cho set mot so op pho bien:
+          - RUN_IN_BACKGROUND
+          - WAKE_LOCK
+          - POST_NOTIFICATION neu supported
+          - SYSTEM_ALERT_WINDOW neu supported
+[ ] P7C-004 Moi thay doi appops phai co confirm.
+[ ] P7C-005 Co nut reset appops cho package neu supported.
+
+Dieu kien xong:
+[ ] Package invalid khong chay command.
+[ ] AppOps fail khong bao success.
+
+----------------------------------------------------------------------
+7D. Permission Manager - ADVANCED
+----------------------------------------------------------------------
+
+[ ] P7D-001 Doc permissions cua package:
+          dumpsys package <pkg>
+[ ] P7D-002 Hien granted/denied neu parse duoc.
+[ ] P7D-003 Cho grant/revoke mot so permission runtime an toan.
+[ ] P7D-004 Permission nguy hiem can confirm.
+[ ] P7D-005 Khong grant/revoke package system neu chua bat che do risky.
+
+Dieu kien xong:
+[ ] Read-only truoc, write sau.
+[ ] Khong crash neu Android khong cho grant/revoke.
+
+----------------------------------------------------------------------
+7E. Hidden Settings Explorer - XIAOMI/ANDROID
+----------------------------------------------------------------------
+
+[ ] P7E-001 Search settings key trong global/system/secure.
+[ ] P7E-002 Cho user tao watch list key.
+[ ] P7E-003 Cho edit value chi khi bat "Allow write settings".
+[ ] P7E-004 Luu gia tri truoc khi sua de rollback.
+[ ] P7E-005 Canh bao khi key khong ton tai tren device.
+
+Vi du nhom key chi de registry, khong bat buoc lam het ngay:
+[ ] P7E-006 display/refresh related keys.
+[ ] P7E-007 launcher/gesture related keys.
+[ ] P7E-008 notification/power related keys.
+[ ] P7E-009 miui/hyperos specific keys neu detect duoc.
+
+Dieu kien xong:
+[ ] May cap thap khong co key thi hien unsupported/unknown.
+[ ] Khong ghi key neu user chua confirm.
+
+----------------------------------------------------------------------
+7F. Device Config Explorer - ANDROID 10+
+----------------------------------------------------------------------
+
+[ ] P7F-001 Kiem tra device_config command co ton tai khong.
+[ ] P7F-002 List namespaces neu support.
+[ ] P7F-003 Get key theo namespace.
+[ ] P7F-004 Put/delete key chi khi advanced mode bat.
+[ ] P7F-005 Co rollback neu co old value.
+
+Dieu kien xong:
+[ ] Android/ROM khong support thi disabled, khong bao loi lung tung.
+
+----------------------------------------------------------------------
+7G. Package/Component Tools - ADVANCED
+----------------------------------------------------------------------
+
+[ ] P7G-001 Doc activity/service/receiver cua package qua dumpsys package.
+[ ] P7G-002 Force-stop package.
+[ ] P7G-003 Clear data/cache chi khi confirm manh.
+[ ] P7G-004 Enable/disable package component neu command support.
+[ ] P7G-005 Khong cho disable component cua protected packages mac dinh.
+
+Dieu kien xong:
+[ ] Protected package duoc block.
+[ ] Moi lenh write co log va confirm.
+
+----------------------------------------------------------------------
+7H. Network/Debug Tools - ADVANCED
+----------------------------------------------------------------------
+
+[ ] P7H-001 Xem ip addr / ifconfig fallback.
+[ ] P7H-002 Xem dumpsys wifi neu support.
+[ ] P7H-003 Xem netstat/ss neu support.
+[ ] P7H-004 ADB over WiFi setup giu logic hien co hoac move vao advanced neu can.
+[ ] P7H-005 Khong tu dong bat port/debug mode neu user chua confirm.
+
+Dieu kien xong:
+[ ] Chi read-only mac dinh.
+[ ] Write network settings can confirm.
+
+----------------------------------------------------------------------
+7I. Raw ADB Shell - POWER USER
+----------------------------------------------------------------------
+
+[ ] P7I-001 Tab raw shell mac dinh bi khoa.
+[ ] P7I-002 User phai bat checkbox "Toi hieu rui ro".
+[ ] P7I-003 Chan mot so pattern cuc nguy hiem mac dinh:
+          - rm -rf /
+          - rm -rf /system
+          - rm -rf /data
+          - dd if=
+          - mkfs
+          - reboot edl neu chua confirm manh
+[ ] P7I-004 Co history command.
+[ ] P7I-005 Co clear/export history.
+[ ] P7I-006 Co timeout cho command dai.
+
+Dieu kien xong:
+[ ] Raw shell khong lam app treo khi command output dai.
+[ ] Dangerous pattern bi block hoac confirm 2 lop.
+
+======================================================================
+11. PHASE 8 - UI/UX CHO MENU NANG CAO ADB
+======================================================================
+
+Muc tieu:
+UI phai ro rang cho nguoi dung ky thuat, khong phai landing page.
+
+[ ] P8-001 Them NavItem "Nang cao ADB" trong App.tsx.
+[ ] P8-002 Header hien device dang chon va risk mode.
+[ ] P8-003 Layout de xuat:
+          - Left: category list
+          - Center: command cards/table
+          - Right: device profile + history/log
+[ ] P8-004 Co filter:
+          - Tat ca
+          - Ho tro
+          - Khong ho tro
+          - Rui ro
+          - Read-only
+          - Write
+[ ] P8-005 Co search theo command title/id/description.
+[ ] P8-006 Command card phai hien:
+          - ten
+          - mo ta
+          - risk
+          - support state
+          - read/apply/rollback buttons
+[ ] P8-007 Confirm modal phai hien:
+          - command se chay
+          - output hien tai neu co
+          - rollback neu co
+          - rui ro
+[ ] P8-008 Khong dung alert() cho flow chinh, dung modal/toast/log panel.
+
+Dieu kien xong:
+[ ] Menu Nang cao ADB render duoc khi chua co device.
+[ ] Khi co device, load profile va capabilities.
+[ ] Mobile/responsive khong uu tien cao vi app desktop, nhung khong duoc vo layout o minWidth 900.
+
+======================================================================
+12. PHASE 9 - KIEM TRA VA QA DEV
+======================================================================
+
+[ ] P9-001 npm run typecheck pass.
+[ ] P9-002 npm run dev mo app duoc.
+[ ] P9-003 Khong co console error khi vao tung menu.
+[ ] P9-004 Test khong co device:
+          - Dashboard khong crash
+          - SystemTweaks khong crash
+          - UserExperience khong crash
+          - AdvancedAdb khong crash
+[ ] P9-005 Test voi thiet bi Xiaomi cap thap.
+[ ] P9-006 Test voi thiet bi Xiaomi cao cap neu co.
+[ ] P9-007 Test voi thiet bi non-Xiaomi neu co.
+[ ] P9-008 Test capability detection cua Trai nghiem nguoi dung.
+[ ] P9-009 Test 1 hidden Xiaomi setting an toan trong Trai nghiem nguoi dung.
+[ ] P9-010 Test read-only advanced commands.
+[ ] P9-011 Test 1 write command an toan trong Nang cao ADB.
+[ ] P9-012 Test command fail va xac nhan UI bao fail dung.
+[ ] P9-013 Test export log/history.
+
+======================================================================
+13. PHASE 10 - TAI LIEU NOI BO VA BAO TRI
+======================================================================
+
+[ ] P10-001 Tao docs ngan ve kien truc IPC moi.
+[ ] P10-002 Tao docs ve 2 registry:
+          - xiaomiExperienceRegistry cho Trai nghiem nguoi dung
+          - advancedCommandRegistry cho Nang cao ADB
+          - cach them command moi
+          - cach gan risk
+          - cach viet detect strategy
+          - cach viet rollback
+[ ] P10-003 Tao danh sach protected packages.
+[ ] P10-004 Tao danh sach dangerous command patterns.
+[ ] P10-005 Ghi ro: build exe/packaging se lam phase rieng sau.
+
+======================================================================
+14. CHECKPOINT THEO THU TU THUC HIEN KHUYEN NGHI
+======================================================================
+
+[ ] C-001 Xong Phase 0: co baseline loi hien tai.
+[ ] C-002 Xong Phase 1: typecheck pass.
+[ ] C-003 Xong Phase 2: service/IPC bot roi, app van chay.
+[ ] C-004 Xong Phase 3A: bloatware DB dung schema.
+[ ] C-005 Xong Phase 3B: File Manager xoa/chon dung.
+[ ] C-006 Xong Phase 3C: Optimization khong bao success gia.
+[ ] C-007 Xong Phase 4A: UI menu Trai nghiem nguoi dung render va co registry/capability dau tien.
+[ ] C-008 Xong Phase 4B: thiet ke menu Nang cao ADB ro scope.
+[ ] C-009 Xong Phase 5: registry/validator cho Advanced ADB.
+[ ] C-010 Xong Phase 6: device profile/capability detection dung chung.
+[ ] C-011 Xong Phase 7A + 7B: Advanced menu read-only va preset command dau tien.
+[ ] C-012 Xong Phase 8: UI menu Nang cao ADB dung duoc.
+[ ] C-013 Xong Phase 9: QA dev voi thiet bi that.
+
+======================================================================
+15. NGUYEN TAC KHI THEM LENH ADB MOI
+======================================================================
+
+[ ] R-001 Khong them nut UI chay command truc tiep neu main process chua validate.
+[ ] R-002 Khong noi string command voi input user neu chua validate/escape.
+[ ] R-003 Moi package name phai qua validatePackageName.
+[ ] R-004 Moi remote path phai qua validateRemotePath.
+[ ] R-005 Moi command destructive phai co confirm.
+[ ] R-006 Moi command co rollback thi phai hien rollback truoc khi apply.
+[ ] R-007 Moi command unsupported phai disabled.
+[ ] R-008 Moi command unknown support phai can advanced mode.
+[ ] R-009 Moi command fail phai hien output goc.
+[ ] R-010 Khong filter mat loi ADB khoi log chinh.
+
+======================================================================
+16. PHAN CONG FILE THEO DOT SUA
+======================================================================
+
+Dot 1 - Nen TypeScript:
+[ ] src/main/core/adbService.ts
+[ ] src/main/core/adbDownloader.ts
+[ ] src/main/core/scrcpyDownloader.ts
+[ ] src/main/ipc/index.ts
+[ ] src/preload/index.ts
+[ ] src/renderer/src/types/preload.d.ts
+
+Dot 2 - On dinh tinh nang cu:
+[ ] src/renderer/src/components/features/SystemTweaks.tsx
+[ ] src/renderer/src/components/features/SystemOptimization.tsx
+[ ] src/renderer/src/components/features/FileManager.tsx
+[ ] src/renderer/src/App.tsx
+[ ] xiaomi_bloatware_removal.json
+
+Dot 3 - Kien truc menu Trai nghiem nguoi dung:
+[ ] src/main/core/xiaomiExperienceService.ts
+[ ] src/main/core/xiaomiExperienceRegistry.ts
+[ ] src/main/ipc/xiaomiExperienceHandlers.ts
+[ ] src/preload/index.ts
+[ ] src/renderer/src/components/features/UserExperience.tsx
+
+Dot 4 - UI menu Trai nghiem nguoi dung:
+[ ] src/renderer/src/components/features/experience/ExperienceCategoryList.tsx
+[ ] src/renderer/src/components/features/experience/ExperienceItemCard.tsx
+[ ] src/renderer/src/components/features/experience/ExperienceDeviceProfile.tsx
+[ ] src/renderer/src/components/features/experience/ExperienceApplyModal.tsx
+
+Dot 5 - Kien truc menu Nang cao ADB:
+[ ] src/main/core/advancedAdbService.ts
+[ ] src/main/core/advancedCommandRegistry.ts
+[ ] src/main/core/adbValidators.ts
+[ ] src/main/ipc/advancedAdbHandlers.ts
+[ ] src/preload/index.ts
+[ ] src/renderer/src/components/features/AdvancedAdb.tsx
+
+Dot 6 - UI menu Nang cao ADB:
+[ ] src/renderer/src/components/features/advanced/DeviceProfilePanel.tsx
+[ ] src/renderer/src/components/features/advanced/CommandCatalogPanel.tsx
+[ ] src/renderer/src/components/features/advanced/CommandRunnerPanel.tsx
+[ ] src/renderer/src/components/features/advanced/AdvancedHistoryPanel.tsx
+[ ] src/renderer/src/components/features/advanced/RiskConfirmModal.tsx
+
+======================================================================
+17. DINH NGHIA DONE CHO GIAI DOAN DEV NAY
+======================================================================
+
+[ ] D-001 npm run typecheck pass.
+[ ] D-002 npm run dev chay duoc.
+[ ] D-003 Menu cu khong crash.
+[ ] D-004 Menu Tinh chinh he thong doc dung bloatware DB.
+[ ] D-005 File Manager xoa file dung.
+[ ] D-006 SystemOptimization khong bao success gia.
+[ ] D-007 Co menu Trai nghiem nguoi dung trong sidebar.
+[ ] D-008 Trai nghiem nguoi dung co device profile/capability detection.
+[ ] D-009 Trai nghiem nguoi dung co it nhat 1 nhom hidden Xiaomi setting chay end-to-end.
+[ ] D-010 Co menu Nang cao ADB trong sidebar.
+[ ] D-011 Nang cao ADB co device profile.
+[ ] D-012 Nang cao ADB co it nhat 1 nhom read-only diagnostics.
+[ ] D-013 Nang cao ADB co validator va risk confirm cho command write.
+[ ] D-014 Co history/log cho command advanced.
+[ ] D-015 Chua can dong goi exe.

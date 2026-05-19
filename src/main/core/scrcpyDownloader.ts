@@ -31,9 +31,16 @@ export async function ensureScrcpy(binPath: string, onProgress: (msg: string) =>
     response.data.pipe(writer)
 
     await new Promise((resolve, reject) => {
+      response.data.on('error', reject)
       writer.on('finish', resolve)
       writer.on('error', reject)
     })
+
+    // Check if downloaded zip is valid size (> 1MB)
+    const stats = fs.statSync(zipPath)
+    if (stats.size < 1024 * 1024) {
+      throw new Error(`Tệp tin tải về không hoàn chỉnh (Kích thước: ${(stats.size / 1024).toFixed(1)} KB). Vui lòng thử lại.`)
+    }
 
     onProgress('Scrcpy Download complete. Extracting...')
 

@@ -29,9 +29,42 @@ const api = {
   pullFile: (deviceId: string, remotePath: string, localPath: string) => ipcRenderer.invoke('adb:pull-file', { deviceId, remotePath, localPath }),
   getFileBase64: (deviceId: string, remotePath: string) => ipcRenderer.invoke('adb:get-file-base64', { deviceId, remotePath }),
   getStoragePoints: (deviceId: string) => ipcRenderer.invoke('adb:get-storage-points', { deviceId }),
+  getBloatwareDb: () => ipcRenderer.invoke('adb:get-bloatware-db'),
+  getBloatwareWithStatus: (deviceId: string) =>
+    ipcRenderer.invoke('adb:get-bloatware-with-status', deviceId),
+  debloatPackage: (deviceId: string, pkg: string, action: string, preferDisable: boolean) =>
+    ipcRenderer.invoke('adb:debloat-package', deviceId, pkg, action, preferDisable),
+  batchDebloat: (
+    deviceId: string,
+    packages: Array<{ package: string; preferDisable?: boolean }>,
+    action: string
+  ) => ipcRenderer.invoke('adb:batch-debloat', deviceId, packages, action),
+  onBatchProgress: (cb: (data: { done: number; total: number }) => void) => {
+    const listener = (_e: any, data: { done: number; total: number }) => cb(data);
+    ipcRenderer.on('adb:batch-debloat-progress', listener);
+    return () => ipcRenderer.removeListener('adb:batch-debloat-progress', listener);
+  },
+
+  // Tweaks
+  getTweaksList: () => ipcRenderer.invoke('adb:get-tweaks-list'),
+  getTweaksStatus: (deviceId: string) => ipcRenderer.invoke('adb:get-tweaks-status', deviceId),
+  applyTweak: (deviceId: string, tweakId: string, enable: boolean) =>
+    ipcRenderer.invoke('adb:apply-tweak', deviceId, tweakId, enable),
+
+  // Display & DPI
+  getDpi: (deviceId: string) => ipcRenderer.invoke('adb:get-dpi', deviceId),
+  getResolution: (deviceId: string) => ipcRenderer.invoke('adb:get-resolution', deviceId),
+  setDpi: (deviceId: string, dpi: number) => ipcRenderer.invoke('adb:set-dpi', deviceId, dpi),
+  resetDpi: (deviceId: string) => ipcRenderer.invoke('adb:reset-dpi', deviceId),
+  setResolution: (deviceId: string, w: number, h: number) =>
+    ipcRenderer.invoke('adb:set-resolution', deviceId, w, h),
+  resetResolution: (deviceId: string) => ipcRenderer.invoke('adb:reset-resolution', deviceId),
+  setAnimationScale: (deviceId: string, scale: 0 | 0.5 | 1.0) =>
+    ipcRenderer.invoke('adb:set-animation-scale', deviceId, scale),
   saveFileDialog: (defaultName: string) => ipcRenderer.invoke('dialog:save-file', { defaultName }),
   openFileDialog: () => ipcRenderer.invoke('dialog:open-file'),
   onLogStream: (callback: (log: string) => void) => {
+    ipcRenderer.removeAllListeners('adb:log-stream')
     ipcRenderer.on('adb:log-stream', (_event, log) => callback(log))
   }
 }

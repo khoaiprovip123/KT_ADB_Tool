@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Monitor, Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-react'
+import { Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen, Zap } from 'lucide-react'
 import { useDeviceStore } from './store/deviceStore'
 import { LogTerminal } from './components/layout/LogTerminal'
 import { FloatingQuickBoot } from './components/layout/FloatingQuickBoot'
 import { Dashboard } from './components/features/Dashboard'
 import { AppManager } from './components/features/AppManager'
 import { FileManager } from './components/features/FileManager'
+import { SystemTweaks } from './components/features/SystemTweaks'
+import { SystemOptimization } from './components/features/SystemOptimization'
 import Settings from './features/settings/Settings'
 import { ControlCenterModal } from './components/layout/ControlCenterModal'
 import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
@@ -35,6 +37,11 @@ function App() {
     // Lắng nghe stream Log từ lệnh ADB
     // @ts-ignore
     window.api.onLogStream((log) => {
+      const cleanLog = log.trim()
+      if (!cleanLog) return
+      if (cleanLog.includes('connected successfully')) return
+      if (cleanLog.includes('inaccessible or not found')) return
+      if (cleanLog.includes('not found') && cleanLog.includes('/system/bin/sh')) return
       addLog(log)
     })
   }, [setDevices, addLog])
@@ -68,6 +75,8 @@ function App() {
             <NavItem icon={<LayoutGrid />} label="Tổng quan" active={activeTab === 'dashboard'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
             <NavItem icon={<Cpu />} label="Quản lý ứng dụng" active={activeTab === 'system'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('system')} />
             <NavItem icon={<FolderOpen />} label="Quản lý tệp tin" active={activeTab === 'files'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('files')} />
+            <NavItem icon={<Zap />} label="Tối ưu hệ thống" active={activeTab === 'optimize'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('optimize')} />
+            <NavItem icon={<SlidersHorizontal />} label="Tinh chỉnh hệ thống" active={activeTab === 'tweaks'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('tweaks')} />
           </nav>
         </div>
 
@@ -83,7 +92,9 @@ function App() {
             {activeTab === 'dashboard' ? 'Tổng quan' :
               activeTab === 'system' ? 'Quản lý ứng dụng' :
                 activeTab === 'files' ? 'Quản lý tệp tin' :
-                  activeTab === 'settings' ? 'Cài đặt' : activeTab}
+                  activeTab === 'optimize' ? 'Tối ưu hệ thống' :
+                    activeTab === 'tweaks' ? 'Tinh chỉnh hệ thống' :
+                      activeTab === 'settings' ? 'Cài đặt' : activeTab}
           </h2>
 
           <div className="flex items-center gap-4">
@@ -134,8 +145,10 @@ function App() {
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'system' && <AppManager />}
           {activeTab === 'files' && <FileManager />}
+          {activeTab === 'tweaks' && <SystemTweaks />}
+          {activeTab === 'optimize' && <SystemOptimization />}
           {activeTab === 'settings' && <Settings />}
-          {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'settings' && (
+          {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'settings' && (
             <div className="flex items-center justify-center h-full text-slate-400">
               Tính năng đang được phát triển...
             </div>
@@ -143,7 +156,7 @@ function App() {
         </div>
 
         <LogTerminal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
-        <FloatingQuickBoot />
+        {activeTab === 'dashboard' && <FloatingQuickBoot />}
       </main>
     </div>
   )
