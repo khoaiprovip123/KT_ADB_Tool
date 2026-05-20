@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Folder, File, ChevronRight, Search, Download, Trash2, RefreshCcw, ArrowLeft, MoreVertical, HardDrive, Plus, Minus, Upload, X, CheckCircle2, ChevronLeft, FolderPlus, FileText, Image as ImageIcon, Music, Film, FileCode, Monitor, Smartphone } from 'lucide-react'
+import { Folder, File, ChevronRight, Download, Trash2, RefreshCcw, ArrowLeft, HardDrive, Plus, Minus, Upload, X, ChevronLeft, FolderPlus, FileText, Image as ImageIcon, Music, Film, FileCode, Monitor, Smartphone } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDeviceStore } from '../../store/deviceStore'
 
@@ -19,7 +19,7 @@ export function FileManager() {
   const [storagePoints, setStoragePoints] = useState<{name: string, path: string, type: string, used: number, total: number, percent: number}[]>([])
   const [loading, setLoading] = useState(false)
   const [previewImage, setPreviewImage] = useState<{name: string, data: string} | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>(['HOME'])
   const [historyIndex, setHistoryIndex] = useState(0)
@@ -163,12 +163,6 @@ export function FileManager() {
     return files.filter(f => f.name.toLowerCase().includes(q))
   }, [files, searchQuery])
 
-  const toggleSelect = (name: string) => {
-    const newSet = new Set(selectedFiles)
-    if (newSet.has(name)) newSet.delete(name)
-    else newSet.add(name)
-    setSelectedFiles(newSet)
-  }
 
   const handleDownload = async (file: FileInfo) => {
     try {

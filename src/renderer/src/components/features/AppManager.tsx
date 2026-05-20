@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Trash2, PowerOff, RefreshCcw, ShieldAlert, Package, Loader2, Play, Undo2, CheckCircle2, ListFilter, CheckSquare, Square, Download, Sparkles, User, Settings, Ban, Upload, X, ChevronDown, Filter } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { FixedSizeList as List } from 'react-window'
-import { AutoSizer } from 'react-virtualized-auto-sizer'
+import { Search, Trash2, PowerOff, RefreshCcw, Package, Loader2, Play, Undo2, CheckCircle2, ListFilter, CheckSquare, Square, Download, Sparkles, User, Settings, Ban, Upload, X, ChevronDown } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
 
@@ -443,7 +441,7 @@ export function AppManager() {
           ) : (
             <div className="flex-1 w-full overflow-y-auto custom-scrollbar">
               <div className="min-h-full pb-32">
-                {filteredPackages.map((app, index) => {
+                {filteredPackages.map((app) => {
                   const pkg = app.pkg, isBlacklisted = BLACKLIST.includes(pkg), isSelected = selectedApps.has(pkg), isSystem = app.type?.toLowerCase() === 'system', isDisabled = app.status?.toLowerCase() === 'disabled'
                   return (
                     <div key={pkg} className="px-2 py-1">

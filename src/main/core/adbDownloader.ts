@@ -1,7 +1,7 @@
 import axios from 'axios'
 import AdmZip from 'adm-zip'
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const DL_URL = 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip'
 
@@ -30,7 +30,7 @@ export async function ensureAdb(binPath: string, onProgress: (msg: string) => vo
     const writer = fs.createWriteStream(zipPath)
     response.data.pipe(writer)
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       writer.on('finish', resolve)
       writer.on('error', reject)
     })

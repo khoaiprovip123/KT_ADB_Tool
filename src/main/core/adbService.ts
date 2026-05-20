@@ -1,9 +1,10 @@
 import adb from 'adbkit'
 import { ensureAdb } from './adbDownloader'
 import { ensureScrcpy } from './scrcpyDownloader'
-import path from 'path'
+import * as path from 'path'
 import { app } from 'electron'
 import { spawn } from 'child_process'
+import * as fs from 'fs'
 
 export const adbState = {
   client: adb.createClient()
@@ -72,19 +73,19 @@ export async function runAdbCommand(deviceId: string, command: string, onLog: (l
     const stream = await adbState.client.shell(deviceId, shellCommand)
     
     // Đọc stream
-    stream.on('data', (data) => {
+    stream.on('data', (data: Buffer) => {
       onLog(data.toString())
     })
 
     return new Promise((resolve) => {
       let output = ''
-      stream.on('data', (data) => {
+      stream.on('data', (data: Buffer) => {
         const text = data.toString()
         output += text
         onLog(text)
       })
       stream.on('end', () => resolve(output))
-      stream.on('error', (err) => resolve(`ERROR: ${err.message}`))
+      stream.on('error', (err: any) => resolve(`ERROR: ${err.message}`))
     })
   } catch (error: any) {
     onLog(`CRITICAL ERROR: ${error.message}`)
@@ -244,24 +245,24 @@ export async function getDeviceInfo(deviceId: string) {
   try {
     const getPropRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'getprop').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'getprop').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
 
     const wmSizeRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'wm size').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'wm size').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
 
     const uptimeRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'uptime').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'uptime').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
@@ -283,8 +284,8 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy IP address chuẩn xác qua ip route
     const ipRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'ip route').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'ip route').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       }).catch(() => resolve(''))
     })
@@ -340,8 +341,8 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số Storage
     const storageRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'df').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'df').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
@@ -391,14 +392,14 @@ export async function getDeviceInfo(deviceId: string) {
     
     const selinux = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'getenforce').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'getenforce').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data.trim()))
       }).catch(() => resolve('Unknown'))
     })
     
     const suExists = await new Promise<boolean>((resolve) => {
-      adbState.client.shell(deviceId, 'which su').then(s => {
+      adbState.client.shell(deviceId, 'which su').then((s: any) => {
         s.on('data', () => resolve(true))
         s.on('end', () => resolve(false))
       }).catch(() => resolve(false))
@@ -408,8 +409,8 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số pin
     const batteryRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'dumpsys battery').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'dumpsys battery').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
@@ -422,8 +423,8 @@ export async function getDeviceInfo(deviceId: string) {
     // Lấy thông số RAM
     const ramRaw = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, 'dumpsys meminfo').then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, 'dumpsys meminfo').then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
@@ -476,8 +477,8 @@ export async function getPackages(deviceId: string, filter: 'all' | 'system' | '
     const execCmd = async (cmd: string): Promise<string[]> => {
       const output = await new Promise<string>((resolve) => {
         let data = ''
-        adbState.client.shell(deviceId, cmd).then(s => {
-          s.on('data', c => data += c)
+        adbState.client.shell(deviceId, cmd).then((s: any) => {
+          s.on('data', (c: any) => data += c)
           s.on('end', () => resolve(data))
         }).catch(() => resolve(''))
       })
@@ -494,7 +495,6 @@ export async function getPackages(deviceId: string, filter: 'all' | 'system' | '
     ])
 
     const sysSet = new Set(systemPkgs)
-    const thirdSet = new Set(thirdPkgs)
     const disabledSet = new Set(disabledPkgs)
 
     let allPkgs = new Set<string>()
@@ -565,8 +565,8 @@ export async function manageApp(deviceId: string, pkgName: string, action: 'unin
     
     const output = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, cmd).then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, cmd).then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data))
       })
     })
@@ -590,8 +590,8 @@ export async function extractApp(deviceId: string, pkgName: string, destPath: st
     // 1. Lấy đường dẫn APK trên thiết bị
     const pathOutput = await new Promise<string>((resolve) => {
       let data = ''
-      adbState.client.shell(deviceId, `pm path ${pkgName}`).then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, `pm path ${pkgName}`).then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data.trim()))
       })
     })
@@ -606,14 +606,14 @@ export async function extractApp(deviceId: string, pkgName: string, destPath: st
     return new Promise((resolve, reject) => {
       const fs = require('fs')
       const outStream = fs.createWriteStream(destPath)
-      transfer.on('progress', (stats) => {
+      transfer.on('progress', (stats: any) => {
         onLog(`Đang tải: ${((stats.bytesTransferred / 1024) / 1024).toFixed(2)} MB...`)
       })
       transfer.on('end', () => {
         onLog(`Trích xuất thành công: ${destPath}`)
         resolve(true)
       })
-      transfer.on('error', (err) => {
+      transfer.on('error', (err: any) => {
         onLog(`Lỗi pull file: ${err.message}`)
         reject(err)
       })
@@ -641,8 +641,8 @@ export async function installApk(deviceId: string, apkPath: string, onLog: (log:
     const output = await new Promise<string>((resolve) => {
       let data = ''
       // -r: Reinstall, -d: Allow downgrade, -t: Allow test packages, -g: Grant all permissions
-      adbState.client.shell(deviceId, `pm install -r -d -t -g "${remotePath}"`).then(s => {
-        s.on('data', c => data += c)
+      adbState.client.shell(deviceId, `pm install -r -d -t -g "${remotePath}"`).then((s: any) => {
+        s.on('data', (c: any) => data += c)
         s.on('end', () => resolve(data.trim()))
       })
     })
@@ -674,14 +674,14 @@ export async function listDirectory(deviceId: string, remotePath: string) {
       new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('Read Directory Timeout')), 8000))
     ])
 
-    return files.map(file => ({
+    return files.map((file: any) => ({
       name: file.name,
       size: file.size,
       mtime: file.mtime,
       mode: file.mode,
       isDir: (file.mode & 0o040000) === 0o040000,
       isFile: (file.mode & 0o100000) === 0o100000
-    })).sort((a, b) => {
+    })).sort((a: any, b: any) => {
       if (a.isDir && !b.isDir) return -1
       if (!a.isDir && b.isDir) return 1
       return a.name.localeCompare(b.name)
@@ -728,14 +728,14 @@ export async function pushFile(deviceId: string, localPath: string, remotePath: 
     onLog(`Đang tải lên: ${path.basename(localPath)} -> ${remotePath}`)
     const transfer = await adbState.client.push(deviceId, localPath, remotePath)
     return new Promise((resolve, reject) => {
-      transfer.on('progress', (stats) => {
+      transfer.on('progress', (stats: any) => {
         onLog(`Đang đẩy file: ${((stats.bytesTransferred / 1024) / 1024).toFixed(2)} MB...`)
       })
       transfer.on('end', () => {
         onLog(`Tải lên thành công!`)
         resolve(true)
       })
-      transfer.on('error', (err) => {
+      transfer.on('error', (err: any) => {
         onLog(`Lỗi tải lên: ${err.message}`)
         reject(err)
       })
@@ -753,14 +753,14 @@ export async function pullFile(deviceId: string, remotePath: string, localPath: 
     return new Promise((resolve, reject) => {
       const fs = require('fs')
       const outStream = fs.createWriteStream(localPath)
-      transfer.on('progress', (stats) => {
+      transfer.on('progress', (stats: any) => {
         onLog(`Đang kéo file: ${((stats.bytesTransferred / 1024) / 1024).toFixed(2)} MB...`)
       })
       transfer.on('end', () => {
         onLog(`Tải về thành công!`)
         resolve(true)
       })
-      transfer.on('error', (err) => {
+      transfer.on('error', (err: any) => {
         onLog(`Lỗi tải về: ${err.message}`)
         reject(err)
       })
@@ -782,7 +782,7 @@ export async function getFileBase64(deviceId: string, remotePath: string) {
         const buffer = Buffer.concat(chunks)
         resolve(buffer.toString('base64'))
       })
-      transfer.on('error', (err) => {
+      transfer.on('error', (err: any) => {
         console.error('Transfer error:', err)
         reject(err)
       })
@@ -801,8 +801,8 @@ export async function getStoragePoints(deviceId: string) {
     const output = await Promise.race([
       new Promise<string>((resolve, reject) => {
         let data = ''
-        adbState.client.shell(cleanId, 'df').then(s => {
-          s.on('data', c => data += c)
+        adbState.client.shell(cleanId, 'df').then((s: any) => {
+          s.on('data', (c: any) => data += c)
           s.on('end', () => resolve(data))
           s.on('error', reject)
         }).catch(reject)
@@ -896,18 +896,18 @@ export async function execAdb(deviceId: string, command: string): Promise<string
     }
     let data = '';
     adbState.client.shell(deviceId, cleanCmd)
-      .then((stream) => {
-        stream.on('data', (c) => {
+      .then((stream: any) => {
+        stream.on('data', (c: any) => {
           data += c.toString();
         });
         stream.on('end', () => {
           resolve(data);
         });
-        stream.on('error', (err) => {
+        stream.on('error', (err: any) => {
           reject(err);
         });
       })
-      .catch((err) => {
+      .catch((err: any) => {
         reject(err);
       });
   });

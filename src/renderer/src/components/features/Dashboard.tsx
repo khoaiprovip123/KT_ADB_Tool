@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Cpu, HardDrive, MemoryStick, Smartphone, Wifi, Settings as SettingsIcon, MonitorPlay, EyeOff, RotateCw, Battery, Thermometer, ShieldAlert, Network, Clock } from 'lucide-react'
+import { Cpu, HardDrive, MemoryStick, Smartphone, Settings as SettingsIcon, MonitorPlay, Battery, Thermometer, ShieldAlert } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 
 function RealTimeClock() {

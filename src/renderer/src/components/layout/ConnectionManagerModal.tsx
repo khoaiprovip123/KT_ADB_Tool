@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { X, Smartphone, Wifi, Loader2, Link2, KeyRound } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Sparkles, Package } from 'lucide-react'
 
 export default function Updates() {

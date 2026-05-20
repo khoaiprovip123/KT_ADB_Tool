@@ -294,7 +294,7 @@ export function SystemTweaks() {
     setBatchProgress({ current: 0, total: appsToProcess.length, action })
     try {
       const results = await window.api.batchDebloat(activeDevice!, appsToProcess, action)
-      const successCount = results.filter(r => r.success).length
+      const successCount = results.filter((r: { package: string; success: boolean; message: string }) => r.success).length
       const failCount = results.length - successCount
       
       setBatchResult({ success: successCount, fail: failCount, skipped: 0, lastError: failCount > 0 ? 'Một số package xử lý thất bại' : undefined, action })

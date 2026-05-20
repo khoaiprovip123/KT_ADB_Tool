@@ -1,7 +1,7 @@
 import axios from 'axios'
 import AdmZip from 'adm-zip'
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const DL_URL = 'https://github.com/Genymobile/scrcpy/releases/download/v2.4/scrcpy-win64-v2.4.zip'
 
@@ -30,7 +30,7 @@ export async function ensureScrcpy(binPath: string, onProgress: (msg: string) =>
     const writer = fs.createWriteStream(zipPath)
     response.data.pipe(writer)
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       response.data.on('error', reject)
       writer.on('finish', resolve)
       writer.on('error', reject)

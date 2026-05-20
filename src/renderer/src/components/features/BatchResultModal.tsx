@@ -1,6 +1,5 @@
-import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, XCircle, AlertCircle, Info, Trash2, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, Info, Trash2, ArrowRight } from 'lucide-react'
 
 interface BatchResult {
   success: number

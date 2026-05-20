@@ -1,5 +1,5 @@
 import React from 'react'
-import { Wifi, Battery, Maximize, Settings, Smartphone, PowerOff, Cast, RotateCcw } from 'lucide-react'
+import { Wifi, Settings, Smartphone, PowerOff, Cast, RotateCcw } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 
 export function ControlCenterModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
