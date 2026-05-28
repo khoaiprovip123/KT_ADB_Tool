@@ -2,6 +2,16 @@ import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 
+// Ngăn chặn popup lỗi JavaScript khi socket ADB đột ngột ngắt kết nối (ECONNRESET/ECONNREFUSED)
+process.on('uncaughtException', (error) => {
+  console.error('[Uncaught Exception Alert]:', error)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection Alert]:', promise, 'reason:', reason)
+})
+
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1280,

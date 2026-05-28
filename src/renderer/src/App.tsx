@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen, Zap } from 'lucide-react'
+import { Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen, Zap, Sparkles, Sliders } from 'lucide-react'
 import { useDeviceStore } from './store/deviceStore'
 import { LogTerminal } from './components/layout/LogTerminal'
 import { FloatingQuickBoot } from './components/layout/FloatingQuickBoot'
@@ -8,6 +8,8 @@ import { AppManager } from './components/features/AppManager'
 import { FileManager } from './components/features/FileManager'
 import { SystemTweaks } from './components/features/SystemTweaks'
 import { SystemOptimization } from './components/features/SystemOptimization'
+import { UserExperience } from './components/features/UserExperience'
+import { AdvancedAdb } from './components/features/AdvancedAdb'
 import Settings from './features/settings/Settings'
 import { ControlCenterModal } from './components/layout/ControlCenterModal'
 import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
@@ -22,20 +24,16 @@ function App() {
 
   useEffect(() => {
     // Khởi tạo ADB và tải Platform-tools tự động
-    // @ts-ignore
     window.api.initAdb().then(() => {
-      // @ts-ignore
       window.api.getDevices().then(setDevices)
     })
 
     // Lắng nghe thiết bị cắm/rút
-    // @ts-ignore
     window.api.onDeviceUpdate((updatedDevices) => {
       setDevices(updatedDevices)
     })
 
     // Lắng nghe stream Log từ lệnh ADB
-    // @ts-ignore
     window.api.onLogStream((log) => {
       const cleanLog = log.trim()
       if (!cleanLog) return
@@ -76,7 +74,9 @@ function App() {
             <NavItem icon={<Cpu />} label="Quản lý ứng dụng" active={activeTab === 'system'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('system')} />
             <NavItem icon={<FolderOpen />} label="Quản lý tệp tin" active={activeTab === 'files'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('files')} />
             <NavItem icon={<Zap />} label="Tối ưu hệ thống" active={activeTab === 'optimize'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('optimize')} />
+            <NavItem icon={<Sparkles />} label="Trải nghiệm người dùng" active={activeTab === 'experience'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('experience')} />
             <NavItem icon={<SlidersHorizontal />} label="Tinh chỉnh hệ thống" active={activeTab === 'tweaks'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('tweaks')} />
+            <NavItem icon={<Sliders />} label="Nâng cao ADB" active={activeTab === 'advanced'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('advanced')} />
           </nav>
         </div>
 
@@ -93,8 +93,10 @@ function App() {
               activeTab === 'system' ? 'Quản lý ứng dụng' :
                 activeTab === 'files' ? 'Quản lý tệp tin' :
                   activeTab === 'optimize' ? 'Tối ưu hệ thống' :
-                    activeTab === 'tweaks' ? 'Tinh chỉnh hệ thống' :
-                      activeTab === 'settings' ? 'Cài đặt' : activeTab}
+                    activeTab === 'experience' ? 'Trải nghiệm người dùng' :
+                      activeTab === 'tweaks' ? 'Tinh chỉnh hệ thống' :
+                        activeTab === 'advanced' ? 'Nâng cao ADB' :
+                          activeTab === 'settings' ? 'Cài đặt' : activeTab}
           </h2>
 
           <div className="flex items-center gap-4">
@@ -145,10 +147,12 @@ function App() {
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'system' && <AppManager />}
           {activeTab === 'files' && <FileManager />}
+          {activeTab === 'experience' && <UserExperience />}
           {activeTab === 'tweaks' && <SystemTweaks />}
           {activeTab === 'optimize' && <SystemOptimization />}
+          {activeTab === 'advanced' && <AdvancedAdb />}
           {activeTab === 'settings' && <Settings />}
-          {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'settings' && (
+          {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'experience' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'advanced' && activeTab !== 'settings' && (
             <div className="flex items-center justify-center h-full text-slate-400">
               Tính năng đang được phát triển...
             </div>

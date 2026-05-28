@@ -51,8 +51,24 @@ export function getBloatwareDb(): BloatwareEntry[] {
     try {
       if (fs.existsSync(candidate)) {
         const raw = fs.readFileSync(candidate, 'utf-8')
-        const parsed = JSON.parse(raw) as BloatwareEntry[]
-        return parsed.filter((e) => e.package && e.risk !== 'KEEP')
+        const json = JSON.parse(raw)
+        const packages = Array.isArray(json) ? json : (json.packages ?? [])
+        
+        const mapped: BloatwareEntry[] = packages.map((e: any) => {
+          let riskVal: RiskLevel = 'SAFE'
+          if (e.classification === 'RISKY') riskVal = 'RISKY'
+          if (e.classification === 'KEEP') riskVal = 'KEEP'
+          return {
+            package: e.package,
+            name: e.name || e.package,
+            description: e.side_effects || e.description || '',
+            risk: riskVal,
+            category: e.group || e.category || 'Bloatware',
+            preferDisable: e.method === 'disable' || e.preferDisable
+          }
+        })
+
+        return mapped.filter((e) => e.package && e.risk !== 'KEEP')
       }
     } catch {
       // thử path kế
@@ -61,6 +77,7 @@ export function getBloatwareDb(): BloatwareEntry[] {
 
   return BUILTIN_BLOATWARE_DB
 }
+
 
 export async function getPackageStatus(deviceId: string, packageName: string): Promise<PkgStatus> {
   try {

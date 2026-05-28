@@ -22,6 +22,7 @@ export function Dashboard() {
   const { activeDevice } = useDeviceStore()
   const [info, setInfo] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [showBatteryModal, setShowBatteryModal] = useState(false)
 
   const loadInfo = () => {
     if (!activeDevice) {
@@ -143,10 +144,18 @@ export function Dashboard() {
           <div className="lg:col-span-4 flex flex-col gap-6">
             {/* Battery Card */}
             <div className="bg-white/80 backdrop-blur-2xl rounded-3xl p-6 border border-white shadow-xl shadow-slate-200/50">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Battery className="w-5 h-5 text-green-500" />
-                Tình trạng Pin
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Battery className="w-5 h-5 text-green-500" />
+                  Tình trạng Pin
+                </h3>
+                <button
+                  onClick={() => setShowBatteryModal(true)}
+                  className="px-3 py-1 text-xs font-bold text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 border border-indigo-100 rounded-full transition-all duration-300 shadow-sm hover:shadow-indigo-200"
+                >
+                  Xem thêm
+                </button>
+              </div>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-black text-slate-800">{info.batteryLevel}%</span>
               </div>
@@ -226,6 +235,78 @@ export function Dashboard() {
           </div>
         </div>
       ) : null}
+
+      {/* Battery Detail Modal */}
+      {showBatteryModal && info && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 border border-white shadow-2xl shadow-indigo-950/20 max-w-md w-full relative overflow-hidden transform scale-100 transition-all duration-300">
+            {/* Background Gradients */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-full -translate-y-1/3 translate-x-1/3 blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-2xl"></div>
+
+            <div className="relative z-10">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <Battery className="w-6 h-6 text-green-500 animate-pulse" />
+                  Thông số Pin chi tiết
+                </h3>
+                <button
+                  onClick={() => setShowBatteryModal(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors font-bold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Health Overview */}
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50/50 p-5 rounded-2xl border border-emerald-100/50 mb-5 text-center">
+                <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">Sức khỏe pin (Battery Health)</div>
+                <div className="text-4xl font-black text-emerald-600 tracking-tight">
+                  {info.batteryHealthPercent !== undefined ? `${info.batteryHealthPercent}%` : 'Đang đo...'}
+                </div>
+                <div className="text-xs font-medium text-slate-500 mt-2">
+                  {info.batteryWearPercent !== undefined 
+                    ? info.batteryWearPercent > 20 
+                      ? `Pin bị chai ${info.batteryWearPercent}% (Khuyên dùng: Nên cân nhắc thay pin)` 
+                      : `Tình trạng hoạt động hoàn hảo (Chai ${info.batteryWearPercent}%)`
+                    : 'Đang phân tích hiệu năng pin...'}
+                </div>
+              </div>
+
+              {/* Specs Grid */}
+              <div className="space-y-3">
+                <SpecRow label="Loại pin (Công nghệ)" value={info.batteryTech || 'Li-poly'} />
+                <SpecRow label="Dung lượng thiết kế (NSX)" value={info.batteryDesignCap ? `${info.batteryDesignCap} mAh` : 'Đang quét...'} />
+                <SpecRow label="Dung lượng thực tế (Tối đa)" value={info.batteryActualCap ? `${info.batteryActualCap} mAh` : 'Đang quét...'} />
+                <SpecRow label="Dung lượng thực tế hiện tại" value={info.batteryCurrentCap ? `${info.batteryCurrentCap} mAh` : 'Đang quét...'} />
+                <SpecRow label="Điện áp vào (Sạc)" value={info.batteryVoltIn !== undefined ? (info.batteryIsCharging ? `${info.batteryVoltIn} V` : '0.00 V (Không sạc)') : 'Đang quét...'} isHighlight={info.batteryIsCharging} />
+                <SpecRow label="Điện áp ra (Pin)" value={info.batteryVoltOut ? `${info.batteryVoltOut} V` : 'Đang quét...'} />
+                <SpecRow label="Tỷ lệ chai pin" value={info.batteryWearPercent !== undefined ? `${info.batteryWearPercent}%` : 'Đang quét...'} isWarning={info.batteryWearPercent > 15} />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => setShowBatteryModal(false)}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all text-sm shadow-md shadow-indigo-500/20"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SpecRow({ label, value, isHighlight = false, isWarning = false }: { label: string, value: string, isHighlight?: boolean, isWarning?: boolean }) {
+  return (
+    <div className="flex justify-between items-center p-3 bg-slate-50/80 border border-slate-100 rounded-2xl">
+      <span className="text-xs font-semibold text-slate-500">{label}</span>
+      <span className={`text-sm font-bold ${
+        isWarning ? 'text-red-500' : isHighlight ? 'text-green-600' : 'text-slate-800'
+      }`}>{value}</span>
     </div>
   )
 }

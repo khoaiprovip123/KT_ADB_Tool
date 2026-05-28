@@ -2,6 +2,7 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 
 export interface IADBAPI {
   initAdb: () => Promise<boolean>;
+  fixConnection: () => Promise<any>;
   getDeviceInfo: (deviceId: string) => Promise<any>;
   getDevices: () => Promise<any[]>;
   onDeviceUpdate: (callback: (devices: any[]) => void) => void;
@@ -41,6 +42,25 @@ export interface IADBAPI {
   saveFileDialog: (defaultName: string) => Promise<any>;
   openFileDialog: () => Promise<any>;
   onLogStream: (callback: (log: string) => void) => void;
+
+  // Device Profile & Capability Detection
+  getDeviceProfile: (deviceId: string) => Promise<any>;
+  getInstalledPackages: (deviceId: string) => Promise<string[]>;
+  readSettingsSnapshot: (deviceId: string, namespace: 'system' | 'secure' | 'global') => Promise<Record<string, string>>;
+  readDeviceConfigSnapshot: (deviceId: string) => Promise<Record<string, Record<string, string>>>;
+
+  // Xiaomi Experience Customizations
+  getXiaomiCapabilities: (deviceId: string) => Promise<any[]>;
+  readXiaomiItem: (deviceId: string, itemId: string) => Promise<string>;
+  applyXiaomiItem: (deviceId: string, itemId: string, enable: boolean) => Promise<{ success: boolean; output: string }>;
+  rollbackXiaomiItem: (deviceId: string, itemId: string) => Promise<{ success: boolean; output: string }>;
+
+  // Advanced ADB
+  getProps: (deviceId: string) => Promise<Array<{ key: string; value: string }>>;
+  getSettings: (deviceId: string, namespace: string) => Promise<Array<{ key: string; value: string }>>;
+  getDumpsys: (deviceId: string, service: string) => Promise<string>;
+  executePreset: (deviceId: string, commandId: string, params: Record<string, string | number>) => Promise<{ success: boolean; output: string }>;
+  executeRawShell: (deviceId: string, command: string) => Promise<{ success: boolean; output: string }>;
 }
 
 declare global {

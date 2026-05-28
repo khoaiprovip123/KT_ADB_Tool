@@ -4,6 +4,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   initAdb: () => ipcRenderer.invoke('adb:init'),
+  fixConnection: () => ipcRenderer.invoke('adb:fix-connection'),
   getDeviceInfo: (deviceId: string) => ipcRenderer.invoke('adb:get-info', deviceId),
   getDevices: () => ipcRenderer.invoke('adb:get-devices'),
   onDeviceUpdate: (callback: (devices: any[]) => void) => {
@@ -66,7 +67,29 @@ const api = {
   onLogStream: (callback: (log: string) => void) => {
     ipcRenderer.removeAllListeners('adb:log-stream')
     ipcRenderer.on('adb:log-stream', (_event, log) => callback(log))
-  }
+  },
+  
+  // Device Profile & Capability Detection
+  getDeviceProfile: (deviceId: string) => ipcRenderer.invoke('adb:get-device-profile', deviceId),
+  getInstalledPackages: (deviceId: string) => ipcRenderer.invoke('adb:get-installed-packages', deviceId),
+  readSettingsSnapshot: (deviceId: string, namespace: 'system' | 'secure' | 'global') => 
+    ipcRenderer.invoke('adb:read-settings-snapshot', { deviceId, namespace }),
+  readDeviceConfigSnapshot: (deviceId: string) => ipcRenderer.invoke('adb:read-device-config-snapshot', deviceId),
+
+  // Xiaomi Experience Customizations
+  getXiaomiCapabilities: (deviceId: string) => ipcRenderer.invoke('xiaomi:get-experience-capabilities', deviceId),
+  readXiaomiItem: (deviceId: string, itemId: string) => ipcRenderer.invoke('xiaomi:read-experience-item', { deviceId, itemId }),
+  applyXiaomiItem: (deviceId: string, itemId: string, enable: boolean) => 
+    ipcRenderer.invoke('xiaomi:apply-experience-item', { deviceId, itemId, enable }),
+  rollbackXiaomiItem: (deviceId: string, itemId: string) => ipcRenderer.invoke('xiaomi:rollback-experience-item', { deviceId, itemId }),
+
+  // Advanced ADB
+  getProps: (deviceId: string) => ipcRenderer.invoke('advanced-adb:get-props', deviceId),
+  getSettings: (deviceId: string, namespace: string) => ipcRenderer.invoke('advanced-adb:get-settings', deviceId, namespace),
+  getDumpsys: (deviceId: string, service: string) => ipcRenderer.invoke('advanced-adb:get-dumpsys', deviceId, service),
+  executePreset: (deviceId: string, commandId: string, params: Record<string, string | number>) => 
+    ipcRenderer.invoke('advanced-adb:execute-preset', deviceId, commandId, params),
+  executeRawShell: (deviceId: string, command: string) => ipcRenderer.invoke('advanced-adb:execute-raw', deviceId, command)
 }
 
 if (process.contextIsolated) {

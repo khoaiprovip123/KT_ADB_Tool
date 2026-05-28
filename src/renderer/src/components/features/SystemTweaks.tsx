@@ -746,10 +746,13 @@ export function SystemTweaks() {
 
   if (!activeDevice) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-3xl m-8">
-        <SlidersHorizontal className="w-16 h-16 text-slate-300 mb-4 animate-bounce" />
-        <h3 className="text-xl font-bold text-slate-700">Chưa có thiết bị</h3>
-        <p className="text-slate-500 mt-2 text-center max-w-sm">Vui lòng kết nối thiết bị Android để cấu hình tinh chỉnh hệ thống.</p>
+      <div className="absolute inset-4 lg:inset-6 flex flex-col items-center justify-center p-8 bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
+        <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200/55 rounded-full flex items-center justify-center shadow-inner mb-6 relative">
+          <div className="absolute inset-0 bg-blue-500/5 rounded-full blur-xl animate-pulse"></div>
+          <SlidersHorizontal className="w-10 h-10 text-slate-500 animate-bounce" />
+        </div>
+        <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Chưa có thiết bị kết nối</h3>
+        <p className="text-slate-500 text-center max-w-sm text-sm font-semibold leading-relaxed">Vui lòng kết nối thiết bị Android bằng cáp hoặc Wi-Fi và cấp quyền gỡ lỗi USB để tiếp tục tinh chỉnh hệ thống.</p>
       </div>
     )
   }
@@ -763,7 +766,7 @@ export function SystemTweaks() {
   const allSelected = selectedBloat.size === selectableCount && selectableCount > 0
 
   return (
-    <div className="flex-1 flex h-full gap-6 animate-in fade-in zoom-in-95 duration-500 relative overflow-hidden">
+    <div className="absolute inset-4 lg:inset-6 flex flex-col overflow-hidden bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
       
       {/* TOAST NOTIFICATIONS */}
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
@@ -789,839 +792,877 @@ export function SystemTweaks() {
           ))}
         </AnimatePresence>
       </div>
-      
-      {/* LEFT COLUMN: CATEGORIES SIDEBAR */}
-      <div className="w-72 bg-white/60 backdrop-blur-3xl rounded-3xl p-4 border border-white/50 shadow-xl shadow-blue-900/5 flex flex-col justify-between shrink-0 relative z-10">
-        <div className="space-y-4">
-          <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Danh mục tinh chỉnh</div>
-          <div className="space-y-1">
-            <CategoryItem 
-              active={activeCategory === 'debloat'} 
-              onClick={() => setActiveCategory('debloat')} 
-              icon={<Trash2 size={18} />} 
-              title="Gỡ ứng dụng rác" 
-              desc="Debloat Pro & Clean"
-            />
-            <CategoryItem 
-              active={activeCategory === 'display'} 
-              onClick={() => setActiveCategory('display')} 
-              icon={<Monitor size={18} />} 
-              title="Màn hình & DPI" 
-              desc="Resolution & density"
-            />
-            <CategoryItem 
-              active={activeCategory === 'security'} 
-              onClick={() => setActiveCategory('security')} 
-              icon={<Shield size={18} />} 
-              title="Bảo mật & Riêng tư" 
-              desc="Telemetry & tracking"
-            />
-            <CategoryItem 
-              active={activeCategory === 'game'} 
-              onClick={() => setActiveCategory('game')} 
-              icon={<Gamepad2 size={18} />} 
-              title="Tối ưu hóa Game" 
-              desc="FPS & game mode booster"
-            />
-            <CategoryItem 
-              active={activeCategory === 'animations'} 
-              onClick={() => setActiveCategory('animations')} 
-              icon={<Wand2 size={18} />} 
-              title="Hoạt ảnh & Tốc độ" 
-              desc="Window transitions"
-            />
-            <CategoryItem 
-              active={activeCategory === 'controls'} 
-              onClick={() => setActiveCategory('controls')} 
-              icon={<Touchpad size={18} />} 
-              title="Điều khiển & Chạm" 
-              desc="Touch points & pointer speed"
-            />
-            <CategoryItem 
-              active={activeCategory === 'multitasking'} 
-              onClick={() => setActiveCategory('multitasking')} 
-              icon={<Layers size={18} />} 
-              title="Đa nhiệm & Thông báo" 
-              desc="Background & notifications"
-            />
+
+      {/* HEADER BAR */}
+      <div className="bg-white/80 border border-slate-200/80 p-4 rounded-[24px] shadow-sm flex items-center justify-between gap-4 shrink-0 mb-4 select-none">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 shrink-0 flex items-center justify-center">
+            <SlidersHorizontal className="w-5 h-5 text-blue-650" />
+          </div>
+          <div>
+            <span className="text-[9px] font-black text-blue-650 uppercase tracking-widest block">SYSTEM TWEAKS</span>
+            <h2 className="text-base font-black text-slate-800 tracking-tight leading-tight">Tinh chỉnh hệ thống</h2>
           </div>
         </div>
-
+        
         <button 
           onClick={loadData}
           disabled={loading}
-          className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2"
+          className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 hover:text-blue-600 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 text-xs font-black"
         >
-          <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Làm mới dữ liệu</span>
+          <RefreshCcw size={13} className={loading ? 'animate-spin' : ''} />
+          <span>LÀM MỚI DỮ LIỆU</span>
         </button>
       </div>
+      
+      {/* BODY SECTION */}
+      <div className="flex-1 flex min-h-0 gap-5 overflow-hidden">
+        {/* LEFT COLUMN: CATEGORIES SIDEBAR */}
+        <div className="w-64 bg-white/50 backdrop-blur-md rounded-[28px] p-3 border border-slate-200/60 shadow-sm flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+          <div className="space-y-4">
+            <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Danh mục tinh chỉnh</div>
+            <div className="space-y-1">
+              <CategoryItem 
+                active={activeCategory === 'debloat'} 
+                onClick={() => setActiveCategory('debloat')} 
+                icon={<Trash2 size={16} />} 
+                title="Gỡ ứng dụng rác" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'display'} 
+                onClick={() => setActiveCategory('display')} 
+                icon={<Monitor size={16} />} 
+                title="Màn hình & DPI" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'security'} 
+                onClick={() => setActiveCategory('security')} 
+                icon={<Shield size={16} />} 
+                title="Bảo mật & Riêng tư" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'game'} 
+                onClick={() => setActiveCategory('game')} 
+                icon={<Gamepad2 size={16} />} 
+                title="Tối ưu hóa Game" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'animations'} 
+                onClick={() => setActiveCategory('animations')} 
+                icon={<Wand2 size={16} />} 
+                title="Hoạt ảnh & Tốc độ" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'controls'} 
+                onClick={() => setActiveCategory('controls')} 
+                icon={<Touchpad size={16} />} 
+                title="Điều khiển & Chạm" 
+              />
+              <CategoryItem 
+                active={activeCategory === 'multitasking'} 
+                onClick={() => setActiveCategory('multitasking')} 
+                icon={<Layers size={16} />} 
+                title="Đa nhiệm & Thông báo" 
+              />
+            </div>
+          </div>
+        </div>
 
-      {/* RIGHT COLUMN: RENDER CATEGORY DETAILS PANEL */}
-      <div className="flex-1 bg-white/60 backdrop-blur-3xl rounded-3xl border border-white/50 shadow-xl shadow-blue-900/5 flex flex-col relative z-0 overflow-hidden">
-        <AnimatePresence mode="wait">
-          
-          {/* DEBLOAT CATEGORY */}
-          {activeCategory === 'debloat' && (
-            <motion.div 
-              key="debloat"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 flex flex-col h-full min-h-0"
-            >
-              <div className="p-4 border-b border-slate-100 bg-slate-50/20 shrink-0 space-y-4">
-
-
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 relative group">
-                    <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                    <input 
-                      type="text"
-                      placeholder="Tìm gói hoặc tên ứng dụng rác..."
-                      value={debloatSearch}
-                      onChange={e => setDebloatSearch(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
-                    />
-                  </div>
-                  
-                  <div className="hidden lg:flex items-center gap-2">
-                    <StatCard label="An toàn" count={safeCount} color="bg-green-50 text-green-700 border-green-200/50" />
-                    <StatCard label="Cân nhắc" count={riskyCount} color="bg-orange-50 text-orange-700 border-orange-200/50" />
-                    <StatCard label="Giữ lại" count={keepCount} color="bg-red-50 text-red-700 border-red-200/50" />
-                  </div>
-                </div>
-              </div>
-
-              {/* TABLE HEADER */}
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0 items-center">
-                <div className="col-span-5 flex items-center gap-3">
-                  <button onClick={selectAllSelectable} className={`p-1 -ml-1 rounded-md transition-colors ${allSelected ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}>
-                    {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                  </button>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tên ứng dụng & Package</span>
-                </div>
-                <div className="col-span-2 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Độ an toàn</div>
-                <div className="col-span-2 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Nhóm/Chức năng</div>
-                <div className="col-span-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Trạng thái / Thao tác</div>
-              </div>
-
-              {/* LIST BODY */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar px-2 divide-y divide-slate-50/60 pb-32">
-                {loading && bloatListWithStatus.length === 0 ? (
-                  <div className="p-6 space-y-3">
-                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-14 bg-slate-100/50 rounded-2xl animate-pulse" />)}
-                  </div>
-                ) : filteredBloat.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                    <ShieldCheck className="w-16 h-16 text-emerald-400/80 mb-3" />
-                    <p className="text-sm font-black text-slate-700">Tuyệt vời! Thiết bị cực kỳ sạch sẽ.</p>
-                    <p className="text-xs font-semibold text-slate-400 mt-1">Không tìm thấy ứng dụng rác nào phù hợp với bộ lọc hiện tại.</p>
-                  </div>
-                ) : (
-                  filteredBloat.map(item => {
-                    const isSelected = selectedBloat.has(item.package)
-                    const isKeep = item.risk === 'KEEP'
-                    const isRisky = item.risk === 'RISKY'
+        {/* RIGHT COLUMN: RENDER CATEGORY DETAILS PANEL */}
+        <div className="flex-1 bg-white/80 border border-slate-200/60 rounded-[28px] shadow-sm flex flex-col relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            
+            {/* DEBLOAT CATEGORY */}
+            {activeCategory === 'debloat' && (
+              <motion.div 
+                key="debloat"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 flex flex-col h-full min-h-0 relative"
+              >
+                <div className="p-4 border-b border-slate-100 bg-slate-50/10 shrink-0 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative group">
+                      <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                      <input 
+                        type="text"
+                        placeholder="Tìm gói hoặc tên ứng dụng rác..."
+                        value={debloatSearch}
+                        onChange={e => setDebloatSearch(e.target.value)}
+                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+                      />
+                    </div>
                     
-                    let classificationBadge = 'bg-green-50 text-green-600 border-green-200'
-                    if (isRisky) classificationBadge = 'bg-orange-50 text-orange-600 border-orange-200'
-                    if (isKeep) classificationBadge = 'bg-red-50 text-red-600 border-red-200'
-
-                    let statusBadge = 'bg-slate-100 text-slate-500 border-slate-200'
-                    let statusText = 'Chưa cài'
-                    if (item.status === 'installed') {
-                      statusBadge = 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                      statusText = 'Đang chạy'
-                    } else if (item.status === 'disabled') {
-                      statusBadge = 'bg-amber-50 text-amber-600 border-amber-200'
-                      statusText = 'Đã tắt'
-                    }
-
-                    return (
-                      <div 
-                        key={item.package}
-                        className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition-all ${isSelected ? 'bg-blue-50/50 border-l-4 border-l-blue-600' : 'hover:bg-slate-50/40 border-l-4 border-l-transparent'} group h-[68px]`}
-                      >
-                        <div className="col-span-5 flex items-center gap-3 truncate">
-                          <button 
-                            disabled={isKeep}
-                            onClick={() => toggleSelect(item.package, item.risk)} 
-                            className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors shrink-0 ${isKeep ? 'opacity-20 cursor-not-allowed bg-slate-100 border-slate-300' : isSelected ? 'bg-blue-600 text-white' : 'bg-white border border-slate-300 hover:border-blue-400 text-transparent'}`}
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                          </button>
-                          
-                          <div className="truncate">
-                            <div className="text-[10px] font-black text-blue-600 tracking-tight leading-none mb-1 group-hover:text-blue-700">{item.name}</div>
-                            <div className={`text-xs font-bold truncate ${item.status === 'disabled' ? 'text-slate-400 line-through font-medium' : 'text-slate-700'}`}>{item.package}</div>
-                          </div>
-                        </div>
-
-                        <div className="col-span-2 flex justify-center">
-                          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${classificationBadge}`}>
-                            {item.risk}
-                          </span>
-                        </div>
-
-                        <div className="col-span-2 text-center text-xs font-bold text-slate-500 uppercase tracking-tighter truncate">
-                          {item.category}
-                        </div>
-
-                        <div className="col-span-3 flex items-center justify-end gap-2">
-                          <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${statusBadge}`}>
-                            {statusText}
-                          </span>
-                          
-                          <div className="hidden group-hover:flex items-center gap-1">
-                            {item.status !== 'uninstalled' ? (
-                              <>
-                                {item.status === 'installed' ? (
-                                  <>
-                                    <ActionButton 
-                                      icon={<PowerOff size={13} />} 
-                                      tooltip="Vô hiệu hóa"
-                                      disabled={isKeep}
-                                      onClick={() => handleSingleDebloatAction(item.package, 'disable')} 
-                                      color="text-amber-600 hover:bg-amber-50"
-                                      loading={actionLoading === `disable-${item.package}`}
-                                    />
-                                    <ActionButton 
-                                      icon={<Trash2 size={13} />} 
-                                      tooltip="Gỡ cài đặt"
-                                      disabled={isKeep}
-                                      onClick={() => handleSingleDebloatAction(item.package, 'uninstall')} 
-                                      color="text-red-600 hover:bg-red-50"
-                                      loading={actionLoading === `uninstall-${item.package}`}
-                                    />
-                                  </>
-                                ) : (
-                                  <ActionButton 
-                                    icon={<Undo2 size={13} />} 
-                                    tooltip="Bật lại"
-                                    onClick={() => handleSingleDebloatAction(item.package, 'restore')} 
-                                    color="text-emerald-600 hover:bg-emerald-50"
-                                    loading={actionLoading === `restore-${item.package}`}
-                                  />
-                                )}
-                              </>
-                            ) : (
-                              <ActionButton 
-                                icon={<Undo2 size={13} />} 
-                                tooltip="Cài lại ứng dụng gốc"
-                                onClick={() => handleSingleDebloatAction(item.package, 'restore')} 
-                                color="text-slate-600 hover:bg-slate-100"
-                                loading={actionLoading === `restore-${item.package}`}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              {/* SELECTION BAR FOR BATCH DEBLOAT */}
-              <AnimatePresence>
-                {selectedBloat.size > 0 && (
-                  <motion.div 
-                    initial={{ y: 100, opacity: 0, x: '-50%' }}
-                    animate={{ y: 0, opacity: 1, x: '-50%' }}
-                    exit={{ y: 100, opacity: 0, x: '-50%' }}
-                    className="absolute bottom-10 left-1/2 bg-slate-900/90 backdrop-blur-2xl text-white px-2 py-2 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex items-center gap-2 z-50 border border-white/10 min-w-[450px]"
-                  >
-                    <div className="flex items-center gap-3 pl-6 pr-4 border-r border-white/10 shrink-0">
-                      <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black">{selectedBloat.size}</div>
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Đã chọn</span>
+                    <div className="hidden lg:flex items-center gap-2">
+                      <StatCard label="An toàn" count={safeCount} color="bg-green-50 text-green-700 border-green-200/50" />
+                      <StatCard label="Cân nhắc" count={riskyCount} color="bg-orange-50 text-orange-700 border-orange-200/50" />
+                      <StatCard label="Giữ lại" count={keepCount} color="bg-red-50 text-red-700 border-red-200/50" />
                     </div>
+                  </div>
+                </div>
 
-                    <div className="flex-1 flex items-center justify-center px-2">
-                      {batchProgress ? (
-                        <div className="flex items-center gap-3">
-                          <RefreshCcw className="w-4 h-4 animate-spin text-blue-400" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Xử lý {batchProgress.current}/{batchProgress.total}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <BatchActionButton icon={<Trash2 size={13} />} label="Gỡ bỏ" color="hover:bg-red-500 text-white" onClick={() => handleBatchDebloatAction('uninstall')} />
-                          <BatchActionButton icon={<PowerOff size={13} />} label="Tắt" color="hover:bg-amber-500 text-white" onClick={() => handleBatchDebloatAction('disable')} />
-                          <div className="w-px h-5 bg-white/10 mx-1" />
-                          <BatchActionButton icon={<Undo2 size={13} />} label="Khôi phục" color="hover:bg-emerald-500 text-white" onClick={() => handleBatchDebloatAction('restore')} />
-                        </div>
-                      )}
-                    </div>
-
-                    <button 
-                      onClick={() => setSelectedBloat(new Set())}
-                      className="mr-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
-                    >
-                      <X size={16} />
+                {/* TABLE HEADER */}
+                <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50/30 shrink-0 items-center">
+                  <div className="col-span-5 flex items-center gap-3">
+                    <button onClick={selectAllSelectable} className={`p-1 -ml-1 rounded-md transition-colors ${allSelected ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}>
+                      {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                     </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tên ứng dụng & Package</span>
+                  </div>
+                  <div className="col-span-2 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Độ an toàn</div>
+                  <div className="col-span-2 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Nhóm/Chức năng</div>
+                  <div className="col-span-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Trạng thái / Thao tác</div>
+                </div>
 
-          {/* DISPLAY & DPI CATEGORY */}
-          {activeCategory === 'display' && (
-            <motion.div 
-              key="display"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* DPI Density card */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-6 relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl"></div>
-                  
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Monitor size={22} /></div>
-                        <div>
-                          <h4 className="text-base font-black text-slate-800">Mật độ điểm ảnh (DPI)</h4>
-                          <p className="text-xs text-slate-400 font-semibold">Tùy biến kích thước hiển thị toàn màn hình.</p>
+                {/* LIST BODY */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-2 divide-y divide-slate-50/60 pb-4">
+                  {loading && bloatListWithStatus.length === 0 ? (
+                    <div className="p-6 space-y-3">
+                      {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-14 bg-slate-100/50 rounded-2xl animate-pulse" />)}
+                    </div>
+                  ) : filteredBloat.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 min-h-[300px]">
+                      <ShieldCheck className="w-16 h-16 text-emerald-400/80 mb-3 animate-pulse" />
+                      <p className="text-sm font-black text-slate-700">Tuyệt vời! Thiết bị cực kỳ sạch sẽ.</p>
+                      <p className="text-xs font-semibold text-slate-400 mt-1">Không tìm thấy ứng dụng rác nào phù hợp với bộ lọc hiện tại.</p>
+                    </div>
+                  ) : (
+                    filteredBloat.map(item => {
+                      const isSelected = selectedBloat.has(item.package)
+                      const isKeep = item.risk === 'KEEP'
+                      const isRisky = item.risk === 'RISKY'
+                      
+                      let classificationBadge = 'bg-green-50 text-green-600 border-green-200'
+                      if (isRisky) classificationBadge = 'bg-orange-50 text-orange-600 border-orange-200'
+                      if (isKeep) classificationBadge = 'bg-red-50 text-red-600 border-red-200'
+
+                      let statusBadge = 'bg-slate-100 text-slate-550 border-slate-200'
+                      let statusText = 'Chưa cài'
+                      if (item.status === 'installed') {
+                        statusBadge = 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                        statusText = 'Đang chạy'
+                      } else if (item.status === 'disabled') {
+                        statusBadge = 'bg-amber-50 text-amber-600 border-amber-200'
+                        statusText = 'Đã tắt'
+                      }
+
+                      return (
+                        <div 
+                          key={item.package}
+                          className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition-all ${isSelected ? 'bg-blue-50/40 border-l-4 border-l-blue-600' : 'hover:bg-slate-50/40 border-l-4 border-l-transparent'} group h-[68px]`}
+                        >
+                          <div className="col-span-5 flex items-center gap-3 truncate">
+                            <button 
+                              disabled={isKeep}
+                              onClick={() => toggleSelect(item.package, item.risk)} 
+                              className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors shrink-0 ${isKeep ? 'opacity-20 cursor-not-allowed bg-slate-105 border-slate-300' : isSelected ? 'bg-blue-600 text-white' : 'bg-white border border-slate-300 hover:border-blue-400 text-transparent'}`}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                            </button>
+                            
+                            <div className="truncate">
+                              <div className="text-[10px] font-black text-blue-600 tracking-tight leading-none mb-1 group-hover:text-blue-700">{item.name}</div>
+                              <div className={`text-xs font-bold truncate ${item.status === 'disabled' ? 'text-slate-400 line-through font-medium' : 'text-slate-750'}`}>{item.package}</div>
+                            </div>
+                          </div>
+
+                          <div className="col-span-2 flex justify-center">
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${classificationBadge}`}>
+                              {item.risk}
+                            </span>
+                          </div>
+
+                          <div className="col-span-2 text-center text-xs font-bold text-slate-500 uppercase tracking-tighter truncate">
+                            {item.category}
+                          </div>
+
+                          <div className="col-span-3 flex items-center justify-end gap-2">
+                            <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${statusBadge}`}>
+                              {statusText}
+                            </span>
+                            
+                            <div className="hidden group-hover:flex items-center gap-1">
+                              {item.status !== 'uninstalled' ? (
+                                <>
+                                  {item.status === 'installed' ? (
+                                    <>
+                                      <ActionButton 
+                                        icon={<PowerOff size={13} />} 
+                                        tooltip="Vô hiệu hóa"
+                                        disabled={isKeep}
+                                        onClick={() => handleSingleDebloatAction(item.package, 'disable')} 
+                                        color="text-amber-600 hover:bg-amber-50"
+                                        loading={actionLoading === `disable-${item.package}`}
+                                      />
+                                      <ActionButton 
+                                        icon={<Trash2 size={13} />} 
+                                        tooltip="Gỡ cài đặt"
+                                        disabled={isKeep}
+                                        onClick={() => handleSingleDebloatAction(item.package, 'uninstall')} 
+                                        color="text-red-650 hover:bg-red-50"
+                                        loading={actionLoading === `uninstall-${item.package}`}
+                                      />
+                                    </>
+                                  ) : (
+                                    <ActionButton 
+                                      icon={<Undo2 size={13} />} 
+                                      tooltip="Bật lại"
+                                      onClick={() => handleSingleDebloatAction(item.package, 'restore')} 
+                                      color="text-emerald-650 hover:bg-emerald-50"
+                                      loading={actionLoading === `restore-${item.package}`}
+                                    />
+                                  )}
+                                </>
+                              ) : (
+                                <ActionButton 
+                                  icon={<Undo2 size={13} />} 
+                                  tooltip="Cài lại ứng dụng gốc"
+                                  onClick={() => handleSingleDebloatAction(item.package, 'restore')} 
+                                  color="text-slate-600 hover:bg-slate-100"
+                                  loading={actionLoading === `restore-${item.package}`}
+                                />
+                              )}
+                            </div>
+                          </div>
                         </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* BOTTOM STICKY BAR FOR BATCH DEBLOAT */}
+                <AnimatePresence>
+                  {selectedBloat.size > 0 && (
+                    <motion.div 
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 20, opacity: 0 }}
+                      className="sticky bottom-0 bg-white/95 border-t border-slate-200 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.04)] flex items-center justify-between z-10 w-full rounded-b-3xl shrink-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-blue-650 flex items-center justify-center text-[10px] font-black text-white">{selectedBloat.size}</div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Đã chọn</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {batchProgress ? (
+                          <div className="flex items-center gap-3 bg-blue-50 border border-blue-150 px-4 py-2 rounded-xl">
+                            <RefreshCcw className="w-4 h-4 animate-spin text-blue-650" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-650">Xử lý {batchProgress.current}/{batchProgress.total}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleBatchDebloatAction('uninstall')}
+                              className="px-4 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-650 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5"
+                            >
+                              <Trash2 size={13} />
+                              Gỡ bỏ
+                            </button>
+                            <button 
+                              onClick={() => handleBatchDebloatAction('disable')}
+                              className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-600 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5"
+                            >
+                              <PowerOff size={13} />
+                              Tắt chạy nền
+                            </button>
+                            <button 
+                              onClick={() => handleBatchDebloatAction('restore')}
+                              className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-650 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5"
+                            >
+                              <Undo2 size={13} />
+                              Khôi phục
+                            </button>
+                          </div>
+                        )}
+
+                        <button 
+                          onClick={() => setSelectedBloat(new Set())}
+                          className="p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-100 rounded-xl transition-all"
+                          title="Hủy chọn tất cả"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {/* DISPLAY & DPI CATEGORY */}
+            {activeCategory === 'display' && (
+              <motion.div 
+                key="display"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* DPI Density card */}
+                  <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl"></div>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-blue-50 border border-blue-100 text-blue-600 rounded-2xl"><Monitor size={20} /></div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Mật độ điểm ảnh (DPI)</h4>
+                            <p className="text-xs text-slate-400 font-semibold">Tùy biến hiển thị toàn màn hình.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-500">
+                          <span>Mật độ mong muốn:</span>
+                          <div className="flex items-center gap-2">
+                            {deviceDpi && (
+                              <span className="px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded text-[10px] font-black">
+                                Hiện tại: {deviceDpi} DPI
+                              </span>
+                            )}
+                            <span className="text-blue-655 font-black">{customDpi} DPI</span>
+                          </div>
+                        </div>
+                        
+                        <input 
+                          type="range" 
+                          min="240"
+                          max="600"
+                          step="10"
+                          value={customDpi}
+                          onChange={e => setCustomDpi(Number(e.target.value))}
+                          className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-650"
+                        />
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <PresetButton active={customDpi === 360} onClick={() => setCustomDpi(360)} label="Nhỏ (360)" />
+                          <PresetButton active={customDpi === 440} onClick={() => setCustomDpi(440)} label="Mặc định" />
+                          <PresetButton active={customDpi === 500} onClick={() => setCustomDpi(500)} label="Lớn (500)" />
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                          ⚠️ Lưu ý: Việc đặt DPI quá nhỏ hoặc quá lớn có thể làm méo biểu tượng hoặc đè lớp UI hiển thị.
+                        </p>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                        <span>Mật độ mong muốn:</span>
-                        <div className="flex items-center gap-2">
-                          {deviceDpi && (
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">
-                              Hiện tại: {deviceDpi} DPI
+                    <div className="flex gap-2 pt-4 border-t border-slate-100 mt-6 shrink-0">
+                      <button 
+                        onClick={() => applyDpi(customDpi)}
+                        disabled={actionLoading === 'apply-dpi'}
+                        className="flex-1 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {actionLoading === 'apply-dpi' ? 'Đang áp dụng...' : 'Áp dụng DPI'}
+                      </button>
+                      <button 
+                        onClick={handleResetDpi}
+                        disabled={actionLoading === 'reset-dpi'}
+                        className="px-5 py-3 bg-slate-100 border border-slate-200 text-slate-650 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-205 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Resolution Changer card */}
+                  <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl"></div>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-2xl"><Smartphone size={20} /></div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Độ phân giải hiển thị</h4>
+                            <p className="text-xs text-slate-400 font-semibold">Tự cấu hình lại kích thước màn hình.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-500">
+                          <span>Độ phân giải mong muốn:</span>
+                          {deviceW && deviceH && (
+                            <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded text-[10px] font-black">
+                              Hiện tại: {deviceW}x{deviceH} PX
                             </span>
                           )}
-                          <span className="text-blue-600 font-black">{customDpi} DPI</span>
                         </div>
-                      </div>
-                      
-                      <input 
-                        type="range" 
-                        min="240"
-                        max="600"
-                        step="10"
-                        value={customDpi}
-                        onChange={e => setCustomDpi(Number(e.target.value))}
-                        className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600"
-                      />
 
-                      <div className="grid grid-cols-3 gap-2">
-                        <PresetButton active={customDpi === 360} onClick={() => setCustomDpi(360)} label="Nhỏ (360)" />
-                        <PresetButton active={customDpi === 440} onClick={() => setCustomDpi(440)} label="Mặc định (440)" />
-                        <PresetButton active={customDpi === 500} onClick={() => setCustomDpi(500)} label="Lớn (500)" />
-                      </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rộng (Width)</label>
+                            <input 
+                              type="number"
+                              value={customW}
+                              onChange={e => setCustomW(Number(e.target.value))}
+                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cao (Height)</label>
+                            <input 
+                              type="number"
+                              value={customH}
+                              onChange={e => setCustomH(Number(e.target.value))}
+                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                            />
+                          </div>
+                        </div>
 
-                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        ⚠️ Lưu ý: Việc đặt DPI quá nhỏ hoặc quá lớn có thể làm méo biểu tượng hoặc đè lớp UI hiển thị.
-                      </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <PresetButton active={customW === 1080 && customH === 2400} onClick={() => { setCustomW(1080); setCustomH(2400); }} label="FHD+ (1080x2400)" />
+                          <PresetButton active={customW === 1440 && customH === 3200} onClick={() => { setCustomW(1440); setCustomH(3200); }} label="WQHD+ (1440x3200)" />
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                          ⚠️ Lưu ý: Thay đổi độ phân giải sai tỷ lệ có thể khiến màn hình bị giãn hoặc mất cảm ứng tạm thời.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-4 border-t border-slate-100 mt-6 shrink-0">
+                      <button 
+                        onClick={applyResolution}
+                        disabled={actionLoading === 'apply-res'}
+                        className="flex-1 py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {actionLoading === 'apply-res' ? 'Đang cấu hình...' : 'Áp dụng phân giải'}
+                      </button>
+                      <button 
+                        onClick={handleResetResolution}
+                        disabled={actionLoading === 'reset-res'}
+                        className="px-5 py-3 bg-slate-100 border border-slate-200 text-slate-655 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-205 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        Reset
+                      </button>
                     </div>
                   </div>
+                </div>
+              </motion.div>
+            )}
 
-                  <div className="flex gap-2 pt-4 border-t border-slate-100 mt-auto">
-                    <button 
-                      onClick={() => applyDpi(customDpi)}
-                      disabled={actionLoading === 'apply-dpi'}
-                      className="flex-1 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {actionLoading === 'apply-dpi' ? 'Đang áp dụng...' : 'Áp dụng DPI'}
-                    </button>
-                    <button 
-                      onClick={handleResetDpi}
-                      disabled={actionLoading === 'reset-dpi'}
-                      className="px-6 py-3 bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      Reset
-                    </button>
+            {/* SECURITY & PRIVACY CATEGORY */}
+            {activeCategory === 'security' && (
+              <motion.div 
+                key="security"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Quyền riêng tư & Bảo mật hệ thống</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Tăng độ bảo mật dữ liệu cá nhân bằng cách khóa các tiến trình thu thập ẩn.</p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    <TweakSwitchRow 
+                      icon={<ShieldCheck className="text-green-500" />}
+                      title="Chặn Telemetry & Theo dõi người dùng"
+                      desc="Khóa toàn bộ ID quảng cáo, logs phân tích hành vi và telemetry ngầm gửi về hãng sản xuất com.miui.analytics và com.miui.msa.global."
+                      active={telemetryBlocked}
+                      onToggle={toggleTelemetry}
+                      loading={actionLoading === 'telemetry'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<SlidersHorizontal className="text-blue-500" />}
+                      title="Cấu hình Tùy chọn nhà phát triển"
+                      desc="Bật hoặc ẩn hoàn toàn menu Developer Options trong cài đặt của thiết bị để tránh người khác thay đổi."
+                      active={developerOptionsEnabled}
+                      onToggle={toggleDeveloperOptions}
+                      loading={actionLoading === 'devoptions'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<Shield className="text-amber-500" />}
+                      title="Xác thực an toàn ADB Wifi"
+                      desc="Buộc thiết bị sử dụng cổng wifi được mã hóa khi mở gỡ lỗi adb từ xa."
+                      active={usbDebuggingSafe}
+                      onToggle={toggleUsbDebuggingSafe}
+                      loading={actionLoading === 'usbdebugsafe'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<FolderLock className="text-rose-500" />}
+                      title="Chặn cài đặt từ Nguồn không xác định"
+                      desc="Khóa quyền cài đặt trực tiếp ứng dụng từ tệp tin APK ngoài Google Play (install_non_market_apps) để phòng chống mã độc."
+                      active={unknownSourcesBlocked}
+                      onToggle={toggleUnknownSourcesBlocked}
+                      loading={actionLoading === 'unknownsources'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<CloudOff className="text-purple-500" />}
+                      title="Khóa sao lưu Google Cloud ngầm"
+                      desc="Chặn tính năng tự động đồng bộ và tải dữ liệu hệ thống, ứng dụng nhạy cảm lên máy chủ đám mây của Google."
+                      active={cloudBackupBlocked}
+                      onToggle={toggleCloudBackupBlocked}
+                      loading={actionLoading === 'cloudbackup'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<ShieldAlert className="text-emerald-500" />}
+                      title="Quét bảo mật ứng dụng cài qua USB"
+                      desc="Kích hoạt chế độ tự động xác thực và quét bảo mật mọi ứng dụng cài đặt thông qua cổng kết nối ADB/USB."
+                      active={verifyAdbInstallsEnabled}
+                      onToggle={toggleVerifyAdbInstalls}
+                      loading={actionLoading === 'verifyadb'}
+                    />
                   </div>
                 </div>
+              </motion.div>
+            )}
 
-                {/* Resolution Changer card */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-6 relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl"></div>
-                  
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><Smartphone size={22} /></div>
-                        <div>
-                          <h4 className="text-base font-black text-slate-800">Độ phân giải vật lý</h4>
-                          <p className="text-xs text-slate-400 font-semibold">Tự cấu hình lại kích thước màn hình.</p>
-                        </div>
+            {/* GAME OPTIMIZATION CATEGORY */}
+            {activeCategory === 'game' && (
+              <motion.div 
+                key="game"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Chế độ tối ưu hóa Game & Ép xung phần cứng</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Tập trung tối đa xung nhịp phần cứng cho tác vụ chơi game.</p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    <TweakSwitchRow 
+                      icon={<Gamepad2 className="text-purple-500" />}
+                      title="Chế độ chơi game ẩn (Game Mode)"
+                      desc="Giải phóng RAM trống tức thì, tối ưu phân bổ luồng CPU giúp hạn chế giật lag FPS khi chơi game nặng."
+                      active={gameModeEnabled}
+                      onToggle={toggleGameMode}
+                      loading={actionLoading === 'gamemode'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<Eye className="text-blue-500" />}
+                      title="Hiển thị tần số quét / FPS"
+                      desc="Bật bộ đếm FPS thời gian thực của Android hiển thị trực tiếp góc trái màn hình."
+                      active={fpsOverlayEnabled}
+                      onToggle={toggleFpsOverlay}
+                      loading={actionLoading === 'fps'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<Cpu className="text-emerald-500" />}
+                      title="Ép buộc kết xuất GPU 2D (Force GPU Rendering)"
+                      desc="Buộc hệ thống sử dụng nhân đồ họa GPU Skia để vẽ các phần tử giao diện 2D thay vì dùng CPU, giúp cuộn mượt hơn."
+                      active={hwAccelerationEnabled}
+                      onToggle={toggleHwAcceleration}
+                      loading={actionLoading === 'hwaccel'}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ANIMATIONS & SPEED CATEGORY */}
+            {activeCategory === 'animations' && (
+              <motion.div 
+                key="animations"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-6">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Hoạt ảnh & Tốc độ chuyển cảnh hệ thống</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Tăng hoặc giảm thời gian chờ của animation. Animation càng nhanh, cảm giác máy phản hồi càng tốc độ.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                    <AnimScaleCard 
+                      label="Tắt hoạt ảnh" 
+                      desc="Tối đa tốc độ chuyển tab" 
+                      scale={0} 
+                      active={animScale === 0} 
+                      onClick={() => applyAnimations(0)} 
+                      loading={actionLoading === 'apply-anim' && animScale === 0}
+                    />
+                    <AnimScaleCard 
+                      label="Siêu mượt" 
+                      desc="Nhẹ nhàng & Tốc độ (0.5x)" 
+                      scale={0.5} 
+                      active={animScale === 0.5} 
+                      onClick={() => applyAnimations(0.5)} 
+                      loading={actionLoading === 'apply-anim' && animScale === 0.5}
+                    />
+                    <AnimScaleCard 
+                      label="Mặc định" 
+                      desc="Tốc độ tiêu chuẩn (1.0x)" 
+                      scale={1.0} 
+                      active={animScale === 1.0} 
+                      onClick={() => applyAnimations(1.0)} 
+                      loading={actionLoading === 'apply-anim' && animScale === 1.0}
+                    />
+                    <AnimScaleCard 
+                      label="Chậm rãi" 
+                      desc="Chuyển động rõ nét (1.5x)" 
+                      scale={1.5} 
+                      active={animScale === 1.5} 
+                      onClick={() => applyAnimations(1.5)} 
+                      loading={actionLoading === 'apply-anim' && animScale === 1.5}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* CONTROLS & INTERACTION CATEGORY */}
+            {activeCategory === 'controls' && (
+              <motion.div 
+                key="controls"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-6">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Điều khiển & Tương tác cảm biến chạm</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Tinh chỉnh độ nhạy điểm chạm và phản hồi con trỏ trên hệ điều hành.</p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    <TweakSwitchRow 
+                      icon={<Touchpad className="text-indigo-500" />}
+                      title="Hiển thị phản hồi điểm chạm (Show Touches)"
+                      desc="Hiển thị một chấm tròn nhỏ màu trắng tại vị trí ngón tay chạm vào màn hình cảm ứng, hữu ích khi quay video màn hình."
+                      active={showTouches}
+                      onToggle={toggleShowTouches}
+                      loading={actionLoading === 'touches'}
+                    />
+
+                    <TweakSwitchRow 
+                      icon={<Monitor className="text-blue-500" />}
+                      title="Hiển thị tọa độ con trỏ (Pointer Location)"
+                      desc="Vẽ các đường kẻ trục XY thời gian thực và ghi lại vết cảm ứng trực tiếp trên đỉnh màn hình để test vùng chết cảm ứng."
+                      active={pointerLocation}
+                      onToggle={togglePointerLocation}
+                      loading={actionLoading === 'pointerloc'}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">Tốc độ con trỏ cảm ứng (Pointer Speed)</h5>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">Tùy chỉnh tốc độ di chuyển con trỏ (khi dùng chuột/bàn rê Bluetooth).</p>
                       </div>
+
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="range" 
+                          min="-7"
+                          max="7"
+                          step="1"
+                          value={pointerSpeed}
+                          onChange={e => setPointerSpeed(Number(e.target.value))}
+                          className="flex-1 h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-650"
+                        />
+                        <span className="w-12 text-center text-xs font-black text-indigo-650 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg">{pointerSpeed}</span>
+                      </div>
+
+                      <button
+                        onClick={() => applyPointerSpeed(pointerSpeed)}
+                        disabled={actionLoading === 'pointer_speed'}
+                        className="w-full py-3 bg-indigo-650 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                      >
+                        {actionLoading === 'pointer_speed' ? 'Đang cập nhật...' : 'Cập nhật tốc độ con trỏ'}
+                      </button>
                     </div>
 
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                        <span>Độ phân giải mong muốn:</span>
-                        {deviceW && deviceH && (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[10px] font-bold">
-                            Hiện tại: {deviceW}x{deviceH} PX
-                          </span>
-                        )}
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">Tốc độ phản ứng DPI ảo chuột</h5>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">Lưu ý: Tốc độ mặc định của hệ thống Android là 0.</p>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rộng (Width)</label>
-                          <input 
-                            type="number"
-                            value={customW}
-                            onChange={e => setCustomW(Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cao (Height)</label>
-                          <input 
-                            type="number"
-                            value={customH}
-                            onChange={e => setCustomH(Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                          />
-                        </div>
+                      <div className="h-12 bg-slate-50 border border-slate-150 rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-500">
+                        Giá trị con trỏ hợp lệ: Từ -7 (Chậm nhất) đến +7 (Nhanh nhất).
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <PresetButton active={customW === 1080 && customH === 2400} onClick={() => { setCustomW(1080); setCustomH(2400); }} label="FHD+ (1080x2400)" />
-                        <PresetButton active={customW === 1440 && customH === 3200} onClick={() => { setCustomW(1440); setCustomH(3200); }} label="WQHD+ (1440x3200)" />
-                      </div>
-
-                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        ⚠️ Lưu ý: Thay đổi độ phân giải sai tỷ lệ có thể khiến màn hình bị giãn hoặc mất cảm ứng tạm thời.
-                      </p>
                     </div>
                   </div>
+                </div>
+              </motion.div>
+            )}
 
-                  <div className="flex gap-2 pt-4 border-t border-slate-100 mt-auto">
-                    <button 
-                      onClick={applyResolution}
-                      disabled={actionLoading === 'apply-res'}
-                      className="flex-1 py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-md transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {actionLoading === 'apply-res' ? 'Đang cấu hình...' : 'Áp dụng phân giải'}
-                    </button>
-                    <button 
-                      onClick={handleResetResolution}
-                      disabled={actionLoading === 'reset-res'}
-                      className="px-6 py-3 bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      Reset
-                    </button>
+            {/* MULTITASKING & NOTIFICATIONS CATEGORY */}
+            {activeCategory === 'multitasking' && (
+              <motion.div 
+                key="multitasking"
+                initial={{ opacity: 0, x: 15 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar space-y-6"
+              >
+                {/* Part 1: RAM & Background limit */}
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-6">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Giới hạn Chạy ngầm & RAM Đa nhiệm</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Điều khiển cách hệ thống Android giữ tiến trình ngầm và giải phóng RAM.</p>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
 
-          {/* SECURITY & PRIVACY CATEGORY */}
-          {activeCategory === 'security' && (
-            <motion.div 
-              key="security"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-6"
-            >
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm relative overflow-hidden space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Quyền riêng tư & Bảo mật hệ thống</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Tăng độ bảo mật dữ liệu cá nhân bằng cách khóa các tiến trình thu thập ẩn.</p>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  <TweakSwitchRow 
-                    icon={<ShieldCheck className="text-green-500" />}
-                    title="Chặn Telemetry & Theo dõi người dùng"
-                    desc="Khóa toàn bộ ID quảng cáo, logs phân tích hành vi và telemetry ngầm gửi về hãng sản xuất com.miui.analytics và com.miui.msa.global."
-                    active={telemetryBlocked}
-                    onToggle={toggleTelemetry}
-                    loading={actionLoading === 'telemetry'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<SlidersHorizontal className="text-blue-500" />}
-                    title="Cấu hình Tùy chọn nhà phát triển"
-                    desc="Bật hoặc ẩn hoàn toàn menu Developer Options trong cài đặt của thiết bị để tránh người khác thay đổi."
-                    active={developerOptionsEnabled}
-                    onToggle={toggleDeveloperOptions}
-                    loading={actionLoading === 'devoptions'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<Shield className="text-amber-500" />}
-                    title="Xác thực an toàn ADB Wifi"
-                    desc="Buộc thiết bị sử dụng cổng wifi được mã hóa khi mở gỡ lỗi adb từ xa."
-                    active={usbDebuggingSafe}
-                    onToggle={toggleUsbDebuggingSafe}
-                    loading={actionLoading === 'usbdebugsafe'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<FolderLock className="text-rose-500" />}
-                    title="Chặn cài đặt từ Nguồn không xác định"
-                    desc="Khóa quyền cài đặt trực tiếp ứng dụng từ tệp tin APK ngoài Google Play (install_non_market_apps) để phòng chống mã độc."
-                    active={unknownSourcesBlocked}
-                    onToggle={toggleUnknownSourcesBlocked}
-                    loading={actionLoading === 'unknownsources'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<CloudOff className="text-purple-500" />}
-                    title="Khóa sao lưu Google Cloud ngầm"
-                    desc="Chặn tính năng tự động đồng bộ và tải dữ liệu hệ thống, ứng dụng nhạy cảm lên máy chủ đám mây của Google."
-                    active={cloudBackupBlocked}
-                    onToggle={toggleCloudBackupBlocked}
-                    loading={actionLoading === 'cloudbackup'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<ShieldAlert className="text-emerald-500" />}
-                    title="Quét bảo mật ứng dụng cài qua USB"
-                    desc="Kích hoạt chế độ tự động xác thực và quét bảo mật mọi ứng dụng cài đặt thông qua cổng kết nối ADB/USB."
-                    active={verifyAdbInstallsEnabled}
-                    onToggle={toggleVerifyAdbInstalls}
-                    loading={actionLoading === 'verifyadb'}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* GAME OPTIMIZATION CATEGORY */}
-          {activeCategory === 'game' && (
-            <motion.div 
-              key="game"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-6"
-            >
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm relative overflow-hidden space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Chế độ tối ưu hóa Game & Ép xung phần cứng</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Tập trung tối đa xung nhịp phần cứng cho tác vụ chơi game.</p>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  <TweakSwitchRow 
-                    icon={<Gamepad2 className="text-purple-500" />}
-                    title="Chế độ chơi game ẩn (Game Mode)"
-                    desc="Giải phóng RAM trống tức thì, tối ưu phân bổ luồng CPU giúp hạn chế giật lag FPS khi chơi game nặng."
-                    active={gameModeEnabled}
-                    onToggle={toggleGameMode}
-                    loading={actionLoading === 'gamemode'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<Eye className="text-blue-500" />}
-                    title="Hiển thị tần số quét / FPS"
-                    desc="Bật bộ đếm FPS thời gian thực của Android hiển thị trực tiếp góc trái màn hình."
-                    active={fpsOverlayEnabled}
-                    onToggle={toggleFpsOverlay}
-                    loading={actionLoading === 'fps'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<Cpu className="text-emerald-500" />}
-                    title="Ép buộc kết xuất GPU 2D (Force GPU Rendering)"
-                    desc="Buộc hệ thống sử dụng nhân đồ họa GPU Skia để vẽ các phần tử giao diện 2D thay vì dùng CPU, giúp cuộn mượt hơn."
-                    active={hwAccelerationEnabled}
-                    onToggle={toggleHwAcceleration}
-                    loading={actionLoading === 'hwaccel'}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ANIMATIONS & SPEED CATEGORY */}
-          {activeCategory === 'animations' && (
-            <motion.div 
-              key="animations"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-6"
-            >
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm relative overflow-hidden space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Hoạt ảnh & Tốc độ chuyển cảnh hệ thống</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Tăng hoặc giảm thời gian chờ của animation. Animation càng nhanh, cảm giác máy phản hồi càng tốc độ.</p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-                  <AnimScaleCard 
-                    label="Tắt hoạt ảnh" 
-                    desc="Tối đa tốc độ chuyển tab" 
-                    scale={0} 
-                    active={animScale === 0} 
-                    onClick={() => applyAnimations(0)} 
-                    loading={actionLoading === 'apply-anim' && animScale === 0}
-                  />
-                  <AnimScaleCard 
-                    label="Siêu mượt" 
-                    desc="Nhẹ nhàng & Tốc độ (0.5x)" 
-                    scale={0.5} 
-                    active={animScale === 0.5} 
-                    onClick={() => applyAnimations(0.5)} 
-                    loading={actionLoading === 'apply-anim' && animScale === 0.5}
-                  />
-                  <AnimScaleCard 
-                    label="Mặc định" 
-                    desc="Tốc độ tiêu chuẩn (1.0x)" 
-                    scale={1.0} 
-                    active={animScale === 1.0} 
-                    onClick={() => applyAnimations(1.0)} 
-                    loading={actionLoading === 'apply-anim' && animScale === 1.0}
-                  />
-                  <AnimScaleCard 
-                    label="Chậm rãi" 
-                    desc="Chuyển động rõ nét (1.5x)" 
-                    scale={1.5} 
-                    active={animScale === 1.5} 
-                    onClick={() => applyAnimations(1.5)} 
-                    loading={actionLoading === 'apply-anim' && animScale === 1.5}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* CONTROLS & INTERACTION CATEGORY */}
-          {activeCategory === 'controls' && (
-            <motion.div 
-              key="controls"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-6"
-            >
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm relative overflow-hidden space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Điều khiển thiết bị & Tương tác cảm ứng</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Tùy biến cách tương tác của ngón tay hoặc chuột ngoài với thiết bị Android.</p>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  <TweakSwitchRow 
-                    icon={<Touchpad className="text-blue-500" />}
-                    title="Hiển thị điểm chạm (Show Touches)"
-                    desc="Vẽ một hình tròn nhỏ màu trắng tại nơi ngón tay chạm trên màn hình điện thoại (thích hợp cho việc quay video)."
-                    active={showTouches}
-                    onToggle={toggleShowTouches}
-                    loading={actionLoading === 'showtouches'}
-                  />
-
-                  <TweakSwitchRow 
-                    icon={<SlidersHorizontal className="text-purple-500" />}
-                    title="Vẽ tọa độ con trỏ (Pointer Location)"
-                    desc="Vẽ đường cắt tọa độ X, Y thời gian thực và lịch sử vuốt của ngón tay trên đỉnh màn hình."
-                    active={pointerLocation}
-                    onToggle={togglePointerLocation}
-                    loading={actionLoading === 'pointerlocation'}
-                  />
-
-                  {/* Pointer speed slider row */}
-                  <div className="py-6 space-y-3">
-                    <div className="flex justify-between text-xs font-bold text-slate-500">
-                      <span>Tốc độ con trỏ chuột / Cảm ứng:</span>
-                      <span className="text-purple-600 font-black">{pointerSpeed >= 0 ? `+${pointerSpeed}` : pointerSpeed}</span>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <input 
-                        type="range"
-                        min="-7"
-                        max="7"
-                        step="1"
-                        value={pointerSpeed}
-                        onChange={e => setPointerSpeed(Number(e.target.value))}
-                        className="flex-1 h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-purple-600"
-                      />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">Giới hạn số tiến trình chạy ngầm</h5>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">Giảm tiến trình chạy nền sẽ giải phóng nhiều RAM hơn cho app hiện tại.</p>
+                      </div>
                       
-                      <button 
-                        onClick={() => applyPointerSpeed(pointerSpeed)}
-                        disabled={actionLoading === 'pointerspeed'}
-                        className="px-4 py-2 bg-purple-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm disabled:opacity-50"
-                      >
-                        {actionLoading === 'pointerspeed' ? 'Đang chỉnh...' : 'Áp dụng'}
-                      </button>
+                      <div className="grid grid-cols-3 gap-2">
+                        <PresetButton active={bgLimit === -1} onClick={() => applyBgLimit(-1)} label="Tiêu chuẩn" />
+                        <PresetButton active={bgLimit === 0} onClick={() => applyBgLimit(0)} label="Không có" />
+                        <PresetButton active={bgLimit === 1} onClick={() => applyBgLimit(1)} label="1 tiến trình" />
+                        <PresetButton active={bgLimit === 2} onClick={() => applyBgLimit(2)} label="2 tiến trình" />
+                        <PresetButton active={bgLimit === 3} onClick={() => applyBgLimit(3)} label="3 tiến trình" />
+                        <PresetButton active={bgLimit === 4} onClick={() => applyBgLimit(4)} label="4 tiến trình" />
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
 
-          {/* MULTITASKING & NOTIFICATIONS CATEGORY */}
-          {activeCategory === 'multitasking' && (
-            <motion.div 
-              key="multitasking"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-6"
-            >
-              {/* Part 1: Background & Cache Limits */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Cấu hình Đa nhiệm & Bộ nhớ đệm</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Điều chỉnh giới hạn số tiến trình chạy ngầm để tiết kiệm pin hoặc tối ưu hóa RAM.</p>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  {/* Process Limit Dropdown */}
-                  <div className="py-6 flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="text-xs font-bold text-slate-700">Giới hạn số tiến trình chạy nền (Background Process Limit)</div>
-                      <div className="text-[10px] text-slate-400 font-semibold">Tự động kết liễu các tiến trình vượt quá giới hạn để giải phóng dung lượng RAM trống.</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={bgLimit}
-                        onChange={e => applyBgLimit(Number(e.target.value))}
-                        disabled={actionLoading === 'bg_limit'}
-                        className="px-3 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 rounded-xl outline-none focus:border-blue-500"
-                      >
-                        <option value={-1}>Giới hạn chuẩn hệ thống</option>
-                        <option value={0}>Không có tiến trình chạy nền</option>
-                        <option value={1}>Tối đa 1 tiến trình</option>
-                        <option value={2}>Tối đa 2 tiến trình</option>
-                        <option value={3}>Tối đa 3 tiến trình</option>
-                        <option value={4}>Tối đa 4 tiến trình</option>
-                      </select>
+                    <div className="space-y-2">
+                      <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl text-[10px] text-slate-550 leading-relaxed font-semibold">
+                        💡 **Lời khuyên**: Đối với các dòng máy yếu (RAM 3GB - 4GB), hãy đặt giới hạn ở mức **3 hoặc 4 tiến trình** để cải thiện đáng kể độ mượt của game mà không gây trễ tin nhắn Zalo/Messenger quá nặng.
+                      </div>
                     </div>
                   </div>
 
-                  {/* Don't Keep Activities */}
-                  <TweakSwitchRow 
-                    icon={<Layers className="text-rose-500" />}
-                    title="Không giữ hoạt động (Don't Keep Activities)"
-                    desc="Phá hủy lập tức mọi tác vụ/giao diện ứng dụng ngay khi người dùng nhấn Home hoặc chuyển sang ứng dụng khác."
-                    active={alwaysFinish}
-                    onToggle={toggleAlwaysFinish}
-                    loading={actionLoading === 'always_finish'}
-                  />
-
-                  {/* Phantom Process Killer Optimizer */}
-                  <TweakSwitchRow 
-                    icon={<Cpu className="text-emerald-500" />}
-                    title="Tối ưu hóa Tiến trình Ẩn (Phantom Processes)"
-                    desc="Nâng giới hạn tiến trình phụ lên 32 (chỉ hỗ trợ Android 12 trở lên) nhằm ngăn ngừa tình trạng kill app chạy ngầm quá đà."
-                    active={phantomOptimizer}
-                    onToggle={togglePhantomOptimizer}
-                    loading={actionLoading === 'phantom'}
-                  />
-                </div>
-              </div>
-
-              {/* Part 2: Fix Notification & Background Autostart */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Sửa lỗi trễ thông báo & Cho phép tự khởi chạy</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Đưa ứng dụng vào danh sách loại trừ tối ưu pin (Doze Whitelist) để nhận thông báo tức thời.</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <input 
-                      type="text"
-                      placeholder="Nhập tên gói ứng dụng (Ví dụ: com.whatsapp, com.facebook.orca...)"
-                      value={pkgNotifyInput}
-                      onChange={e => setPkgNotifyInput(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-slate-300"
+                  <div className="divide-y divide-slate-100 pt-4 border-t border-slate-100">
+                    {/* Don't Keep Activities */}
+                    <TweakSwitchRow 
+                      icon={<Layers className="text-rose-500" />}
+                      title="Không giữ hoạt động (Don't Keep Activities)"
+                      desc="Phá hủy lập tức mọi tác vụ/giao diện ứng dụng ngay khi người dùng nhấn Home hoặc chuyển sang ứng dụng khác."
+                      active={alwaysFinish}
+                      onToggle={toggleAlwaysFinish}
+                      loading={actionLoading === 'always_finish'}
                     />
-                    <button
-                      onClick={() => fixNotificationDelay(pkgNotifyInput)}
-                      disabled={!pkgNotifyInput || actionLoading === 'fix_notify'}
-                      className="px-5 py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md disabled:opacity-50"
-                    >
-                      {actionLoading === 'fix_notify' ? 'Đang sửa...' : 'Sửa trễ thông báo'}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                    💡 **Mẹo**: Lệnh này sẽ tự động loại bỏ ứng dụng khỏi chế độ ngủ tiết kiệm pin (Doze mode), cho phép chạy nền và nâng bucket ưu tiên lên hoạt động tích cực (standby-bucket active).
-                  </p>
-                </div>
-              </div>
 
-              {/* Part 3: Freeze Background Applications */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-6">
-                <div>
-                  <h4 className="text-base font-black text-slate-800">Quản lý Đóng băng / Tắt chạy nền</h4>
-                  <p className="text-xs text-slate-400 font-semibold">Khóa quyền chạy ngầm của các ứng dụng không cần thiết nhằm tiết kiệm năng lượng triệt để.</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <input 
-                      type="text"
-                      placeholder="Nhập tên gói ứng dụng cần chặn chạy nền..."
-                      value={pkgFreezeInput}
-                      onChange={e => setPkgFreezeInput(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-slate-300"
+                    {/* Phantom Process Killer Optimizer */}
+                    <TweakSwitchRow 
+                      icon={<Cpu className="text-emerald-500" />}
+                      title="Tối ưu hóa Tiến trình Ẩn (Phantom Processes)"
+                      desc="Nâng giới hạn tiến trình phụ lên 32 (chỉ hỗ trợ Android 12 trở lên) nhằm ngăn ngừa tình trạng kill app chạy ngầm quá đà."
+                      active={phantomOptimizer}
+                      onToggle={togglePhantomOptimizer}
+                      loading={actionLoading === 'phantom'}
                     />
-                    <div className="flex gap-2">
+                  </div>
+                </div>
+
+                {/* Part 2: Fix Notification & Background Autostart */}
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Sửa lỗi trễ thông báo & Cho phép tự khởi chạy</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Đưa ứng dụng vào danh sách loại trừ tối ưu pin (Doze Whitelist) để nhận thông báo tức thời.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <input 
+                        type="text"
+                        placeholder="Nhập tên gói ứng dụng (Ví dụ: com.whatsapp, com.facebook.orca...)"
+                        value={pkgNotifyInput}
+                        onChange={e => setPkgNotifyInput(e.target.value)}
+                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 text-xs font-black text-slate-700 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-slate-300"
+                      />
                       <button
-                        onClick={() => freezeBackgroundApp(pkgFreezeInput)}
-                        disabled={!pkgFreezeInput || actionLoading === 'freeze_bg'}
-                        className="px-5 py-3 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-900 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+                        onClick={() => fixNotificationDelay(pkgNotifyInput)}
+                        disabled={!pkgNotifyInput || actionLoading === 'fix_notify'}
+                        className="px-5 py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md disabled:opacity-50 shrink-0"
                       >
-                        {actionLoading === 'freeze_bg' ? 'Đang chặn...' : 'Đóng băng nền'}
-                      </button>
-                      <button
-                        onClick={() => unfreezeBackgroundApp(pkgFreezeInput)}
-                        disabled={!pkgFreezeInput || actionLoading === 'unfreeze_bg'}
-                        className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm disabled:opacity-50"
-                      >
-                        {actionLoading === 'unfreeze_bg' ? 'Đang mở...' : 'Kích hoạt lại'}
+                        {actionLoading === 'fix_notify' ? 'Đang sửa...' : 'Sửa trễ thông báo'}
                       </button>
                     </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                    ⚠️ **Lưu ý**: Đóng băng nền sẽ chặn quyền `RUN_IN_BACKGROUND` của gói thông qua AppOps và chuyển trạng thái standby thành `restricted`. Ứng dụng sẽ không thể gửi tin nhắn hoặc đẩy dịch vụ nền trừ khi được bạn mở trực tiếp.
-                  </p>
-                </div>
-              </div>
-
-              {/* Part 4: Xiaomi Multitasking Lock Lock explanation */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 shadow-sm space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-500 text-white rounded-2xl shadow-md shrink-0">
-                    <AlertCircle size={24} />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-black text-slate-800">Hướng dẫn Khóa ứng dụng không bị xóa đa nhiệm (MIUI / HyperOS)</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                      Do cơ chế khóa ứng dụng đa nhiệm (Recent lock) nằm sâu trong ứng dụng bảo mật độc quyền của Xiaomi, **không có lệnh ADB công khai** nào có thể trực tiếp thực hiện tính năng này. Bạn có thể thiết lập bằng cách thủ công sau:
+                    <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                      💡 **Mẹo**: Lệnh này sẽ tự động loại bỏ ứng dụng khỏi chế độ ngủ tiết kiệm pin (Doze mode), cho phép chạy nền và nâng bucket ưu tiên lên hoạt động tích cực (standby-bucket active).
                     </p>
                   </div>
                 </div>
 
-                <div className="pl-14 space-y-2 text-xs text-slate-600 font-semibold list-decimal leading-relaxed">
-                  <p>🔹 **Cách 1 (Từ ứng dụng Bảo mật - Khuyên dùng cho HyperOS):**</p>
-                  <p className="pl-4">1. Mở ứng dụng **Bảo mật (Security)** mặc định trên điện thoại.</p>
-                  <p className="pl-4">2. Nhấn vào biểu tượng **Cài đặt (Bánh răng)** ở góc trên bên phải.</p>
-                  <p className="pl-4">3. Chọn mục **Tăng tốc (Boost speed)** → **Khóa ứng dụng (Lock apps)**.</p>
-                  <p className="pl-4">4. Gạt bật công tắc cho các ứng dụng bạn muốn khóa lại.</p>
+                {/* Part 3: Freeze Background Applications */}
+                <div className="bg-white/90 p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Quản lý Đóng băng / Tắt chạy nền</h4>
+                    <p className="text-xs text-slate-450 font-semibold">Khóa quyền chạy ngầm của các ứng dụng không cần thiết nhằm tiết kiệm năng lượng triệt để.</p>
+                  </div>
 
-                  <p className="pt-2">🔹 **Cách 2 (Từ màn hình Đa nhiệm - Dành cho MIUI cũ):**</p>
-                  <p className="pl-4">1. Vuốt lên giữ để mở màn hình Đa nhiệm gần đây.</p>
-                  <p className="pl-4">2. Ấn giữ lâu vào thẻ xem trước của ứng dụng mong muốn.</p>
-                  <p className="pl-4">3. Nhấn vào **biểu tượng Ổ khóa** để giữ ứng dụng chạy ngầm vĩnh viễn.</p>
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <input 
+                        type="text"
+                        placeholder="Nhập tên gói ứng dụng cần chặn chạy nền..."
+                        value={pkgFreezeInput}
+                        onChange={e => setPkgFreezeInput(e.target.value)}
+                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 text-xs font-black text-slate-700 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-slate-300"
+                      />
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => freezeBackgroundApp(pkgFreezeInput)}
+                          disabled={!pkgFreezeInput || actionLoading === 'freeze_bg'}
+                          className="px-5 py-3 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-900 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {actionLoading === 'freeze_bg' ? 'Đang chặn...' : 'Đóng băng nền'}
+                        </button>
+                        <button
+                          onClick={() => unfreezeBackgroundApp(pkgFreezeInput)}
+                          disabled={!pkgFreezeInput || actionLoading === 'unfreeze_bg'}
+                          className="px-5 py-3 bg-white border border-slate-200 text-slate-650 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {actionLoading === 'unfreeze_bg' ? 'Đang mở...' : 'Kích hoạt lại'}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                      ⚠️ **Lưu ý**: Đóng băng nền sẽ chặn quyền `RUN_IN_BACKGROUND` của gói thông qua AppOps và chuyển trạng thái standby thành `restricted`. Ứng dụng sẽ không thể gửi tin nhắn hoặc đẩy dịch vụ nền trừ khi được bạn mở trực tiếp.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
 
-        </AnimatePresence>
+                {/* Part 4: Xiaomi Multitasking Lock Lock explanation */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 p-6 rounded-3xl border border-blue-100 shadow-sm space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-500 text-white rounded-2xl shadow-md shrink-0">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Hướng dẫn Khóa ứng dụng đa nhiệm (MIUI / HyperOS)</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                        Do cơ chế khóa ứng dụng đa nhiệm (Recent lock) nằm sâu trong ứng dụng bảo mật độc quyền của Xiaomi, **không có lệnh ADB công khai** nào có thể trực tiếp thực hiện tính năng này. Bạn có thể thiết lập bằng cách thủ công sau:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pl-14 space-y-2 text-xs text-slate-600 font-semibold list-decimal leading-relaxed">
+                    <p>🔹 **Cách 1 (Từ ứng dụng Bảo mật - Khuyên dùng cho HyperOS):**</p>
+                    <p className="pl-4">1. Mở ứng dụng **Bảo mật (Security)** mặc định trên điện thoại.</p>
+                    <p className="pl-4">2. Nhấn vào biểu tượng **Cài đặt (Bánh răng)** ở góc trên bên phải.</p>
+                    <p className="pl-4">3. Chọn mục **Tăng tốc (Boost speed)** → **Khóa ứng dụng (Lock apps)**.</p>
+                    <p className="pl-4">4. Gạt bật công tắc cho các ứng dụng bạn muốn khóa lại.</p>
+
+                    <p className="pt-2">🔹 **Cách 2 (Từ màn hình Đa nhiệm - Dành cho MIUI cũ):**</p>
+                    <p className="pl-4">1. Vuốt lên giữ để mở màn hình Đa nhiệm gần đây.</p>
+                    <p className="pl-4">2. Ấn giữ lâu vào thẻ xem trước của ứng dụng mong muốn.</p>
+                    <p className="pl-4">3. Nhấn vào **biểu tượng Ổ khóa** để giữ ứng dụng chạy ngầm vĩnh viễn.</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Batch modal for Debloat results */}
@@ -1630,22 +1671,17 @@ export function SystemTweaks() {
   )
 }
 
-function CategoryItem({ active, onClick, icon, title, desc }: { active: boolean, onClick: () => void, icon: React.ReactNode, title: string, desc: string }) {
+function CategoryItem({ active, onClick, icon, title }: { active: boolean, onClick: () => void, icon: React.ReactNode, title: string }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full relative flex items-center gap-3 p-3 rounded-2xl text-left transition-all ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+      className={`w-full relative flex items-center gap-3 p-3 rounded-2xl text-left transition-all ${active ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10' : 'text-slate-650 hover:bg-slate-100 hover:text-slate-900'}`}
     >
       <div className={`p-2 rounded-xl shrink-0 ${active ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-500'}`}>{icon}</div>
-      <div className="truncate">
-        <div className="text-xs font-black tracking-tight">{title}</div>
-        <div className={`text-[9px] font-bold ${active ? 'text-blue-100' : 'text-slate-400'}`}>{desc}</div>
-      </div>
+      <span className="text-xs font-black tracking-tight truncate">{title}</span>
     </button>
   )
 }
-
-
 
 function StatCard({ label, count, color }: { label: string, count: number, color: string }) {
   return (
@@ -1669,23 +1705,11 @@ function ActionButton({ icon, tooltip, disabled, onClick, color, loading }: { ic
   )
 }
 
-function BatchActionButton({ icon, label, color, onClick }: { icon: React.ReactNode, label: string, color: string, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 text-[9px] font-black tracking-widest uppercase group whitespace-nowrap ${color}`}
-    >
-      <span className="group-hover:scale-110 transition-transform shrink-0">{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
-}
-
 function PresetButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
     <button
       onClick={onClick}
-      className={`py-2 px-3 border rounded-xl text-center text-xs font-bold transition-all ${active ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+      className={`py-2 px-3 border rounded-xl text-center text-xs font-bold transition-all ${active ? 'bg-blue-600 border-blue-650 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
     >
       {label}
     </button>
@@ -1697,7 +1721,7 @@ function AnimScaleCard({ label, desc, scale, active, onClick, loading }: { label
     <button
       onClick={onClick}
       disabled={loading}
-      className={`relative p-5 rounded-2xl border text-left flex flex-col justify-between transition-all group overflow-hidden ${active ? 'bg-purple-600 border-purple-600 text-white shadow-xl shadow-purple-600/20' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-purple-200'}`}
+      className={`relative p-5 rounded-2xl border text-left flex flex-col justify-between transition-all group overflow-hidden ${active ? 'bg-purple-600 border-purple-600 text-white shadow-xl shadow-purple-600/20' : 'bg-slate-50 border-slate-200 text-slate-655 hover:bg-slate-100 hover:border-purple-200'}`}
     >
       <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-white/5 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
       <div className="flex justify-between items-start mb-4">

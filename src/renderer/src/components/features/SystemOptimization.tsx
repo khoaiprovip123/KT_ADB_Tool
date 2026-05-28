@@ -89,13 +89,22 @@ export function SystemOptimization() {
 
   const runOptimizationBatch = async () => {
     if (!activeDevice) return
+
+    const confirmOpt = window.confirm(
+      "⚡ CẢNH BÁO TỐI ƯU HÓA HỆ THỐNG:\n\n" +
+      "Quy trình này sẽ áp dụng các tinh chỉnh hệ thống sâu và biên dịch tối ưu hóa ứng dụng bằng ART Compiler (speed/speed-profile).\n" +
+      "Các tác vụ biên dịch có thể mất vài phút tùy số lượng ứng dụng trên thiết bị.\n\n" +
+      "Bạn có chắc chắn muốn tiến hành tối ưu hóa?"
+    )
+    if (!confirmOpt) return
+
     setActionLoading('optimization_batch')
-    
-    // Reset and show modal
+
     setModalLogs([])
     setModalProgress(0)
     setModalStatus('running')
     setShowModal(true)
+
 
     const localLogs: string[] = []
     const logAndPush = (msg: string) => {
@@ -106,7 +115,6 @@ export function SystemOptimization() {
 
     logAndPush('🚀 [BATCH] Khởi động động cơ Siêu Tối Ưu Hóa hệ thống...')
 
-    // Calculate total steps
     let totalSteps = 0
     if (optAnimDurationEnabled) totalSteps++
     if (optMultiTouch) totalSteps++
@@ -136,129 +144,123 @@ export function SystemOptimization() {
     }
 
     let completedSteps = 0
+    let failedSteps = 0
     const stepDone = () => {
       completedSteps++
       setModalProgress(Math.round((completedSteps / totalSteps) * 100))
     }
 
+    const runStep = async (label: string, command: string) => {
+      logAndPush(`[EXEC] ${label}`)
+      logAndPush(`  → ${command}`)
+      try {
+        const res = await window.api.runAdbCommand(activeDevice!, command)
+        if (!res.success) {
+          logAndPush(`  ❌ [FAIL] ${res.output || 'Lệnh thất bại'}`)
+          failedSteps++
+        } else {
+          logAndPush(`  ✓ OK${res.output ? ': ' + res.output.trim().slice(0, 80) : ''}`)
+        }
+      } catch (e: any) {
+        logAndPush(`  ❌ [ERROR] ${e.message}`)
+        failedSteps++
+      }
+      stepDone()
+    }
+
     try {
-      // Column 1: Hiệu ứng & Cảm ứng
       if (optAnimDurationEnabled) {
-        logAndPush(`[EXEC] Tối ưu độ mượt hiệu ứng (animator_duration_scale): ${optAnimDuration}ms`)
         const scaleVal = (optAnimDuration / 1000).toFixed(2)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put system animator_duration_scale ${scaleVal}`)
-        stepDone()
+        await runStep(`Tối ưu độ mượt hiệu ứng (animator_duration_scale): ${optAnimDuration}ms`, `settings put system animator_duration_scale ${scaleVal}`)
       }
 
       if (optMultiTouch) {
-        logAndPush('[EXEC] Kích hoạt tối ưu phản hồi đa chạm (multi_touch_enabled & touch_responsiveness)')
-        await (window as any).api.runAdbCommand(activeDevice, `settings put system multi_touch_enabled 1`)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put system touch_responsiveness 1`)
-        stepDone()
+        await runStep('Kích hoạt tối ưu phản hồi đa chạm', `settings put system multi_touch_enabled 1`)
+        await window.api.runAdbCommand(activeDevice!, `settings put system touch_responsiveness 1`)
       }
 
       if (optLongPressEnabled) {
-        logAndPush(`[EXEC] Đặt độ trễ nhấn giữ (long_press_timeout): ${optLongPress}ms`)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put secure long_press_timeout ${optLongPress}`)
-        stepDone()
+        await runStep(`Đặt độ trễ nhấn giữ (long_press_timeout): ${optLongPress}ms`, `settings put secure long_press_timeout ${optLongPress}`)
       }
 
       if (optTransitionScaleEnabled) {
-        logAndPush(`[EXEC] Đặt tỷ lệ thời gian chuyển tiếp (transition_animation_scale): ${optTransitionScale}`)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put global transition_animation_scale ${optTransitionScale}`)
-        stepDone()
+        await runStep(`Tỷ lệ thời gian chuyển tiếp: ${optTransitionScale}`, `settings put global transition_animation_scale ${optTransitionScale}`)
       }
 
       if (optAnimatorDurationScaleEnabled) {
-        logAndPush(`[EXEC] Đặt tốc độ khung hình chuyển cảnh (animator_duration_scale): ${optAnimatorDurationScale}`)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put global animator_duration_scale ${optAnimatorDurationScale}`)
-        stepDone()
+        await runStep(`Tốc độ khung hình chuyển cảnh: ${optAnimatorDurationScale}`, `settings put global animator_duration_scale ${optAnimatorDurationScale}`)
       }
 
       if (optWindowAnimationScaleEnabled) {
-        logAndPush(`[EXEC] Đặt tốc độ hiệu ứng cửa sổ (window_animation_scale): ${optWindowAnimationScale}`)
-        await (window as any).api.runAdbCommand(activeDevice, `settings put global window_animation_scale ${optWindowAnimationScale}`)
-        stepDone()
+        await runStep(`Tốc độ hiệu ứng cửa sổ: ${optWindowAnimationScale}`, `settings put global window_animation_scale ${optWindowAnimationScale}`)
       }
 
-      // Column 2: Dọn dẹp & Hiệu suất
       if (optBattery) {
-        logAndPush('[EXEC] Kích hoạt tối ưu hóa Pin hệ thống (Power Save / Doze Modes)')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd power set-mode 1`)
-        stepDone()
+        await runStep('Kích hoạt tối ưu hóa Pin hệ thống', `cmd power set-mode 1`)
       }
 
       if (optCleanTelegram) {
-        logAndPush('[EXEC] Dọn dẹp file rác & Cache của Telegram...')
-        await (window as any).api.runAdbCommand(activeDevice, `rm -rf /sdcard/Android/data/org.telegram.messenger/cache/*`)
-        stepDone()
+        await runStep('Dọn dẹp Cache Telegram', `rm -rf /sdcard/Android/data/org.telegram.messenger/cache/*`)
       }
 
       if (optClearAllCache) {
-        logAndPush('[EXEC] Giải phóng bộ nhớ đệm (Cache) của tất cả ứng dụng...')
-        await (window as any).api.runAdbCommand(activeDevice, `pm trim-caches 999G`)
-        stepDone()
+        await runStep('Giải phóng Cache toàn bộ ứng dụng', `pm trim-caches 999G`)
       }
 
       if (optOverclock) {
-        logAndPush('[EXEC] Ép xung hệ thống & Tăng cường đa nhiệm (Performance Mode)')
-        await (window as any).api.runAdbCommand(activeDevice, `settings put global performance_mode 1`)
-        stepDone()
+        await runStep('Kích hoạt Performance Mode', `settings put global performance_mode 1`)
       }
 
       if (optCleanArt) {
-        logAndPush('[EXEC] Dọn dẹp file rác ART Compiler (Cleanup dex files)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package cleanup-dex-files`)
-        stepDone()
+        await runStep('Dọn dẹp file rác ART Compiler', `cmd package cleanup-dex-files`)
       }
 
-      // Column 3: Tối ưu Biên dịch & Hệ thống
       if (optCompileAll) {
-        logAndPush('[EXEC] Biên dịch tối ưu hóa toàn bộ ứng dụng (dexopt speed)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package compile -m speed -f -a`)
-        stepDone()
+        await runStep('Biên dịch tối ưu hóa tất cả ứng dụng (speed)', `cmd package compile -m speed -f -a`)
       }
 
       if (optCompileDaily) {
-        logAndPush('[EXEC] Biên dịch cho nhu cầu sử dụng hàng ngày (speed-profile)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package compile -m speed-profile -a`)
-        stepDone()
+        await runStep('Biên dịch hàng ngày (speed-profile)', `cmd package compile -m speed-profile -a`)
       }
 
       if (optCompileBoot) {
-        logAndPush('[EXEC] Biên dịch cho lần khởi động đầu tiên (extract)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package compile -m extract -a`)
-        stepDone()
+        await runStep('Biên dịch lần khởi động đầu tiên (extract)', `cmd package compile -m extract -a`)
       }
 
       if (optCompileOta) {
-        logAndPush('[EXEC] Biên dịch lại sau khi cập nhật ROM (speed)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package compile -m speed -a`)
-        stepDone()
+        await runStep('Biên dịch lại sau cập nhật ROM (speed)', `cmd package compile -m speed -a`)
       }
 
       if (optCompileGoogle) {
-        logAndPush('[EXEC] Biên dịch sau khi cập nhật Google Play (quick-profile)...')
-        await (window as any).api.runAdbCommand(activeDevice, `cmd package compile -m quick-profile -a`)
-        stepDone()
+        await runStep('Biên dịch sau cập nhật Google Play (quick-profile)', `cmd package compile -m quick-profile -a`)
       }
 
       if (optSmoothSystemUI) {
-        logAndPush('[EXEC] Tăng độ ưu tiên rendering cho SystemUI...')
-        await (window as any).api.runAdbCommand(activeDevice, `service call activity 134 i32 1`)
-        stepDone()
+        await runStep('Tăng độ ưu tiên rendering SystemUI', `service call activity 134 i32 1`)
       }
 
-      logAndPush('✅ [SUCCESS] Quy trình Siêu Tối Ưu Hóa đã hoàn tất thành công!')
-      setModalStatus('success')
+      // Tổng kết
+      if (failedSteps === 0) {
+        logAndPush(`✅ [SUCCESS] Hoàn tất ${completedSteps}/${totalSteps} bước — tất cả thành công!`)
+        setModalStatus('success')
+      } else {
+        logAndPush(`⚠️ [PARTIAL] Hoàn tất ${completedSteps}/${totalSteps} bước — ${failedSteps} bước thất bại. Xem log phía trên để biết chi tiết.`)
+        setModalStatus('failed')
+      }
 
+      // Reboot: chỉ thực hiện nếu không có lỗi
       if (optAutoReboot) {
-        logAndPush('🔄 [REBOOT] Đang khởi động lại thiết bị theo cài đặt...')
-        await (window as any).api.runAdbCommand(activeDevice, `reboot`)
-        stepDone()
+        if (failedSteps > 0) {
+          logAndPush('⚠️ [SKIP REBOOT] Có lỗi xảy ra — bỏ qua tự động reboot để tránh rủi ro.')
+          stepDone()
+        } else {
+          logAndPush('🔄 [REBOOT] Đang khởi động lại thiết bị...')
+          await window.api.runAdbCommand(activeDevice!, `reboot`)
+          stepDone()
+        }
       }
     } catch (e: any) {
-      logAndPush(`❌ [ERROR] Lỗi trong quá trình tối ưu: ${e.message}`)
+      logAndPush(`❌ [CRITICAL] Lỗi nghiêm trọng: ${e.message}`)
       setModalStatus('failed')
     } finally {
       setActionLoading(null)
@@ -267,7 +269,7 @@ export function SystemOptimization() {
 
   if (!activeDevice) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-3xl m-8">
+      <div className="absolute inset-4 lg:inset-6 flex flex-col items-center justify-center p-8 bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
         <SlidersHorizontal className="w-16 h-16 text-slate-300 mb-4 animate-bounce" />
         <h3 className="text-xl font-bold text-slate-700">Chưa có thiết bị</h3>
         <p className="text-slate-500 mt-2 text-center max-w-sm">Vui lòng kết nối thiết bị Android để thực hiện quy trình tối ưu.</p>
@@ -280,291 +282,358 @@ export function SystemOptimization() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -15 }}
-      className="flex-1 bg-white/60 backdrop-blur-3xl rounded-3xl border border-white/50 shadow-xl shadow-blue-900/5 flex flex-col overflow-hidden h-full p-8"
+      className="absolute inset-4 lg:inset-6 flex flex-col overflow-hidden bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800"
     >
-      <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-between min-h-0">
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-base font-black text-slate-800">Siêu tối ưu hóa hệ thống</h4>
-            <p className="text-xs text-slate-400 font-semibold">Tăng tốc phần cứng, dọn dẹp phân mảnh ART compiler và tối ưu hiệu năng toàn diện.</p>
+      {/* Header */}
+      <div className="flex justify-between items-center pb-4 border-b border-slate-200/60 shrink-0">
+        <div>
+          <h4 className="text-base font-black text-slate-800 flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-indigo-600 animate-pulse" />
+            Siêu tối ưu hóa hệ thống
+          </h4>
+          <p className="text-xs text-slate-400 font-semibold mt-0.5">Tăng tốc phần cứng, dọn dẹp phân mảnh ART compiler và tối ưu hiệu năng toàn diện.</p>
+        </div>
+      </div>
+
+      {/* Main Scrollable Content */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar py-4 min-h-0 pr-1 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Column 1: Hiệu ứng & Cảm ứng */}
+          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-3xl p-6 hover:shadow-md transition-shadow space-y-4">
+            <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4" />
+              Hiệu ứng & Cảm ứng
+            </h5>
+            <div className="flex flex-col divide-y divide-slate-100">
+              {/* Tối ưu độ mượt hiệu ứng */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Tối ưu độ mượt hiệu ứng</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Điều chỉnh thời gian chuyển cảnh (ms)</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input 
+                    type="number" 
+                    value={optAnimDuration} 
+                    onChange={e => setOptAnimDuration(Number(e.target.value))}
+                    className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={() => setOptAnimDurationEnabled(!optAnimDurationEnabled)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optAnimDurationEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAnimDurationEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tăng tốc độ phản hồi đa chạm */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Tốc độ phản hồi đa chạm</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Giảm độ trễ chạm màn hình</span>
+                </div>
+                <button 
+                  onClick={() => setOptMultiTouch(!optMultiTouch)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optMultiTouch ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optMultiTouch ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Độ trễ nhấn giữ */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Độ trễ nhấn giữ (Long Press)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tốc độ phản hồi nhấn giữ (ms)</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input 
+                    type="number" 
+                    value={optLongPress} 
+                    onChange={e => setOptLongPress(Number(e.target.value))}
+                    className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={() => setOptLongPressEnabled(!optLongPressEnabled)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optLongPressEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optLongPressEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tỷ lệ thời gian chuyển tiếp */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Thời lượng chuyển tiếp</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tỉ lệ tốc độ chuyển cảnh</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input 
+                    type="number" 
+                    step="0.05"
+                    value={optTransitionScale} 
+                    onChange={e => setOptTransitionScale(Number(e.target.value))}
+                    className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={() => setOptTransitionScaleEnabled(!optTransitionScaleEnabled)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optTransitionScaleEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optTransitionScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tốc độ khung hình chuyển cảnh */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Thời lượng hiệu ứng (Duration)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tỉ lệ thời gian hiệu ứng chuyển cảnh</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input 
+                    type="number" 
+                    step="0.05"
+                    value={optAnimatorDurationScale} 
+                    onChange={e => setOptAnimatorDurationScale(Number(e.target.value))}
+                    className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={() => setOptAnimatorDurationScaleEnabled(!optAnimatorDurationScaleEnabled)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optAnimatorDurationScaleEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAnimatorDurationScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tốc độ hiệu ứng cửa sổ */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Hiệu ứng cửa sổ (Window)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tỉ lệ tốc độ mở/đóng cửa sổ app</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input 
+                    type="number" 
+                    step="0.05"
+                    value={optWindowAnimationScale} 
+                    onChange={e => setOptWindowAnimationScale(Number(e.target.value))}
+                    className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={() => setOptWindowAnimationScaleEnabled(!optWindowAnimationScaleEnabled)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optWindowAnimationScaleEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optWindowAnimationScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Column 1: Hiệu ứng & Cảm ứng */}
-            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-4">
-              <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Hiệu ứng & Cảm ứng</h5>
-              <div className="flex flex-col">
-                {/* Tối ưu độ mượt hiệu ứng */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tối ưu độ mượt hiệu ứng (Slider Duration)</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="number" 
-                      value={optAnimDuration} 
-                      onChange={e => setOptAnimDuration(Number(e.target.value))}
-                      className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none"
-                    />
-                    <button 
-                      onClick={() => setOptAnimDurationEnabled(!optAnimDurationEnabled)}
-                      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optAnimDurationEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAnimDurationEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
+          {/* Column 2: Dọn dẹp & Tối ưu Pin */}
+          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-3xl p-6 hover:shadow-md transition-shadow space-y-4">
+            <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2">
+              <Cpu className="w-4 h-4" />
+              Dọn dẹp & Tối ưu Pin
+            </h5>
+            <div className="flex flex-col divide-y divide-slate-100">
+              {/* Kích hoạt tối ưu hóa Pin hệ thống */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Tối ưu hóa Pin</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Kích hoạt chế độ tiết kiệm pin thông minh</span>
                 </div>
+                <button 
+                  onClick={() => setOptBattery(!optBattery)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optBattery ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optBattery ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Tăng tốc độ phản hồi đa chạm */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tăng tốc độ phản hồi đa chạm</span>
-                  <button 
-                    onClick={() => setOptMultiTouch(!optMultiTouch)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optMultiTouch ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optMultiTouch ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Dọn dẹp rác & Cache Telegram */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Dọn dẹp Cache Telegram</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Xóa file đệm Telegram để giải phóng RAM</span>
                 </div>
+                <button 
+                  onClick={() => setOptCleanTelegram(!optCleanTelegram)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCleanTelegram ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCleanTelegram ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Độ trễ nhấn giữ */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Độ trễ nhấn giữ (Long Press)</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="number" 
-                      value={optLongPress} 
-                      onChange={e => setOptLongPress(Number(e.target.value))}
-                      className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none"
-                    />
-                    <button 
-                      onClick={() => setOptLongPressEnabled(!optLongPressEnabled)}
-                      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optLongPressEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optLongPressEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
+              {/* Xóa bộ nhớ đệm (Cache) toàn bộ App */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Dọn dẹp Cache toàn bộ App</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Giải phóng bộ đệm thừa của toàn hệ thống</span>
                 </div>
+                <button 
+                  onClick={() => setOptClearAllCache(!optClearAllCache)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optClearAllCache ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optClearAllCache ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Tỷ lệ thời gian chuyển tiếp */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tỷ lệ thời gian chuyển tiếp</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="number" 
-                      step="0.05"
-                      value={optTransitionScale} 
-                      onChange={e => setOptTransitionScale(Number(e.target.value))}
-                      className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none"
-                    />
-                    <button 
-                      onClick={() => setOptTransitionScaleEnabled(!optTransitionScaleEnabled)}
-                      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optTransitionScaleEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optTransitionScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
+              {/* Ép xung & Tăng cường đa nhiệm */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Chế độ hiệu năng cao</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tối đa hóa tài nguyên CPU & đa nhiệm</span>
                 </div>
+                <button 
+                  onClick={() => setOptOverclock(!optOverclock)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optOverclock ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optOverclock ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Tốc độ khung hình chuyển cảnh */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tốc độ khung hình chuyển cảnh</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="number" 
-                      step="0.05"
-                      value={optAnimatorDurationScale} 
-                      onChange={e => setOptAnimatorDurationScale(Number(e.target.value))}
-                      className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none"
-                    />
-                    <button 
-                      onClick={() => setOptAnimatorDurationScaleEnabled(!optAnimatorDurationScaleEnabled)}
-                      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optAnimatorDurationScaleEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAnimatorDurationScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
+              {/* Dọn dẹp file rác ART Compiler */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Dọn rác ART Compiler</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Dọn dẹp các tệp dex phân mảnh và lỗi</span>
                 </div>
-
-                {/* Tốc độ hiệu ứng cửa sổ */}
-                <div className="flex items-center justify-between gap-4 py-2 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tốc độ hiệu ứng cửa sổ</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="number" 
-                      step="0.05"
-                      value={optWindowAnimationScale} 
-                      onChange={e => setOptWindowAnimationScale(Number(e.target.value))}
-                      className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none"
-                    />
-                    <button 
-                      onClick={() => setOptWindowAnimationScaleEnabled(!optWindowAnimationScaleEnabled)}
-                      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optWindowAnimationScaleEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optWindowAnimationScaleEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-                </div>
+                <button 
+                  onClick={() => setOptCleanArt(!optCleanArt)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCleanArt ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCleanArt ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
               </div>
             </div>
+          </div>
 
-            {/* Column 2: Dọn dẹp & Tối ưu Pin */}
-            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-4">
-              <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Dọn dẹp & Tối ưu Pin</h5>
-              <div className="flex flex-col">
-                {/* Kích hoạt tối ưu hóa Pin hệ thống */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Kích hoạt tối ưu hóa Pin hệ thống</span>
-                  <button 
-                    onClick={() => setOptBattery(!optBattery)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optBattery ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optBattery ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+          {/* Column 3: Tối ưu Biên dịch & Hệ thống */}
+          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-3xl p-6 hover:shadow-md transition-shadow space-y-4">
+            <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2">
+              <Cpu className="w-4 h-4" />
+              Biên dịch & Hệ thống
+            </h5>
+            <div className="flex flex-col divide-y divide-slate-100">
+              {/* Biên dịch tối ưu hóa tất cả ứng dụng */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Biên dịch tối ưu hóa (Speed)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Ép biên dịch toàn bộ app đạt tốc độ tối đa</span>
                 </div>
-
-                {/* Dọn dẹp rác & Cache Telegram */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Dọn dẹp rác & Cache Telegram</span>
-                  <button 
-                    onClick={() => setOptCleanTelegram(!optCleanTelegram)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCleanTelegram ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCleanTelegram ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Xóa bộ nhớ đệm (Cache) toàn bộ App */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Xóa bộ nhớ đệm (Cache) toàn bộ App</span>
-                  <button 
-                    onClick={() => setOptClearAllCache(!optClearAllCache)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optClearAllCache ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optClearAllCache ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Ép xung & Tăng cường đa nhiệm */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Ép xung & Tăng cường đa nhiệm</span>
-                  <button 
-                    onClick={() => setOptOverclock(!optOverclock)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optOverclock ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optOverclock ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Dọn dẹp file rác ART Compiler */}
-                <div className="flex items-center justify-between gap-4 py-2 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Dọn dẹp file rác ART Compiler</span>
-                  <button 
-                    onClick={() => setOptCleanArt(!optCleanArt)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCleanArt ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCleanArt ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setOptCompileAll(!optCompileAll)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileAll ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileAll ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
               </div>
-            </div>
 
-            {/* Column 3: Tối ưu Biên dịch & Hệ thống */}
-            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-4">
-              <h5 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Tối ưu Biên dịch & Hệ thống</h5>
-              <div className="flex flex-col">
-                {/* Biên dịch tối ưu hóa tất cả ứng dụng */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Biên dịch tối ưu hóa tất cả ứng dụng</span>
-                  <button 
-                    onClick={() => setOptCompileAll(!optCompileAll)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileAll ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileAll ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Biên dịch cho nhu cầu sử dụng hàng ngày */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Biên dịch tối ưu hàng ngày</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tối ưu hóa các app hay mở nhất</span>
                 </div>
+                <button 
+                  onClick={() => setOptCompileDaily(!optCompileDaily)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileDaily ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileDaily ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Biên dịch cho nhu cầu sử dụng hàng ngày */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Biên dịch cho nhu cầu sử dụng hàng ngày</span>
-                  <button 
-                    onClick={() => setOptCompileDaily(!optCompileDaily)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileDaily ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileDaily ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Biên dịch cho lần khởi động đầu tiên */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Biên dịch khởi động (Boot)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Giảm tối đa độ trễ mở app lần đầu</span>
                 </div>
+                <button 
+                  onClick={() => setOptCompileBoot(!optCompileBoot)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileBoot ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileBoot ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Biên dịch cho lần khởi động đầu tiên */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Biên dịch cho lần khởi động đầu tiên</span>
-                  <button 
-                    onClick={() => setOptCompileBoot(!optCompileBoot)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileBoot ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileBoot ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Biên dịch lại sau khi cập nhật ROM (OTA) */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Biên dịch cập nhật ROM (OTA)</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Đồng bộ lại cấu trúc app sau update hệ thống</span>
                 </div>
+                <button 
+                  onClick={() => setOptCompileOta(!optCompileOta)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileOta ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileOta ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Biên dịch lại sau khi cập nhật ROM (OTA) */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Biên dịch lại sau khi cập nhật ROM (OTA)</span>
-                  <button 
-                    onClick={() => setOptCompileOta(!optCompileOta)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileOta ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileOta ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Biên dịch sau khi cập nhật Google Play */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Biên dịch app Google Play</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Tối ưu nhanh các app vừa cập nhật từ Store</span>
                 </div>
+                <button 
+                  onClick={() => setOptCompileGoogle(!optCompileGoogle)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileGoogle ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileGoogle ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Biên dịch sau khi cập nhật Google Play */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Biên dịch sau khi cập nhật Google Play</span>
-                  <button 
-                    onClick={() => setOptCompileGoogle(!optCompileGoogle)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileGoogle ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileGoogle ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Làm mượt giao diện (SystemUI) */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Làm mượt giao diện SystemUI</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Ưu tiên đồ họa SystemUI giảm lag launcher</span>
                 </div>
+                <button 
+                  onClick={() => setOptSmoothSystemUI(!optSmoothSystemUI)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optSmoothSystemUI ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optSmoothSystemUI ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
 
-                {/* Làm mượt giao diện (SystemUI) */}
-                <div className="flex items-center justify-between gap-4 py-2 border-b border-slate-100/50 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Làm mượt giao diện (SystemUI)</span>
-                  <button 
-                    onClick={() => setOptSmoothSystemUI(!optSmoothSystemUI)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optSmoothSystemUI ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optSmoothSystemUI ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+              {/* Tự động khởi động lại sau khi hoàn tất */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">Tự động khởi động lại</span>
+                  <span className="text-[10px] text-slate-400 leading-normal">Reboot thiết bị sau khi tối ưu xong</span>
                 </div>
-
-                {/* Tự động khởi động lại sau khi hoàn tất */}
-                <div className="flex items-center justify-between gap-4 py-2 min-h-[48px]">
-                  <span className="text-xs font-semibold text-slate-700 leading-relaxed pr-2">Tự động khởi động lại sau khi hoàn tất</span>
-                  <button 
-                    onClick={() => setOptAutoReboot(!optAutoReboot)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optAutoReboot ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAutoReboot ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setOptAutoReboot(!optAutoReboot)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optAutoReboot ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optAutoReboot ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="fixed bottom-8 right-8 z-40 flex items-center gap-3">
+      {/* Sticky Bottom Action Bar */}
+      <div className="sticky bottom-0 bg-white/95 border-t border-slate-200/80 py-4 px-6 -mx-6 -mb-6 shadow-[0_-10px_30px_rgba(0,0,0,0.04)] flex justify-end rounded-b-[32px] shrink-0 z-30">
         <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={runOptimizationBatch}
           disabled={actionLoading === 'optimization_batch'}
-          className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3.5 rounded-full shadow-lg shadow-indigo-600/35 transition-all border border-indigo-500/20 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 group font-black"
+          className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all border border-indigo-500/20 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 group font-black uppercase text-xs tracking-wider"
           title="Bắt đầu tối ưu"
         >
-          <span className="text-[10px] tracking-widest uppercase">Bắt đầu tối ưu</span>
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 group-hover:bg-white/20 transition-colors">
-            <Cpu className={`w-4 h-4 ${actionLoading === 'optimization_batch' ? 'animate-spin' : ''}`} />
-          </div>
+          <span>Bắt đầu tối ưu</span>
+          <Cpu className={`w-4 h-4 ${actionLoading === 'optimization_batch' ? 'animate-spin' : ''}`} />
         </motion.button>
       </div>
 

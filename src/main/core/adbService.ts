@@ -3,11 +3,21 @@ import { ensureAdb } from './adbDownloader'
 import { ensureScrcpy } from './scrcpyDownloader'
 import * as path from 'path'
 import { app } from 'electron'
-import { spawn } from 'child_process'
+import { spawn, exec } from 'child_process'
 import * as fs from 'fs'
+import { evaluateCommand } from './adbSafety'
 
 export const adbState = {
   client: adb.createClient()
+}
+
+export async function killAdbServer(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const cmd = process.platform === 'win32' ? 'taskkill /F /IM adb.exe' : 'killall adb'
+    exec(cmd, () => {
+      resolve(true)
+    })
+  })
 }
 
 export async function initAdb(onProgress: (msg: string) => void) {
@@ -18,6 +28,10 @@ export async function initAdb(onProgress: (msg: string) => void) {
       
     const adbExe = await ensureAdb(binPath, onProgress)
     
+    // Kill existing adb processes to prevent socket conflicts (port 5037)
+    await killAdbServer()
+    await new Promise(r => setTimeout(r, 800))
+
     // Update the client in our state object
     adbState.client = adb.createClient({ bin: adbExe })
     onProgress('ADB Client connected successfully.')
@@ -59,7 +73,7 @@ export async function watchDevices(onUpdate: (devices: any[]) => void) {
 }
 
 // Hàm thực thi lệnh Shell bất đồng bộ và trả Stream về UI
-export async function runAdbCommand(deviceId: string, command: string, onLog: (log: string) => void) {
+export async function runAdbCommand(deviceId: string, command: string, onLog: (log: string) => void): Promise<string> {
   try {
     let shellCommand = command;
     if (shellCommand.startsWith('adb shell ')) {
@@ -69,13 +83,17 @@ export async function runAdbCommand(deviceId: string, command: string, onLog: (l
     } else if (shellCommand.startsWith('adb ')) {
       shellCommand = shellCommand.slice(4);
     }
+
+    // Đánh giá mức độ an toàn của câu lệnh shell
+    const safety = evaluateCommand(shellCommand)
+    if (!safety.allowed) {
+      const blockedMsg = `[BLOCKED BY SAFETY LAYER] Lệnh bị chặn vì lý do bảo mật: ${safety.reason || 'Không an toàn'}`
+      onLog(blockedMsg)
+      return blockedMsg
+    }
+
     // Bọc qua adbkit hoặc child_process
     const stream = await adbState.client.shell(deviceId, shellCommand)
-    
-    // Đọc stream
-    stream.on('data', (data: Buffer) => {
-      onLog(data.toString())
-    })
 
     return new Promise((resolve) => {
       let output = ''
@@ -406,19 +424,182 @@ export async function getDeviceInfo(deviceId: string) {
     })
     const isRooted = suExists ? 'Yes' : 'No'
 
-    // Lấy thông số pin
-    const batteryRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'dumpsys battery').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
+    // Lấy thông số pin nâng cao, dumpsys power và dumpsys batteryproperties song song
+    const [batteryRaw, powerRaw, propertiesRaw] = await Promise.all([
+      new Promise<string>((resolve) => {
+        let data = ''
+        adbState.client.shell(deviceId, 'dumpsys battery').then((s: any) => {
+          s.on('data', (c: any) => data += c)
+          s.on('end', () => resolve(data))
+        }).catch(() => resolve(''))
+      }),
+      new Promise<string>((resolve) => {
+        let data = ''
+        adbState.client.shell(deviceId, 'dumpsys power').then((s: any) => {
+          s.on('data', (c: any) => data += c)
+          s.on('end', () => resolve(data))
+        }).catch(() => resolve(''))
+      }),
+      new Promise<string>((resolve) => {
+        let data = ''
+        adbState.client.shell(deviceId, 'dumpsys batteryproperties').then((s: any) => {
+          s.on('data', (c: any) => data += c)
+          s.on('end', () => resolve(data))
+        }).catch(() => resolve(''))
       })
-    })
+    ])
     
-    const levelMatch = batteryRaw.match(/level: (\d+)/)
-    const tempMatch = batteryRaw.match(/temperature: (\d+)/)
+    const levelMatch = batteryRaw.match(/level:\s*(\d+)/i)
+    const tempMatch = batteryRaw.match(/temperature:\s*(\d+)/i)
+    const techMatch = batteryRaw.match(/technology:\s*(.*)/i)
+    // Regex đa dòng để tránh match nhầm
+    const voltMatch = batteryRaw.match(/^\s*voltage:\s*(\d+)/im) || propertiesRaw.match(/voltage:\s*(\d+)/i)
+    const statusMatch = batteryRaw.match(/status:\s*(\d+)/i)
+    const chargeCounterMatch = batteryRaw.match(/charge counter:\s*(\d+)/i) || propertiesRaw.match(/charge_counter:\s*(\d+)/i)
+
     const batteryLevel = levelMatch ? parseInt(levelMatch[1]) : 0
     const batteryTemp = tempMatch ? (parseInt(tempMatch[1]) / 10).toFixed(1) : '0'
+    const batteryTech = techMatch ? techMatch[1].trim() : 'Li-ion'
+    // Đảm bảo chia cho 1000 để chuyển đổi mV sang V
+    const batteryVoltOut = voltMatch ? (parseInt(voltMatch[1]) / 1000).toFixed(2) : '3.80'
+    
+    const chargeStatus = statusMatch ? parseInt(statusMatch[1]) : 1
+    const isCharging = chargeStatus === 2 || chargeStatus === 5
+
+    // Đọc dung lượng thiết kế & thực tế qua sysfs uevent (Chính xác nhất và hỗ trợ mọi dòng máy)
+    const ueventRaw = await new Promise<string>((resolve) => {
+      adbState.client.shell(deviceId, 'cat /sys/class/power_supply/*/uevent 2>/dev/null').then((s: any) => {
+        let data = ''
+        s.on('data', (c: any) => data += c)
+        s.on('end', () => resolve(data))
+      }).catch(() => resolve(''))
+    })
+
+    const extractUevent = (key: string): number => {
+      // Tìm key trong uevent, lấy value
+      const match = ueventRaw.match(new RegExp(`^${key}=(\\d+)`, 'm'))
+      if (match) {
+        const val = parseInt(match[1])
+        // Nếu giá trị là micro (e.g. 4250000), chuyển về milli
+        return val > 100000 ? Math.round(val / 1000) : val
+      }
+      return 0
+    }
+
+    const specDesignFull = extractUevent('POWER_SUPPLY_CHARGE_FULL_DESIGN')
+    let specActualFull = extractUevent('POWER_SUPPLY_CHARGE_FULL')
+    const specChargeCounter = extractUevent('POWER_SUPPLY_CHARGE_COUNTER')
+    let specUsbVolt = extractUevent('POWER_SUPPLY_VOLTAGE_NOW') // Điện áp
+    const specSoh = extractUevent('POWER_SUPPLY_SOH') // Health trực tiếp từ kernel
+    const specCycleCount = extractUevent('POWER_SUPPLY_CYCLE_COUNT')
+    const specCapacity = extractUevent('POWER_SUPPLY_CAPACITY') || batteryLevel
+
+    let designCap = 0
+    
+    // 1. Sysfs (Chính xác tuyệt đối nếu có)
+    if (specDesignFull > 0) {
+      designCap = specDesignFull
+    }
+
+    // 2. Lấy dung lượng thiết kế từ dumpsys batteryproperties
+    if (!designCap) {
+      const propDesignCapMatch = propertiesRaw.match(/design_capacity:\s*(\d+)/) || propertiesRaw.match(/charge_full_design:\s*(\d+)/)
+      if (propDesignCapMatch) {
+         const val = parseInt(propDesignCapMatch[1])
+         designCap = val > 10000 ? Math.round(val / 1000) : val
+      }
+    }
+
+    // 3. Lấy dung lượng thiết kế từ getprop
+    if (!designCap) {
+      const propCapMatch = getPropRaw.match(/\[ro\.boot\.battery\.capacity\]:\s*\[(\d+)\]/) || 
+                           getPropRaw.match(/\[ro\.product\.battery\.design_capacity\]:\s*\[(\d+)\]/) ||
+                           getPropRaw.match(/\[persist\.vendor\.battery\.capacity\]:\s*\[(\d+)\]/)
+      designCap = propCapMatch ? parseInt(propCapMatch[1]) : 0
+    }
+
+    // 4. Lấy dung lượng thiết kế từ dumpsys power
+    if (!designCap) {
+      const capPowerMatch = powerRaw.match(/mBatteryCapacity\s*=\s*([\d.]+)/i) || powerRaw.match(/Battery\s+Capacity:\s*([\d.]+)/i)
+      designCap = capPowerMatch ? Math.round(parseFloat(capPowerMatch[1])) : 0
+    }
+
+    // Fallback nếu hoàn toàn không tìm thấy
+    if (!designCap || designCap < 1000) {
+      designCap = 4250 // Fallback mặc định
+    }
+
+    // Hàm chuẩn hoá dung lượng pin để xử lý các máy trả về đơn vị quá lớn (gấp 100, 1000 lần bình thường)
+    const normalizeCap = (val: number): number => {
+      if (!val || val <= 0) return 0;
+      let temp = val;
+      while (temp > 30000) {
+        temp = temp / 10;
+      }
+      return Math.round(temp);
+    }
+
+    // Dung lượng thực tế hiện tại (charge_counter)
+    let currentCharge = 0
+    if (specChargeCounter > 0) {
+      currentCharge = normalizeCap(specChargeCounter)
+    } else if (chargeCounterMatch) {
+      const ccVal = parseInt(chargeCounterMatch[1])
+      currentCharge = normalizeCap(ccVal)
+    }
+
+    // Dung lượng thực tế tối đa (Full charge capacity)
+    let actualFullCap = normalizeCap(specActualFull)
+
+    // Tính toán Tình trạng pin (Sức khỏe) - CÔNG THỨC CHUẨN
+    let healthPercent = 100
+    
+    // Ưu tiên 1: Dùng công thức toán học từ Charge Counter (Dung lượng thực tế hiện tại)
+    let computedFullFromCounter = 0
+    if (currentCharge > 0 && specCapacity > 0) {
+      // Công thức: Dung lượng tối đa = Dung lượng hiện tại / Phần trăm pin hiện tại
+      computedFullFromCounter = Math.round((currentCharge / specCapacity) * 100)
+    }
+
+    if (computedFullFromCounter > 0) {
+      // Ưu tiên công thức Charge Counter
+      actualFullCap = computedFullFromCounter
+      if (designCap > 0) {
+        healthPercent = Math.min(100, Math.round((actualFullCap / designCap) * 100))
+      }
+    } else if (actualFullCap > 0 && designCap > 0) {
+      // Ưu tiên 2: Dùng sysfs charge_full
+      healthPercent = Math.min(100, Math.round((actualFullCap / designCap) * 100))
+    } else if (specSoh > 0 && specSoh <= 100) {
+      // Ưu tiên 3: Dùng SOH trực tiếp từ chip
+      healthPercent = specSoh
+    } else if (specCycleCount > 0) {
+      // Ưu tiên 4: Ước tính qua chu kỳ sạc
+      healthPercent = Math.max(60, 100 - Math.round(specCycleCount * 0.035))
+    }
+
+    let wearPercent = 100 - healthPercent
+    if (wearPercent < 0) wearPercent = 0
+
+    // Cập nhật lại actualFullCap nếu chưa có
+    if (!actualFullCap && designCap > 0) {
+      actualFullCap = Math.round((designCap * healthPercent) / 100)
+    }
+
+    // Nếu cảm biến sai khiến dung lượng thực tế > 115% thiết kế -> quy về 100%
+    if (actualFullCap > designCap * 1.15) {
+      actualFullCap = designCap
+    }
+
+    let batteryVoltIn = '0.00'
+    if (isCharging) {
+      if (specUsbVolt > 0) {
+        batteryVoltIn = specUsbVolt > 10000 ? (specUsbVolt / 1000000).toFixed(2) : (specUsbVolt / 1000).toFixed(2)
+        if (parseFloat(batteryVoltIn) < 1.0) batteryVoltIn = '5.00'
+      } else {
+        batteryVoltIn = '5.00'
+      }
+    }
 
     // Lấy thông số RAM
     const ramRaw = await new Promise<string>((resolve) => {
@@ -449,6 +630,15 @@ export async function getDeviceInfo(deviceId: string) {
       uptimeStr,
       batteryLevel,
       batteryTemp,
+      batteryTech,
+      batteryVoltIn,
+      batteryVoltOut,
+      batteryDesignCap: designCap,
+      batteryActualCap: actualFullCap,
+      batteryCurrentCap: currentCharge,
+      batteryWearPercent: wearPercent,
+      batteryHealthPercent: healthPercent,
+      batteryIsCharging: isCharging,
       ramTotal: Math.round(totalRam),
       ramFree: Math.round(freeRam),
       storageTotal,

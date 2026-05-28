@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Smartphone, Wifi, Loader2, Link2, KeyRound } from 'lucide-react'
+import { X, Smartphone, Wifi, Loader2, Link2, KeyRound, RefreshCw } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 
 export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -10,6 +10,25 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
   const [pairCode, setPairCode] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
   const [isPairing, setIsPairing] = useState(false)
+  const [isFixing, setIsFixing] = useState(false)
+
+  const handleFixConnection = async () => {
+    setIsFixing(true)
+    try {
+      // @ts-ignore
+      const result = await window.api.fixConnection()
+      if (result.success) {
+        useDeviceStore.getState().setDevices(result.devices || [])
+        alert(result.message || 'Đã reset server ADB thành công!')
+      } else {
+        alert(result.message || 'Reset ADB thất bại.')
+      }
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`)
+    } finally {
+      setIsFixing(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -161,9 +180,20 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
 
           {/* Connected Devices List */}
           <div className="space-y-3">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-              <span>Thiết bị Đã kết nối ({devices.length})</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Thiết bị Đã kết nối ({devices.length})
+              </label>
+              <button
+                onClick={handleFixConnection}
+                disabled={isFixing}
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 disabled:text-slate-400 transition-colors uppercase tracking-wide bg-blue-50 hover:bg-blue-100/80 px-3 py-1.5 rounded-full"
+                title="Tắt các tiến trình ADB xung đột và khởi động lại Server"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFixing ? 'animate-spin' : ''}`} />
+                <span>{isFixing ? 'Đang sửa...' : 'Sửa lỗi kết nối'}</span>
+              </button>
+            </div>
             
             <div className="space-y-2 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
               {devices.length === 0 ? (

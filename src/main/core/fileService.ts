@@ -31,7 +31,15 @@ export async function listDirectory(deviceId: string, remotePath: string) {
 
 export async function createDirectory(deviceId: string, remotePath: string) {
   try {
-    await adbState.client.shell(deviceId, `mkdir -p "${remotePath}"`)
+    await new Promise<void>((resolve, reject) => {
+      adbState.client.shell(deviceId, `mkdir -p "${remotePath}"`)
+        .then((stream: any) => {
+          stream.on('data', () => {})
+          stream.on('end', resolve)
+          stream.on('error', reject)
+        })
+        .catch(reject)
+    })
     return true
   } catch (err) {
     console.error(`Failed to create directory ${remotePath}:`, err)
@@ -41,7 +49,15 @@ export async function createDirectory(deviceId: string, remotePath: string) {
 
 export async function deleteFile(deviceId: string, remotePath: string) {
   try {
-    await adbState.client.shell(deviceId, `rm -rf "${remotePath}"`)
+    await new Promise<void>((resolve, reject) => {
+      adbState.client.shell(deviceId, `rm -rf "${remotePath}"`)
+        .then((stream: any) => {
+          stream.on('data', () => {})
+          stream.on('end', resolve)
+          stream.on('error', reject)
+        })
+        .catch(reject)
+    })
     return true
   } catch (err) {
     console.error(`Failed to delete ${remotePath}:`, err)
@@ -51,13 +67,22 @@ export async function deleteFile(deviceId: string, remotePath: string) {
 
 export async function renameFile(deviceId: string, oldPath: string, newPath: string) {
   try {
-    await adbState.client.shell(deviceId, `mv "${oldPath}" "${newPath}"`)
+    await new Promise<void>((resolve, reject) => {
+      adbState.client.shell(deviceId, `mv "${oldPath}" "${newPath}"`)
+        .then((stream: any) => {
+          stream.on('data', () => {})
+          stream.on('end', resolve)
+          stream.on('error', reject)
+        })
+        .catch(reject)
+    })
     return true
   } catch (err) {
     console.error(`Failed to rename ${oldPath} to ${newPath}:`, err)
     return false
   }
 }
+
 
 export async function pushFile(
   deviceId: string,

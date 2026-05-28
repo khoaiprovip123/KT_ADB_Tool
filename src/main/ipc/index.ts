@@ -4,6 +4,8 @@ import { registerDeviceHandlers } from './deviceHandlers'
 import { registerAppHandlers } from './appHandlers'
 import { registerFileHandlers } from './fileHandlers'
 import { registerSystemTweaksHandlers } from './systemTweaksHandlers'
+import { registerXiaomiExperienceHandlers } from './xiaomiExperienceHandlers'
+import { registerAdvancedAdbHandlers } from './advancedAdbHandlers'
 
 export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   // ── Core ADB ──────────────────────────────────────────────────────────────
@@ -30,7 +32,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
         mainWindow.webContents.send('adb:log-stream', log)
       }
     })) as string
-    const isError = output.startsWith('ERROR:') || output.startsWith('CRITICAL ERROR:') || output === 'FAILED'
+    const isError = output.startsWith('ERROR:') || output.startsWith('CRITICAL ERROR:') || output === 'FAILED' || output.startsWith('[BLOCKED BY SAFETY LAYER]')
     return {
       success: !isError,
       output: output
@@ -42,4 +44,6 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   registerAppHandlers(mainWindow)
   registerFileHandlers(mainWindow)
   registerSystemTweaksHandlers(mainWindow)
+  registerXiaomiExperienceHandlers(mainWindow)
+  registerAdvancedAdbHandlers()
 }
