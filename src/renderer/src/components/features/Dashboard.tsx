@@ -30,7 +30,6 @@ export function Dashboard() {
       return
     }
     setLoading(true)
-    // @ts-ignore
     window.api.getDeviceInfo(activeDevice).then((data) => {
       setInfo(data)
       setLoading(false)
@@ -42,7 +41,8 @@ export function Dashboard() {
 
   useEffect(() => {
     loadInfo()
-    const interval = setInterval(loadInfo, 30000) // Refresh 30s
+    // Refresh 5 minutes instead of 30s to avoid lag
+    const interval = setInterval(loadInfo, 300000) 
     return () => clearInterval(interval)
   }, [activeDevice])
 

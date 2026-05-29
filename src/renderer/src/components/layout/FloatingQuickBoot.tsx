@@ -8,7 +8,6 @@ export function FloatingQuickBoot() {
 
   const reboot = (mode: string) => {
     if (!activeDevice) return
-    // @ts-ignore
     window.api.runAdbCommand(activeDevice, `adb reboot ${mode}`)
   }
 

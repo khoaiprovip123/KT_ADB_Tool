@@ -7,7 +7,6 @@ export function CenterActionPanel() {
 
   const runAction = (cmd: string) => {
     if (!activeDevice) return
-    // @ts-ignore
     window.api.runAdbCommand(activeDevice, cmd)
   }
 

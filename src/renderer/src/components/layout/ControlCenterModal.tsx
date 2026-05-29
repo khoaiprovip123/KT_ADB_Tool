@@ -7,14 +7,12 @@ export function ControlCenterModal({ isOpen, onClose }: { isOpen: boolean, onClo
 
   const runAction = (cmd: string) => {
     if (!activeDevice) return
-    // @ts-ignore
     window.api.runAdbCommand(activeDevice, cmd)
     onClose()
   }
 
   const runScrcpy = (turnScreenOff: boolean) => {
     if (!activeDevice) return
-    // @ts-ignore
     window.api.runScrcpy(activeDevice, turnScreenOff)
     onClose()
   }

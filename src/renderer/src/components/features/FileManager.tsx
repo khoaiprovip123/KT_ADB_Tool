@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Folder, File, ChevronRight, Download, Trash2, RefreshCcw, ArrowLeft, HardDrive, Plus, Minus, Upload, X, ChevronLeft, FolderPlus, FileText, Image as ImageIcon, Music, Film, FileCode, Monitor, Smartphone } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDeviceStore } from '../../store/deviceStore'
+import { toast } from '../../store/toastStore'
 
 interface FileInfo {
   name: string;
@@ -25,6 +26,10 @@ export function FileManager() {
   const [historyIndex, setHistoryIndex] = useState(0)
   const [zoom, setZoom] = useState(1)
 
+  // Pagination
+  const [page, setPage] = useState(1)
+  const ITEMS_PER_PAGE = 100
+
   // Reset zoom when image changes
   useEffect(() => {
     if (previewImage) setZoom(1)
@@ -46,7 +51,6 @@ export function FileManager() {
   const loadStoragePoints = async () => {
     if (!activeDevice) return
     try {
-      // @ts-ignore
       const points = await window.api.getStoragePoints(activeDevice)
       setStoragePoints(points)
     } catch (err) {
@@ -58,12 +62,11 @@ export function FileManager() {
     if (!activeDevice) return
     setLoading(true)
     try {
-      // @ts-ignore
       const data = await window.api.listDirectory(activeDevice, path)
       setFiles(data)
     } catch (err) {
       console.error(err)
-      alert(`Không thể truy cập thư mục: ${path}`)
+      toast.error(`Không thể truy cập thư mục: ${path}`)
       if (history.length > 1) {
         handleBack()
       }
@@ -73,16 +76,16 @@ export function FileManager() {
   }
 
   const navigateTo = async (path: string, isFile = false) => {
+    if (!activeDevice) return;
     if (isFile) {
       const ext = path.split('.').pop()?.toLowerCase()
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext || '')) {
         setLoading(true)
         try {
-          // @ts-ignore
           const base64 = await window.api.getFileBase64(activeDevice, path)
           setPreviewImage({ name: path.split('/').pop() || 'Preview', data: `data:image/${ext};base64,${base64}` })
         } catch (err) {
-          console.error('Failed to preview image:', err)
+          toast.error('Failed to preview image')
         } finally {
           setLoading(false)
         }
@@ -163,63 +166,71 @@ export function FileManager() {
     return files.filter(f => f.name.toLowerCase().includes(q))
   }, [files, searchQuery])
 
+  // Reset page when path or search changes
+  useEffect(() => { setPage(1) }, [currentPath, searchQuery])
+
+  const paginatedFiles = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE
+    return filteredFiles.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredFiles, page])
+
+  const totalPages = Math.ceil(filteredFiles.length / ITEMS_PER_PAGE)
+
 
   const handleDownload = async (file: FileInfo) => {
+    if (!activeDevice) return;
     try {
-      // @ts-ignore
       const destPath = await window.api.saveFileDialog(file.name)
       if (!destPath) return
-      // @ts-ignore
       await window.api.pullFile(activeDevice, `${currentPath}/${file.name}`, destPath)
-      alert('Tải về thành công!')
+      toast.success('Tải về thành công!')
     } catch (err: any) {
-      alert(`Lỗi tải về: ${err.message}`)
+      toast.error(`Lỗi tải về: ${err.message}`)
     }
   }
 
   const handleDelete = async () => {
+    if (!activeDevice) return;
     if (selectedFiles.size === 0) return
     if (!window.confirm(`Xóa ${selectedFiles.size} mục đã chọn? Thao tác này không thể hoàn tác.`)) return
     
     setLoading(true)
     try {
       for (const name of selectedFiles) {
-        // @ts-ignore
         await window.api.deleteFile(activeDevice, `${currentPath}/${name}`)
       }
       setSelectedFiles(new Set())
       loadFiles(currentPath)
     } catch (err: any) {
-      alert(`Lỗi khi xóa: ${err.message}`)
+      toast.error(`Lỗi khi xóa: ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
   const handleUpload = async () => {
+    if (!activeDevice) return;
     try {
-      // @ts-ignore
       const localPath = await window.api.openFileDialog()
       if (!localPath) return
       const fileName = localPath.split(/[\\/]/).pop()
-      // @ts-ignore
       await window.api.pushFile(activeDevice, localPath, `${currentPath}/${fileName}`)
       loadFiles(currentPath)
     } catch (err: any) {
-      alert(`Lỗi tải lên: ${err.message}`)
+      toast.error(`Lỗi tải lên: ${err.message}`)
     }
   }
 
   const handleNewFolder = async () => {
+    if (!activeDevice) return;
     if (currentPath === 'HOME') return
     const name = window.prompt('Nhập tên thư mục mới:')
     if (!name) return
     try {
-      // @ts-ignore
       await window.api.createDirectory(activeDevice, `${currentPath}/${name}`)
       loadFiles(currentPath)
     } catch (err: any) {
-      alert(`Lỗi tạo thư mục: ${err.message}`)
+      toast.error(`Lỗi tạo thư mục: ${err.message}`)
     }
   }
 
@@ -361,8 +372,8 @@ export function FileManager() {
                   <p className="text-sm font-medium">Thư mục trống</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-50">
-                  {filteredFiles.map((file) => {
+                <div className="divide-y divide-slate-50 min-h-full pb-32">
+                  {paginatedFiles.map((file) => {
                     const isSelected = selectedFiles.has(file.name)
                     return (
                       <div 
@@ -392,6 +403,27 @@ export function FileManager() {
                       </div>
                     )
                   })}
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-4 py-8">
+                      <button 
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors shadow-sm"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <span className="text-xs font-bold text-slate-500">Trang {page} / {totalPages}</span>
+                      <button 
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors shadow-sm"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

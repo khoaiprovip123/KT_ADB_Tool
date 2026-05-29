@@ -15,7 +15,6 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
   const handleFixConnection = async () => {
     setIsFixing(true)
     try {
-      // @ts-ignore
       const result = await window.api.fixConnection()
       if (result.success) {
         useDeviceStore.getState().setDevices(result.devices || [])
@@ -35,9 +34,7 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
   const handleConnect = async () => {
     if (!ipInput.trim()) return
     setIsConnecting(true)
-    // @ts-ignore
     const success = await window.api.connectIp(ipInput.trim())
-    // @ts-ignore
     await window.api.getDevices().then(devices => {
       useDeviceStore.getState().setDevices(devices)
     })
@@ -54,7 +51,6 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
   const handlePair = async () => {
     if (!pairIpInput.trim() || !pairCode.trim()) return
     setIsPairing(true)
-    // @ts-ignore
     const success = await window.api.pairDevice(pairIpInput.trim(), pairCode.trim())
     setIsPairing(false)
     if (success) {

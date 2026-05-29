@@ -12,7 +12,7 @@ export interface IADBAPI {
   connectIp: (ip: string) => Promise<any>;
   pairDevice: (ipPort: string, code: string) => Promise<any>;
   getPackages: (deviceId: string, filter: 'all' | 'system' | 'third') => Promise<any>;
-  manageApp: (deviceId: string, pkgName: string, action: 'uninstall' | 'disable' | 'enable' | 'clear' | 'stop') => Promise<any>;
+  manageApp: (deviceId: string, pkgName: string, action: 'uninstall' | 'disable' | 'enable' | 'clear' | 'stop' | 'restore') => Promise<any>;
   extractApp: (deviceId: string, pkgName: string, destPath: string) => Promise<any>;
   installApk: (deviceId: string, apkPath: string) => Promise<any>;
   openApkDialog: () => Promise<any>;

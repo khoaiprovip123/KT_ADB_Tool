@@ -3,6 +3,7 @@ import { Search, Trash2, PowerOff, RefreshCcw, Package, Loader2, Play, Undo2, Ch
 import { motion } from 'framer-motion'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
+import { toast } from '../../store/toastStore'
 
 const CACHE_KEY_PREFIX = 'adb_pkg_cache_'
 
@@ -97,6 +98,10 @@ export function AppManager() {
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [presetFilter, setPresetFilter] = useState<string>('none')
   
+  // Pagination
+  const [page, setPage] = useState(1)
+  const ITEMS_PER_PAGE = 50
+  
   // Progress States
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState<{current: number, total: number, action: string} | null>(null)
@@ -135,7 +140,6 @@ export function AppManager() {
     }
 
     try {
-      // @ts-ignore
       const pkgs: AppInfo[] = await window.api.getPackages(activeDevice, 'all')
       setPackages(pkgs)
       localStorage.setItem(cacheKey, JSON.stringify(pkgs))
@@ -157,8 +161,7 @@ export function AppManager() {
     if (filter === 'disabled') list = list.filter(app => app.status?.toLowerCase() === 'disabled')
 
     if (presetFilter !== 'none') {
-      // @ts-ignore
-      const presetList = BLOATWARE_PRESETS[presetFilter] || []
+      const presetList = BLOATWARE_PRESETS[presetFilter as keyof typeof BLOATWARE_PRESETS] || []
       list = list.filter(app => presetList.includes(app.pkg))
     }
 
@@ -169,6 +172,16 @@ export function AppManager() {
       return app.pkg.toLowerCase().includes(q) || friendlyName.toLowerCase().includes(q)
     })
   }, [packages, debouncedSearch, presetFilter, filter])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [debouncedSearch, filter, presetFilter])
+
+  const paginatedPackages = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE
+    return filteredPackages.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredPackages, page])
+
+  const totalPages = Math.ceil(filteredPackages.length / ITEMS_PER_PAGE)
 
   const toggleSelect = (pkg: string) => {
     if (BLACKLIST.includes(pkg)) return 
@@ -191,8 +204,7 @@ export function AppManager() {
     setPresetFilter(presetKey)
     setSelectedApps(new Set())
     if (presetKey !== 'none') {
-      // @ts-ignore
-      const presetList = BLOATWARE_PRESETS[presetKey] || []
+      const presetList = BLOATWARE_PRESETS[presetKey as keyof typeof BLOATWARE_PRESETS] || []
       const toSelect = packages.filter(app => presetList.includes(app.pkg))
       setSelectedApps(new Set(toSelect.map(app => app.pkg)))
       setFilter('all')
@@ -200,8 +212,8 @@ export function AppManager() {
   }
 
   const executeAction = async (pkg: string, action: 'uninstall' | 'disable' | 'enable' | 'clear' | 'stop' | 'restore') => {
+    if (!activeDevice) return { success: false, output: 'No device connected' };
     try {
-      // @ts-ignore
       return await window.api.manageApp(activeDevice, pkg, action)
     } catch (err: any) {
       return { success: false, output: err.message }
@@ -223,23 +235,23 @@ export function AppManager() {
       if (action === 'uninstall') setPackages(prev => prev.filter(p => p.pkg !== pkg))
       else if (action === 'disable') setPackages(prev => prev.map(p => p.pkg === pkg ? { ...p, status: 'disabled' } : p))
       else if (action === 'enable' || action === 'restore') setPackages(prev => prev.map(p => p.pkg === pkg ? { ...p, status: 'enabled' } : p))
-      alert(`Thành công: ${pkg}`)
+      toast.success(`Thành công: ${pkg}`)
     } else if (!res.success) {
-      alert(`Lỗi: ${res.output}`)
+      toast.error(`Lỗi: ${res.output}`)
     }
     setActionLoading(null)
   }
 
   const handleExtract = async (pkg: string) => {
+    if (!activeDevice) return;
     setActionLoading(`extract-${pkg}`)
     try {
       const fileName = `${pkg}.apk`
-      // @ts-ignore
       const success = await window.api.extractApp(activeDevice, pkg, `D:\\Downloads\\${fileName}`)
-      if (success) alert(`Đã trích xuất: D:\\Downloads\\${fileName}`)
-      else alert('Trích xuất thất bại!')
+      if (success) toast.success(`Đã trích xuất: D:\\Downloads\\${fileName}`)
+      else toast.error('Trích xuất thất bại!')
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`)
+      toast.error(`Lỗi: ${err.message}`)
     } finally {
       setActionLoading(null)
     }
@@ -248,18 +260,16 @@ export function AppManager() {
   const handleInstallApk = async () => {
     if (!activeDevice) return
     try {
-      // @ts-ignore
       const apkPath = await window.api.openApkDialog()
       if (!apkPath) return
       setActionLoading('installing-apk')
-      // @ts-ignore
       const success = await window.api.installApk(activeDevice, apkPath)
       if (success) {
-        alert('Cài đặt thành công!')
+        toast.success('Cài đặt thành công!')
         setTimeout(() => loadPackages(true), 2000)
-      } else alert('Cài đặt thất bại!')
+      } else toast.error('Cài đặt thất bại!')
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`)
+      toast.error(`Lỗi: ${err.message}`)
     } finally {
       setActionLoading(null)
     }
@@ -441,7 +451,7 @@ export function AppManager() {
           ) : (
             <div className="flex-1 w-full overflow-y-auto custom-scrollbar">
               <div className="min-h-full pb-32">
-                {filteredPackages.map((app) => {
+                {paginatedPackages.map((app) => {
                   const pkg = app.pkg, isBlacklisted = BLACKLIST.includes(pkg), isSelected = selectedApps.has(pkg), isSystem = app.type?.toLowerCase() === 'system', isDisabled = app.status?.toLowerCase() === 'disabled'
                   return (
                     <div key={pkg} className="px-2 py-1">
@@ -470,6 +480,27 @@ export function AppManager() {
                     </div>
                   )
                 })}
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-6">
+                    <button 
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-xs font-bold text-slate-500">Trang {page} / {totalPages}</span>
+                    <button 
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

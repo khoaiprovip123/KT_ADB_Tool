@@ -14,6 +14,8 @@ import Settings from './features/settings/Settings'
 import { ControlCenterModal } from './components/layout/ControlCenterModal'
 import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
 
+import { ToastProvider } from './components/layout/ToastProvider'
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isLogOpen, setIsLogOpen] = useState(false)
@@ -46,6 +48,7 @@ function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#f4f7fb] text-slate-800 overflow-hidden font-sans">
+      <ToastProvider />
       {/* SIDEBAR */}
       <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300 ease-in-out flex flex-col justify-between bg-white/80 backdrop-blur-xl border-r border-glass-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative`}>
         {/* Toggle Button */}
