@@ -19,13 +19,16 @@ function RealTimeClock() {
 }
 
 export function Dashboard() {
-  const { activeDevice } = useDeviceStore()
+  const { activeDevice, devices } = useDeviceStore()
+  const activeDeviceObj = devices.find(d => d.id === activeDevice)
+  const isReady = activeDeviceObj?.type === 'device'
+
   const [info, setInfo] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [showBatteryModal, setShowBatteryModal] = useState(false)
 
   const loadInfo = () => {
-    if (!activeDevice) {
+    if (!activeDevice || !isReady) {
       setInfo(null)
       return
     }
@@ -44,7 +47,7 @@ export function Dashboard() {
     // Refresh 5 minutes instead of 30s to avoid lag
     const interval = setInterval(loadInfo, 300000) 
     return () => clearInterval(interval)
-  }, [activeDevice])
+  }, [activeDevice, isReady])
 
   return (
     <div className="max-w-6xl mx-auto h-full flex flex-col overflow-y-auto custom-scrollbar pr-2">
@@ -55,6 +58,19 @@ export function Dashboard() {
           </div>
           <h3 className="text-2xl font-bold mb-2">Chưa kết nối thiết bị</h3>
           <p className="text-slate-500">Vui lòng kết nối thiết bị Android qua USB và bật Gỡ lỗi USB.</p>
+        </div>
+      ) : !isReady ? (
+        <div className="text-center p-12 bg-white/60 backdrop-blur-2xl rounded-3xl border border-white shadow-xl shadow-slate-200/50 flex-1 flex flex-col items-center justify-center">
+          <div className="w-24 h-24 bg-amber-50 rounded-full mx-auto mb-6 flex items-center justify-center border border-amber-100 shadow-inner">
+            <ShieldAlert className="text-amber-500 w-10 h-10 animate-bounce" />
+          </div>
+          <h3 className="text-2xl font-bold mb-2 text-slate-800">Thiết bị chưa được ủy quyền</h3>
+          <p className="text-slate-500 max-w-md mx-auto mb-4 leading-relaxed">
+            Vui lòng kiểm tra màn hình điện thoại của bạn, chọn <strong className="text-slate-700">"Luôn cho phép từ máy tính này"</strong> và nhấn <strong className="text-slate-700">"Cho phép" (OK)</strong> để tiếp tục.
+          </p>
+          <div className="text-xs text-amber-600 bg-amber-50/50 px-4 py-2 rounded-full border border-amber-100 font-medium">
+            Đang chờ xác nhận từ thiết bị ({activeDevice})...
+          </div>
         </div>
       ) : loading && !info ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
