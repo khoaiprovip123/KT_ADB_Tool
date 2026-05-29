@@ -5,6 +5,7 @@ import * as path from 'path'
 import { app } from 'electron'
 import { spawn, exec } from 'child_process'
 import * as fs from 'fs'
+import batteryProfiles from './data/battery_profiles.json'
 import { evaluateCommand } from './adbSafety'
 
 export const adbState = {
@@ -496,8 +497,24 @@ export async function getDeviceInfo(deviceId: string) {
 
     let designCap = 0
     
+    // 0. Lấy từ JSON database (Chính xác tuyệt đối từ nhà sản xuất)
+    try {
+      const modelProp = getPropRaw.match(/\[ro\.product\.model\]:\s*\[(.*?)\]/)?.[1] || ''
+      const marketName = getPropRaw.match(/\[ro\.product\.marketname\]:\s*\[(.*?)\]/)?.[1] || ''
+      const deviceName = getPropRaw.match(/\[ro\.product\.device\]:\s*\[(.*?)\]/)?.[1] || ''
+      
+      const db: any = batteryProfiles
+      for (const brand in db) {
+        if (modelProp && db[brand][modelProp]) { designCap = db[brand][modelProp]; break; }
+        if (marketName && db[brand][marketName]) { designCap = db[brand][marketName]; break; }
+        if (deviceName && db[brand][deviceName]) { designCap = db[brand][deviceName]; break; }
+      }
+    } catch(e) {
+      console.error('Failed to parse battery_profiles.json', e)
+    }
+    
     // 1. Sysfs (Chính xác tuyệt đối nếu có)
-    if (specDesignFull > 0) {
+    if (!designCap && specDesignFull > 0) {
       designCap = specDesignFull
     }
 

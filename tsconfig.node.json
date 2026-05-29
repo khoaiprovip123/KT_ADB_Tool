@@ -3,6 +3,8 @@
     "target": "ES2022",
     "lib": ["es2023"],
     "module": "CommonJS",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
     "strict": true,
