@@ -293,29 +293,22 @@ export async function pairDevice(ipPort: string, code: string, onLog: (log: stri
 
 export async function getDeviceInfo(deviceId: string) {
   try {
-    const getPropRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'getprop').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
+    const safeShell = (cmd: string): Promise<string> => {
+      return new Promise<string>((resolve) => {
+        adbState.client.shell(deviceId, cmd).then((s: any) => {
+          let data = ''
+          s.on('data', (c: any) => data += c)
+          s.on('end', () => resolve(data))
+          s.on('error', () => resolve(''))
+        }).catch(() => resolve(''))
       })
-    })
+    }
 
-    const wmSizeRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'wm size').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
-      })
-    })
+    const getPropRaw = await safeShell('getprop')
 
-    const uptimeRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'uptime').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
-      })
-    })
+    const wmSizeRaw = await safeShell('wm size')
+
+    const uptimeRaw = await safeShell('uptime')
 
     const deviceName = getPropRaw.match(/\[persist\.sys\.device_name\]: \[(.*?)\]/)?.[1]
     const marketName = getPropRaw.match(/\[ro\.product\.marketname\]: \[(.*?)\]/)?.[1]
@@ -398,13 +391,7 @@ export async function getDeviceInfo(deviceId: string) {
     }
 
     // Lấy thông số Storage
-    const storageRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'df').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
-      })
-    })
+    const storageRaw = await safeShell('df')
     
     let storageTotal = '0GB'
     let storageUsed = '0GB'
@@ -449,45 +436,18 @@ export async function getDeviceInfo(deviceId: string) {
     const cryptoStateRaw = getPropRaw.match(/\[ro\.crypto\.state\]: \[(.*?)\]/)?.[1] || 'unencrypted'
     const cryptoState = cryptoStateRaw.charAt(0).toUpperCase() + cryptoStateRaw.slice(1)
     
-    const selinux = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'getenforce').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data.trim()))
-      }).catch(() => resolve('Unknown'))
-    })
+    const selinuxRaw = await safeShell('getenforce')
+    const selinux = selinuxRaw.trim() || 'Unknown'
     
-    const suExists = await new Promise<boolean>((resolve) => {
-      adbState.client.shell(deviceId, 'which su').then((s: any) => {
-        s.on('data', () => resolve(true))
-        s.on('end', () => resolve(false))
-      }).catch(() => resolve(false))
-    })
+    const suRaw = await safeShell('which su')
+    const suExists = suRaw.trim().length > 0
     const isRooted = suExists ? 'Yes' : 'No'
 
     // Lấy thông số pin nâng cao, dumpsys power và dumpsys batteryproperties song song
     const [batteryRaw, powerRaw, propertiesRaw] = await Promise.all([
-      new Promise<string>((resolve) => {
-        let data = ''
-        adbState.client.shell(deviceId, 'dumpsys battery').then((s: any) => {
-          s.on('data', (c: any) => data += c)
-          s.on('end', () => resolve(data))
-        }).catch(() => resolve(''))
-      }),
-      new Promise<string>((resolve) => {
-        let data = ''
-        adbState.client.shell(deviceId, 'dumpsys power').then((s: any) => {
-          s.on('data', (c: any) => data += c)
-          s.on('end', () => resolve(data))
-        }).catch(() => resolve(''))
-      }),
-      new Promise<string>((resolve) => {
-        let data = ''
-        adbState.client.shell(deviceId, 'dumpsys batteryproperties').then((s: any) => {
-          s.on('data', (c: any) => data += c)
-          s.on('end', () => resolve(data))
-        }).catch(() => resolve(''))
-      })
+      safeShell('dumpsys battery'),
+      safeShell('dumpsys power'),
+      safeShell('dumpsys batteryproperties')
     ])
     
     const levelMatch = batteryRaw.match(/level:\s*(\d+)/i)
@@ -508,13 +468,7 @@ export async function getDeviceInfo(deviceId: string) {
     const isCharging = chargeStatus === 2 || chargeStatus === 5
 
     // Đọc dung lượng thiết kế & thực tế qua sysfs uevent (Chính xác nhất và hỗ trợ mọi dòng máy)
-    const ueventRaw = await new Promise<string>((resolve) => {
-      adbState.client.shell(deviceId, 'cat /sys/class/power_supply/*/uevent 2>/dev/null').then((s: any) => {
-        let data = ''
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
-      }).catch(() => resolve(''))
-    })
+    const ueventRaw = await safeShell('cat /sys/class/power_supply/*/uevent 2>/dev/null')
 
     const extractUevent = (key: string): number => {
       // Tìm key trong uevent, lấy value
@@ -666,13 +620,7 @@ export async function getDeviceInfo(deviceId: string) {
     }
 
     // Lấy thông số RAM
-    const ramRaw = await new Promise<string>((resolve) => {
-      let data = ''
-      adbState.client.shell(deviceId, 'dumpsys meminfo').then((s: any) => {
-        s.on('data', (c: any) => data += c)
-        s.on('end', () => resolve(data))
-      })
-    })
+    const ramRaw = await safeShell('dumpsys meminfo')
     
     const totalRamMatch = ramRaw.match(/Total RAM: ([\d,]+)K/)
     const freeRamMatch = ramRaw.match(/Free RAM: ([\d,]+)K/)

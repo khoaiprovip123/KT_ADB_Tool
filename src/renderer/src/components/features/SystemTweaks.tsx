@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
-import { validateDpi, validatePackageName, escapeShell } from '../../../utils/validation'
+import { validateDpi, validatePackageName, escapeShell } from '../../utils/validation'
 
 type TweakCategory = 'debloat' | 'display' | 'security' | 'game' | 'animations' | 'controls' | 'multitasking'
 type RiskLevel = 'SAFE' | 'RISKY' | 'KEEP'

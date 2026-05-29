@@ -27,7 +27,12 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
   })
 
   ipcMain.handle('adb:get-info', async (_event, deviceId) => {
-    return await getDeviceInfo(deviceId)
+    try {
+      return await getDeviceInfo(deviceId)
+    } catch (err) {
+      console.error('adb:get-info error:', err)
+      return null
+    }
   })
 
   ipcMain.handle('adb:get-storage-stats', async (_event, deviceId) => {
