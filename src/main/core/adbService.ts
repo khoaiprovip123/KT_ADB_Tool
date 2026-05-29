@@ -57,20 +57,42 @@ export async function getDevices() {
 }
 
 export async function watchDevices(onUpdate: (devices: any[]) => void) {
-  try {
-    const tracker = await adbState.client.trackDevices()
-    tracker.on('add', async () => {
-      const devs = await getDevices()
-      onUpdate(devs)
-    })
-    tracker.on('remove', async () => {
-      const devs = await getDevices()
-      onUpdate(devs)
-    })
-    tracker.on('end', () => console.log('Tracking ended'))
-  } catch (error) {
-    console.error('Error tracking devices:', error)
+  let isTracking = false;
+
+  const startTracking = async () => {
+    if (isTracking) return;
+    try {
+      const tracker = await adbState.client.trackDevices()
+      isTracking = true;
+      
+      const refresh = async () => {
+        const devs = await getDevices()
+        onUpdate(devs)
+      }
+
+      tracker.on('add', refresh)
+      tracker.on('remove', refresh)
+      tracker.on('change', refresh)
+
+      tracker.on('end', () => {
+        console.log('Tracking ended, restarting...')
+        isTracking = false
+        setTimeout(startTracking, 2000)
+      })
+      
+      tracker.on('error', (err: any) => {
+        console.error('Tracking error:', err)
+        isTracking = false
+        setTimeout(startTracking, 2000)
+      })
+    } catch (error) {
+      console.error('Error tracking devices:', error)
+      isTracking = false
+      setTimeout(startTracking, 2000)
+    }
   }
+
+  startTracking();
 }
 
 // Hàm thực thi lệnh Shell bất đồng bộ và trả Stream về UI
