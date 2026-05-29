@@ -9,7 +9,15 @@ import {
 } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
-import { validateDpi, validatePackageName, escapeShell } from '../../utils/validation'
+import { 
+  validateDpi, 
+  validateResolution,
+  validatePackageName,
+  escapeShell
+} from '../../utils/validation'
+import { useAdbWithRetry } from '../../hooks/useAdbWithRetry'
+import { handleAdbError, showErrorToast } from '../../utils/errorHandler'
+import { toast } from '../../store/toastStore'
 
 type TweakCategory = 'debloat' | 'display' | 'security' | 'game' | 'animations' | 'controls' | 'multitasking'
 type RiskLevel = 'SAFE' | 'RISKY' | 'KEEP'
@@ -102,26 +110,19 @@ export function SystemTweaks() {
   const [pkgNotifyInput, setPkgNotifyInput] = useState<string>('')
   const [pkgFreezeInput, setPkgFreezeInput] = useState<string>('')
 
-  // Toast notification state
-  const [toasts, setToasts] = useState<Array<{ id: number; msg: string; type: 'success' | 'error' }>>([])
+  const { executeWithRetry } = useAdbWithRetry()
+
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    const id = Date.now()
-    setToasts(prev => [...prev, { id, msg, type }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
+    if (type === 'error') {
+      toast.error(msg)
+    } else {
+      toast.success(msg)
+    }
   }
 
-  // Utilities
-  const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 1000): Promise<T> => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        return await fn()
-      } catch (err) {
-        if (i === maxRetries - 1) throw err
-        await new Promise(r => setTimeout(r, delay * (i + 1)))
-      }
-    }
-    throw new Error('Max retries exceeded')
-  }
+  const withRetry = useCallback(async <T,>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
+    return executeWithRetry(fn, { maxRetries })
+  }, [executeWithRetry])
 
 
   // Load all tweaks status and display metrics from actual device
@@ -326,21 +327,31 @@ export function SystemTweaks() {
     if (!activeDevice) return
     const validation = validateDpi(dpi)
     if (!validation.valid) {
-      showToast(validation.error!, 'error')
+      toast.error(validation.error!)
       return
     }
     setActionLoading('apply-dpi')
     try {
-      const res = await withRetry(() => window.api.setDpi(activeDevice, dpi))
+      const res = await executeWithRetry(
+        () => window.api.setDpi(activeDevice, dpi),
+        {
+          maxRetries: 3,
+          onRetry: (attempt) => {
+            addLog(`[RETRY ${attempt}] setDpi - waiting...`)
+          }
+        }
+      )
       if (res.success) {
         setCustomDpi(dpi)
         setDeviceDpi(dpi)
-        showToast(res.message)
+        toast.success(res.message)
       } else {
-        showToast(`Thất bại: ${res.message}`, 'error')
+        toast.error(`Thất bại: ${res.message}`)
       }
-    } catch (e: any) {
-      showToast(`Thất bại: ${e.message}`, 'error')
+    } catch (error) {
+      const adbError = handleAdbError(error)
+      addLog(`[ERROR] setDpi failed: ${adbError.message}`)
+      showErrorToast(adbError)
     } finally {
       setActionLoading(null)
     }
@@ -366,22 +377,26 @@ export function SystemTweaks() {
 
   const applyResolution = async () => {
     if (!activeDevice) return
-    if (customW < 720 || customW > 3840 || customH < 1280 || customH > 3840) {
-      showToast('Độ phân giải không hợp lệ (W: 720-3840, H: 1280-3840)', 'error')
+    const validation = validateResolution(customW, customH)
+    if (!validation.valid) {
+      toast.error(validation.error!)
       return
     }
     setActionLoading('apply-res')
     try {
-      const res = await window.api.setResolution(activeDevice, customW, customH)
+      const res = await executeWithRetry(
+        () => window.api.setResolution(activeDevice, customW, customH),
+        { maxRetries: 3 }
+      )
       if (res.success) {
         setDeviceW(customW)
         setDeviceH(customH)
-        showToast(res.message)
+        toast.success(res.message)
       } else {
-        showToast(`Thất bại: ${res.message}`, 'error')
+        toast.error(`Thất bại: ${res.message}`)
       }
-    } catch (e: any) {
-      showToast(`Thất bại: ${e.message}`, 'error')
+    } catch (error) {
+      showErrorToast(error)
     } finally {
       setActionLoading(null)
     }
@@ -612,33 +627,41 @@ export function SystemTweaks() {
   const fixNotificationDelay = async (pkg: string) => {
     if (!activeDevice || !pkg) return
     if (!validatePackageName(pkg)) {
-      showToast('Tên gói ứng dụng không hợp lệ!', 'error')
+      toast.error('Tên gói ứng dụng không hợp lệ!')
       return
     }
     setActionLoading('fix_notify')
-    addLog(`[ACTION] Bắt đầu sửa trễ thông báo cho gói ứng dụng: ${pkg}`)
+    addLog(`[ACTION] Bắt đầu sửa trễ thông báo cho: ${pkg}`)
     try {
-      // 1. Whitelist from doze battery optimization
       const safePkg = escapeShell(pkg)
+      
       addLog(`[EXEC] shell dumpsys deviceidle whitelist +${safePkg}`)
-      const res1 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${safePkg}`))
+      const res1 = await executeWithRetry(
+        () => window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${safePkg}`),
+        { maxRetries: 2 }
+      )
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
-      // 2. Allow run in background
       addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
-      const res2 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`))
+      const res2 = await executeWithRetry(
+        () => window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`),
+        { maxRetries: 2 }
+      )
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
-      // 3. Set standby bucket to active
       addLog(`[EXEC] shell am set-standby-bucket ${safePkg} active`)
-      const res3 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`))
+      const res3 = await executeWithRetry(
+        () => window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`),
+        { maxRetries: 2 }
+      )
       addLog(`[RESULT] ${res3.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã hoàn tất cấu hình tối ưu thông báo & chạy nền cho ${pkg}`)
-      showToast(`Đã tối ưu thông báo & chạy nền cho gói: ${pkg}`)
-    } catch (e: any) {
-      addLog(`[ERROR] Sửa trễ thông báo thất bại: ${e.message}`)
-      showToast(`Thất bại: ${e.message}`, 'error')
+      toast.success(`Đã tối ưu thông báo & chạy nền cho gói: ${pkg}`)
+    } catch (error) {
+      const adbError = handleAdbError(error)
+      addLog(`[ERROR] ${adbError.message}`)
+      showErrorToast(adbError)
     } finally {
       setActionLoading(null)
     }
@@ -806,30 +829,7 @@ export function SystemTweaks() {
   return (
     <div className="absolute inset-4 lg:inset-6 flex flex-col overflow-hidden bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
       
-      {/* TOAST NOTIFICATIONS */}
-      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
-        <AnimatePresence>
-          {toasts.map(t => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold backdrop-blur-xl pointer-events-auto max-w-xs ${
-                t.type === 'error'
-                  ? 'bg-red-500/90 text-white'
-                  : 'bg-slate-800/90 text-white'
-              }`}
-            >
-              {t.type === 'error'
-                ? <AlertCircle className="w-4 h-4 shrink-0" />
-                : <CheckCircle2 className="w-4 h-4 shrink-0 text-green-400" />}
-              <span>{t.msg}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+
 
       {/* HEADER BAR */}
       <div className="bg-white/80 border border-slate-200/80 p-4 rounded-[24px] shadow-sm flex items-center justify-between gap-4 shrink-0 mb-4 select-none">
