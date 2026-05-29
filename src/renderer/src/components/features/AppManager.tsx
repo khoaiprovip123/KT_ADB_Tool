@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Trash2, PowerOff, RefreshCcw, Package, Loader2, Play, Undo2, CheckCircle2, ListFilter, CheckSquare, Square, Download, Sparkles, User, Settings, Ban, Upload, X, ChevronDown } from 'lucide-react'
+import { Search, Trash2, PowerOff, RefreshCcw, Package, Loader2, Play, Undo2, CheckCircle2, ListFilter, CheckSquare, Square, Download, Sparkles, User, Settings, Ban, Upload, X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
