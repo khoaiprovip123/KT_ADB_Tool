@@ -20,6 +20,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     titleBarStyle: 'hiddenInset',
+    autoHideMenuBar: true,
     backgroundColor: '#f4f7fb',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
