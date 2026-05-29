@@ -1,0 +1,69 @@
+export const CACHE_KEY_PREFIX = 'adb_pkg_cache_'
+
+export const BLACKLIST = [
+  'android',
+  'com.android.systemui',
+  'com.android.settings',
+  'com.android.phone',
+  'com.android.contacts',
+  'com.miui.securitycenter'
+]
+
+export const BLOATWARE_PRESETS = {
+  xiaomi: [
+    'com.miui.analytics', 'com.miui.msa.global', 'com.xiaomi.joyose', 'com.miui.daemon',
+    'com.miui.bugreport', 'com.xiaomi.mipicks', 'com.miui.systemAdSolution', 'com.miui.hybrid', 
+    'com.miui.hybrid.accessory', 'com.miui.contentcatcher', 'com.xiaomi.gamecenter.sdk.service', 
+    'com.xiaomi.aiasst.service', 'com.xiaomi.aicr', 'com.miui.personalassistant', 'com.mi.globalminusscreen', 
+    'com.miui.voiceassist', 'com.miui.videoplayer', 'com.miui.player', 'com.mi.globalbrowser', 
+    'com.miui.cleanmaster', 'com.miui.compass', 'com.miui.android.fashiongallery', 'com.miui.yellowpage',
+    'com.miui.mishare.connectivity', 'com.mi.global.shop', 'com.miui.nextpay', 'com.mipay.wallet.id', 
+    'com.mi.health', 'com.miui.miservice', 'com.xiaomi.gamecenter', 'com.xiaomi.miplay_client', 
+    'com.xiaomi.mirror', 'com.xiaomi.powerchecker', 'cn.wps.xiaomi.abroad.lite', 'com.tencent.soter.soterserver'
+  ],
+  samsung: [
+    'com.samsung.android.bixby.agent', 'com.samsung.android.app.spage', 'com.samsung.android.service.peoplestripe', 
+    'com.samsung.android.app.routines', 'com.samsung.android.game.gamehome', 'com.samsung.android.game.gametools', 
+    'com.samsung.android.aremoji', 'com.sec.android.app.sbrowser'
+  ],
+  google: [
+    'com.android.egg', 'com.android.bips', 'com.android.printspooler', 'com.android.stk',
+    'com.android.wallpaper.livepicker', 'com.android.chrome', 'com.google.android.apps.tachyon',
+    'com.google.android.apps.youtube.music', 'com.google.android.apps.docs', 'com.google.android.apps.photos', 
+    'com.google.android.apps.wellbeing', 'com.google.android.marvin.talkback', 'com.google.android.videos', 
+    'com.google.ar.lens', 'com.google.android.as.oss'
+  ]
+}
+
+export const FRIENDLY_NAMES: Record<string, string> = {
+  'com.miui.analytics': 'MIUI Analytics (Theo dõi)',
+  'com.miui.msa.global': 'MSA (Quảng cáo hệ thống)',
+  'com.miui.systemAdSolution': 'System Ad Solution',
+  'com.miui.hybrid': 'Quick Apps (Data Mining)',
+  'com.miui.hybrid.accessory': 'Quick Apps Accessory',
+  'com.miui.contentcatcher': 'Content Catcher',
+  'com.miui.bugreport': 'Bug Report App',
+  'com.xiaomi.joyose': 'Joyose (Game Analytics)',
+  'com.xiaomi.gamecenter.sdk.service': 'Game Center SDK',
+  'com.xiaomi.aiasst.service': 'AI Assistant Service',
+  'com.xiaomi.aicr': 'Xiaomi AI Engine',
+  'com.miui.personalassistant': 'App Vault (Assistant)',
+  'com.mi.globalminusscreen': 'App Vault (Minus Screen)',
+  'com.miui.voiceassist': 'Voice Assistant',
+  'com.miui.videoplayer': 'Mi Video',
+  'com.miui.player': 'Mi Music',
+  'com.mi.globalbrowser': 'Mi Browser',
+  'com.miui.cleanmaster': 'System Cleaner (Rác)',
+  'com.miui.compass': 'Mi Compass (La bàn)',
+  'com.miui.android.fashiongallery': 'Wallpaper Carousel',
+  'com.miui.yellowpage': 'Mi Yellow Pages',
+  'com.miui.mishare.connectivity': 'Mi Share',
+  'com.mi.global.shop': 'Mi Store',
+  'com.xiaomi.mipicks': 'GetApps (Quảng cáo)',
+  'com.miui.nextpay': 'Mi Pay',
+  'com.mi.health': 'Mi Health / Fitness',
+  'com.xiaomi.gamecenter': 'Game Center',
+  'com.android.chrome': 'Google Chrome',
+  'com.google.android.apps.photos': 'Google Photos',
+  'com.google.android.apps.youtube.music': 'YouTube Music'
+}

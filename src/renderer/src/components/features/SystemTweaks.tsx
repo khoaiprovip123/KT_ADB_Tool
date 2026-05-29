@@ -109,6 +109,10 @@ export function SystemTweaks() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
   }
 
+  // Utilities
+  const escapeShell = (str: string) => `'${str.replace(/'/g, "'\\''")}'`
+  const validateDpi = (dpi: number) => dpi >= 120 && dpi <= 640
+
 
   // Load all tweaks status and display metrics from actual device
   const loadData = useCallback(async () => {
@@ -310,6 +314,10 @@ export function SystemTweaks() {
   // --- Display & DPI command execution ---
   const applyDpi = async (dpi: number) => {
     if (!activeDevice) return
+    if (!validateDpi(dpi)) {
+      showToast('DPI không hợp lệ (phải từ 120 đến 640)', 'error')
+      return
+    }
     setActionLoading('apply-dpi')
     try {
       const res = await window.api.setDpi(activeDevice, dpi)
@@ -347,6 +355,10 @@ export function SystemTweaks() {
 
   const applyResolution = async () => {
     if (!activeDevice) return
+    if (customW < 720 || customW > 3840 || customH < 1280 || customH > 3840) {
+      showToast('Độ phân giải không hợp lệ (W: 720-3840, H: 1280-3840)', 'error')
+      return
+    }
     setActionLoading('apply-res')
     try {
       const res = await window.api.setResolution(activeDevice, customW, customH)
@@ -592,18 +604,19 @@ export function SystemTweaks() {
     addLog(`[ACTION] Bắt đầu sửa trễ thông báo cho gói ứng dụng: ${pkg}`)
     try {
       // 1. Whitelist from doze battery optimization
-      addLog(`[EXEC] shell dumpsys deviceidle whitelist +${pkg}`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${pkg}`)
+      const safePkg = escapeShell(pkg)
+      addLog(`[EXEC] shell dumpsys deviceidle whitelist +${safePkg}`)
+      const res1 = await window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${safePkg}`)
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Allow run in background
-      addLog(`[EXEC] shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`)
+      addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
+      const res2 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       // 3. Set standby bucket to active
-      addLog(`[EXEC] shell am set-standby-bucket ${pkg} active`)
-      const res3 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${pkg} active`)
+      addLog(`[EXEC] shell am set-standby-bucket ${safePkg} active`)
+      const res3 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`)
       addLog(`[RESULT] ${res3.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã hoàn tất cấu hình tối ưu thông báo & chạy nền cho ${pkg}`)
@@ -622,13 +635,14 @@ export function SystemTweaks() {
     addLog(`[ACTION] Chặn chạy ngầm (Đóng băng) gói ứng dụng: ${pkg}`)
     try {
       // 1. Disallow run in background
-      addLog(`[EXEC] shell cmd appops set ${pkg} RUN_IN_BACKGROUND ignore`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${pkg} RUN_IN_BACKGROUND ignore`)
+      const safePkg = escapeShell(pkg)
+      addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND ignore`)
+      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND ignore`)
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Set standby bucket to restricted
-      addLog(`[EXEC] shell am set-standby-bucket ${pkg} restricted`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${pkg} restricted`)
+      addLog(`[EXEC] shell am set-standby-bucket ${safePkg} restricted`)
+      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} restricted`)
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã đóng băng thành công chạy ngầm của ${pkg}`)
@@ -647,13 +661,14 @@ export function SystemTweaks() {
     addLog(`[ACTION] Khôi phục chạy ngầm cho gói ứng dụng: ${pkg}`)
     try {
       // 1. Allow run in background
-      addLog(`[EXEC] shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`)
+      const safePkg = escapeShell(pkg)
+      addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
+      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Set standby bucket to active
-      addLog(`[EXEC] shell am set-standby-bucket ${pkg} active`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${pkg} active`)
+      addLog(`[EXEC] shell am set-standby-bucket ${safePkg} active`)
+      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`)
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã mở băng thành công cho ${pkg}`)

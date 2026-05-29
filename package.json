@@ -29,6 +29,7 @@
     "adm-zip": "^0.5.17",
     "axios": "^1.16.1",
     "clsx": "^2.1.1",
+    "electron-store": "^8.1.0",
     "framer-motion": "^11.1.7",
     "lucide-react": "^0.378.0",
     "react-virtualized-auto-sizer": "^2.0.3",

@@ -1,4 +1,3 @@
-import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useToastStore, Toast } from '../../store/toastStore'
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react'
@@ -32,8 +31,19 @@ export function ToastProvider() {
             className={`pointer-events-auto flex items-start gap-3 p-4 pr-10 rounded-2xl shadow-xl shadow-slate-900/5 border backdrop-blur-xl min-w-[300px] max-w-[400px] relative overflow-hidden ${toastBg[t.type]}`}
           >
             <div className="shrink-0 mt-0.5">{toastIcons[t.type]}</div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-slate-800 break-words">{t.message}</span>
+            <div className="flex flex-col flex-1">
+              <span className="text-sm font-bold text-slate-800 break-words pr-4">{t.message}</span>
+              {t.action && (
+                <button
+                  onClick={() => {
+                    t.action?.onClick()
+                    removeToast(t.id)
+                  }}
+                  className="mt-2 self-start px-3 py-1.5 bg-white/60 hover:bg-white text-xs font-black uppercase tracking-wider rounded-lg border border-slate-200/50 shadow-sm transition-colors text-slate-700"
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
             <button 
               onClick={() => removeToast(t.id)}

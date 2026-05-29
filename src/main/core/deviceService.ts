@@ -146,3 +146,47 @@ export async function pairDevice(ipPort: string, code: string, onLog: (log: stri
 }
 
 export { adbState }
+
+export interface StorageStats {
+  total: number
+  used: number
+  free: number
+  percentage: number
+}
+
+export async function getStorageStats(deviceId: string): Promise<StorageStats | null> {
+  try {
+    const output = await adbState.client.shell(deviceId, 'df -k /data')
+    const chunks = []
+    for await (const chunk of output) {
+      chunks.push(chunk)
+    }
+    const text = Buffer.concat(chunks).toString()
+    const lines = text.split('\n')
+    
+    for (const line of lines) {
+      if (line.includes('/data') && !line.includes('tmpfs')) {
+        const parts = line.trim().split(/\s+/)
+        if (parts.length >= 5) {
+          // df -k returns values in 1K-blocks
+          const total = parseInt(parts[1]) * 1024
+          const used = parseInt(parts[2]) * 1024
+          let free = parseInt(parts[3]) * 1024
+          if (isNaN(free) && parts.length >= 6) {
+             free = parseInt(parts[4]) * 1024
+          }
+          const percentageStr = parts.find(p => p.includes('%')) || '0%'
+          const percentage = parseInt(percentageStr.replace('%', ''))
+          
+          if (!isNaN(total) && !isNaN(used) && !isNaN(percentage)) {
+            return { total, used, free: total - used, percentage }
+          }
+        }
+      }
+    }
+    return null
+  } catch (err) {
+    console.error('getStorageStats error:', err)
+    return null
+  }
+}

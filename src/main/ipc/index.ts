@@ -6,6 +6,7 @@ import { registerFileHandlers } from './fileHandlers'
 import { registerSystemTweaksHandlers } from './systemTweaksHandlers'
 import { registerXiaomiExperienceHandlers } from './xiaomiExperienceHandlers'
 import { registerAdvancedAdbHandlers } from './advancedAdbHandlers'
+import { store } from '../store'
 
 export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   // ── Core ADB ──────────────────────────────────────────────────────────────
@@ -46,4 +47,17 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   registerSystemTweaksHandlers(mainWindow)
   registerXiaomiExperienceHandlers(mainWindow)
   registerAdvancedAdbHandlers()
+
+  // ── Store Handlers ────────────────────────────────────────────────────────
+  ipcMain.handle('store:get', (_event, key: string) => {
+    return (store as any).get(key)
+  })
+  
+  ipcMain.handle('store:set', (_event, key: string, val: any) => {
+    ;(store as any).set(key, val)
+  })
+  
+  ipcMain.handle('store:delete', (_event, key: string) => {
+    ;(store as any).delete(key)
+  })
 }

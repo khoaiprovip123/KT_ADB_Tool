@@ -11,6 +11,7 @@ const api = {
     ipcRenderer.removeAllListeners('adb:device-update')
     ipcRenderer.on('adb:device-update', (_event, devices) => callback(devices))
   },
+  getStorageStats: (deviceId: string) => ipcRenderer.invoke('adb:get-storage-stats', deviceId),
   runAdbCommand: (deviceId: string, command: string) => ipcRenderer.invoke('adb:run-command', { deviceId, command }),
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => ipcRenderer.invoke('adb:run-scrcpy', { deviceId, turnScreenOff }),
   connectWifi: (deviceId: string, ip: string) => ipcRenderer.invoke('adb:connect-wifi', { deviceId, ip }),
@@ -89,7 +90,12 @@ const api = {
   getDumpsys: (deviceId: string, service: string) => ipcRenderer.invoke('advanced-adb:get-dumpsys', deviceId, service),
   executePreset: (deviceId: string, commandId: string, params: Record<string, string | number>) => 
     ipcRenderer.invoke('advanced-adb:execute-preset', deviceId, commandId, params),
-  executeRawShell: (deviceId: string, command: string) => ipcRenderer.invoke('advanced-adb:execute-raw', deviceId, command)
+  executeRawShell: (deviceId: string, command: string) => ipcRenderer.invoke('advanced-adb:execute-raw', deviceId, command),
+  
+  // Store
+  storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
+  storeSet: (key: string, val: any) => ipcRenderer.invoke('store:set', key, val),
+  storeDelete: (key: string) => ipcRenderer.invoke('store:delete', key)
 }
 
 if (process.contextIsolated) {
@@ -97,7 +103,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
-    console.error(error)
+    console.error('Preload Error:', error)
   }
 } else {
   // @ts-ignore (define in dts)

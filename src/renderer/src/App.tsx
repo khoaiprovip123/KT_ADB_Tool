@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen, Zap, Sparkles, Sliders } from 'lucide-react'
 import { useDeviceStore } from './store/deviceStore'
+import { useSettingsStore } from './store/settingsStore'
 import { LogTerminal } from './components/layout/LogTerminal'
 import { FloatingQuickBoot } from './components/layout/FloatingQuickBoot'
 import { Dashboard } from './components/features/Dashboard'
@@ -15,6 +16,7 @@ import { ControlCenterModal } from './components/layout/ControlCenterModal'
 import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
 
 import { ToastProvider } from './components/layout/ToastProvider'
+import { ErrorBoundary } from './components/layout/ErrorBoundary'
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -23,8 +25,12 @@ function App() {
   const [isConnManagerOpen, setIsConnManagerOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const { devices, activeDevice, setDevices, addLog } = useDeviceStore()
+  const { loadSettings } = useSettingsStore()
 
   useEffect(() => {
+    // Tải cài đặt từ Electron Store
+    loadSettings()
+    
     // Khởi tạo ADB và tải Platform-tools tự động
     window.api.initAdb().then(() => {
       window.api.getDevices().then(setDevices)
@@ -147,19 +153,21 @@ function App() {
         </header>
 
         <div className="flex-1 overflow-hidden p-8 relative">
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'system' && <AppManager />}
-          {activeTab === 'files' && <FileManager />}
-          {activeTab === 'experience' && <UserExperience />}
-          {activeTab === 'tweaks' && <SystemTweaks />}
-          {activeTab === 'optimize' && <SystemOptimization />}
-          {activeTab === 'advanced' && <AdvancedAdb />}
-          {activeTab === 'settings' && <Settings />}
-          {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'experience' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'advanced' && activeTab !== 'settings' && (
-            <div className="flex items-center justify-center h-full text-slate-400">
-              Tính năng đang được phát triển...
-            </div>
-          )}
+          <ErrorBoundary>
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'system' && <AppManager />}
+            {activeTab === 'files' && <FileManager />}
+            {activeTab === 'experience' && <UserExperience />}
+            {activeTab === 'tweaks' && <SystemTweaks />}
+            {activeTab === 'optimize' && <SystemOptimization />}
+            {activeTab === 'advanced' && <AdvancedAdb />}
+            {activeTab === 'settings' && <Settings />}
+            {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'experience' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'advanced' && activeTab !== 'settings' && (
+              <div className="flex items-center justify-center h-full text-slate-400">
+                Tính năng đang được phát triển...
+              </div>
+            )}
+          </ErrorBoundary>
         </div>
 
         <LogTerminal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />

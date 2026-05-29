@@ -2,11 +2,17 @@ import { create } from 'zustand'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface Toast {
   id: string
   message: string
   type: ToastType
   duration?: number
+  action?: ToastAction
 }
 
 interface ToastState {
@@ -30,8 +36,8 @@ export const useToastStore = create<ToastState>((set) => ({
 }))
 
 export const toast = {
-  success: (message: string, duration?: number) => useToastStore.getState().addToast({ message, type: 'success', duration }),
-  error: (message: string, duration?: number) => useToastStore.getState().addToast({ message, type: 'error', duration }),
-  info: (message: string, duration?: number) => useToastStore.getState().addToast({ message, type: 'info', duration }),
-  warning: (message: string, duration?: number) => useToastStore.getState().addToast({ message, type: 'warning', duration })
+  success: (message: string, duration?: number, action?: ToastAction) => useToastStore.getState().addToast({ message, type: 'success', duration, action }),
+  error: (message: string, duration?: number, action?: ToastAction) => useToastStore.getState().addToast({ message, type: 'error', duration, action }),
+  info: (message: string, duration?: number, action?: ToastAction) => useToastStore.getState().addToast({ message, type: 'info', duration, action }),
+  warning: (message: string, duration?: number, action?: ToastAction) => useToastStore.getState().addToast({ message, type: 'warning', duration, action })
 }

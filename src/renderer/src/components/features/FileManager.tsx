@@ -19,6 +19,7 @@ export function FileManager() {
   const [files, setFiles] = useState<FileInfo[]>([])
   const [storagePoints, setStoragePoints] = useState<{name: string, path: string, type: string, used: number, total: number, percent: number}[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<{name: string, data: string} | null>(null)
   const [searchQuery] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
@@ -61,15 +62,14 @@ export function FileManager() {
   const loadFiles = async (path: string) => {
     if (!activeDevice) return
     setLoading(true)
+    setLoadError(null)
     try {
       const data = await window.api.listDirectory(activeDevice, path)
       setFiles(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      toast.error(`Không thể truy cập thư mục: ${path}`)
-      if (history.length > 1) {
-        handleBack()
-      }
+      toast.error(`Không thể truy cập: ${err.message}`)
+      setLoadError(path)
     } finally {
       setLoading(false)
     }
@@ -366,8 +366,20 @@ export function FileManager() {
                 <div className="p-6 space-y-3">
                   {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-12 bg-slate-100/50 rounded-xl animate-pulse" />)}
                 </div>
+              ) : loadError ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
+                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-red-100">
+                    <X size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-700 mb-2">Lỗi truy cập thư mục</h3>
+                  <p className="text-sm font-medium text-slate-500 mb-6 text-center max-w-sm">{loadError}</p>
+                  <button onClick={() => loadFiles(loadError)} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all">
+                    <RefreshCcw size={16} />
+                    <span>Thử lại (Retry)</span>
+                  </button>
+                </div>
               ) : filteredFiles.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
                   <Folder className="w-12 h-12 mb-3 opacity-20" />
                   <p className="text-sm font-medium">Thư mục trống</p>
                 </div>

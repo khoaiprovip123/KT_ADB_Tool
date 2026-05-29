@@ -12,7 +12,7 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@electron-toolkit/preload'] })],
     resolve: {
       alias: {
         '@preload': resolve('src/preload')

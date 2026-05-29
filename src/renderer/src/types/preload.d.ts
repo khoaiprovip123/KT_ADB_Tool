@@ -5,6 +5,7 @@ export interface IADBAPI {
   fixConnection: () => Promise<any>;
   getDeviceInfo: (deviceId: string) => Promise<any>;
   getDevices: () => Promise<any[]>;
+  getStorageStats: (deviceId: string) => Promise<{total: number, used: number, free: number, percentage: number} | null>;
   onDeviceUpdate: (callback: (devices: any[]) => void) => void;
   runAdbCommand: (deviceId: string, command: string) => Promise<{ success: boolean; output: string }>;
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => Promise<any>;
@@ -61,6 +62,11 @@ export interface IADBAPI {
   getDumpsys: (deviceId: string, service: string) => Promise<string>;
   executePreset: (deviceId: string, commandId: string, params: Record<string, string | number>) => Promise<{ success: boolean; output: string }>;
   executeRawShell: (deviceId: string, command: string) => Promise<{ success: boolean; output: string }>;
+
+  // Store
+  storeGet: (key: string) => Promise<any>;
+  storeSet: (key: string, val: any) => Promise<void>;
+  storeDelete: (key: string) => Promise<void>;
 }
 
 declare global {

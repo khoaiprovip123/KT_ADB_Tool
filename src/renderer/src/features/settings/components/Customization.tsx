@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import { Sparkles, User, Monitor } from 'lucide-react'
+import { useSettingsStore } from '../../../store/settingsStore'
 
 export default function Customization() {
-  const [theme, setTheme] = useState('dark')
+  const { settings, updateSettings } = useSettingsStore()
+  const theme = settings.theme
+  const setTheme = (t: 'light' | 'dark' | 'system') => updateSettings({ theme: t })
   const [language, setLanguage] = useState('vi')
 
   return (

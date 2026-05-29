@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDevices, getDeviceInfo, killAdbServer, initAdb } from '../core/adbService'
-import { runScrcpy, connectWifi, connectIp, pairDevice } from '../core/deviceService'
+import { runScrcpy, connectWifi, connectIp, pairDevice, getStorageStats } from '../core/deviceService'
 import {
   getDeviceProfile,
   getInstalledPackageSet,
@@ -28,6 +28,10 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
 
   ipcMain.handle('adb:get-info', async (_event, deviceId) => {
     return await getDeviceInfo(deviceId)
+  })
+
+  ipcMain.handle('adb:get-storage-stats', async (_event, deviceId) => {
+    return await getStorageStats(deviceId)
   })
 
   ipcMain.handle('adb:run-scrcpy', async (_event, { deviceId, turnScreenOff }) => {
