@@ -1,6 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+// Validate input before sending to main process
+const validateCommand = (deviceId: string, command: string): boolean => {
+  // Basic checks
+  if (!deviceId || typeof deviceId !== 'string') return false;
+  if (!command || typeof command !== 'string') return false;
+  if (deviceId.length > 255 || command.length > 10000) return false;
+  
+  // Check for suspicious patterns
+  if (deviceId.includes(';') || deviceId.includes('|') || deviceId.includes('&')) return false;
+  if (command.includes('$(') || command.includes('`')) return false;
+  
+  return true;
+};
+
 // Custom APIs for renderer
 const api = {
   initAdb: () => ipcRenderer.invoke('adb:init'),
@@ -12,14 +26,35 @@ const api = {
     ipcRenderer.on('adb:device-update', (_event, devices) => callback(devices))
   },
   getStorageStats: (deviceId: string) => ipcRenderer.invoke('adb:get-storage-stats', deviceId),
-  runAdbCommand: (deviceId: string, command: string) => ipcRenderer.invoke('adb:run-command', { deviceId, command }),
+  runAdbCommand: (deviceId: string, command: string) => {
+    if (!validateCommand(deviceId, command)) {
+      return Promise.reject(new Error('Invalid command parameters'));
+    }
+    return ipcRenderer.invoke('adb:run-command', { deviceId, command });
+  },
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => ipcRenderer.invoke('adb:run-scrcpy', { deviceId, turnScreenOff }),
   connectWifi: (deviceId: string, ip: string) => ipcRenderer.invoke('adb:connect-wifi', { deviceId, ip }),
   connectIp: (ip: string) => ipcRenderer.invoke('adb:connect-ip', ip),
   pairDevice: (ipPort: string, code: string) => ipcRenderer.invoke('adb:pair-device', { ipPort, code }),
   getPackages: (deviceId: string, filter: 'all' | 'system' | 'third') => ipcRenderer.invoke('adb:get-packages', { deviceId, filter }),
-  manageApp: (deviceId: string, pkgName: string, action: 'uninstall' | 'disable' | 'enable' | 'clear' | 'stop') => ipcRenderer.invoke('adb:manage-app', { deviceId, pkgName, action }),
-  extractApp: (deviceId: string, pkgName: string, destPath: string) => ipcRenderer.invoke('adb:extract-app', { deviceId, pkgName, destPath }),
+  manageApp: (deviceId: string, pkgName: string, action: 'uninstall' | 'disable' | 'enable' | 'clear' | 'stop') => {
+    if (!/^[a-zA-Z0-9._-]+$/.test(pkgName)) {
+      return Promise.reject(new Error('Invalid package name'));
+    }
+    if (!['uninstall', 'disable', 'enable', 'clear', 'stop'].includes(action)) {
+      return Promise.reject(new Error('Invalid action'));
+    }
+    return ipcRenderer.invoke('adb:manage-app', { deviceId, pkgName, action });
+  },
+  extractApp: (deviceId: string, pkgName: string, destPath: string) => {
+    if (!/^[a-zA-Z0-9._-]+$/.test(pkgName)) {
+      return Promise.reject(new Error('Invalid package name'));
+    }
+    if (destPath.includes('..') || destPath.includes('\0')) {
+      return Promise.reject(new Error('Invalid destination path'));
+    }
+    return ipcRenderer.invoke('adb:extract-app', { deviceId, pkgName, destPath });
+  },
   installApk: (deviceId: string, apkPath: string) => ipcRenderer.invoke('adb:install-apk', { deviceId, apkPath }),
   openApkDialog: () => ipcRenderer.invoke('dialog:open-apk'),
   // File Manager
@@ -56,10 +91,24 @@ const api = {
   // Display & DPI
   getDpi: (deviceId: string) => ipcRenderer.invoke('adb:get-dpi', deviceId),
   getResolution: (deviceId: string) => ipcRenderer.invoke('adb:get-resolution', deviceId),
-  setDpi: (deviceId: string, dpi: number) => ipcRenderer.invoke('adb:set-dpi', deviceId, dpi),
+  setDpi: (deviceId: string, dpi: number) => {
+    // Validate DPI
+    if (!Number.isInteger(dpi) || dpi < 160 || dpi > 640) {
+      return Promise.reject(new Error('Invalid DPI value'));
+    }
+    return ipcRenderer.invoke('adb:set-dpi', deviceId, dpi);
+  },
   resetDpi: (deviceId: string) => ipcRenderer.invoke('adb:reset-dpi', deviceId),
-  setResolution: (deviceId: string, w: number, h: number) =>
-    ipcRenderer.invoke('adb:set-resolution', deviceId, w, h),
+  setResolution: (deviceId: string, w: number, h: number) => {
+    // Validate resolution
+    if (!Number.isInteger(w) || !Number.isInteger(h)) {
+      return Promise.reject(new Error('Resolution must be integers'));
+    }
+    if (w < 480 || w > 3840 || h < 800 || h > 3840) {
+      return Promise.reject(new Error('Resolution out of valid range'));
+    }
+    return ipcRenderer.invoke('adb:set-resolution', deviceId, w, h);
+  },
   resetResolution: (deviceId: string) => ipcRenderer.invoke('adb:reset-resolution', deviceId),
   setAnimationScale: (deviceId: string, scale: 0 | 0.5 | 1.0) =>
     ipcRenderer.invoke('adb:set-animation-scale', deviceId, scale),
