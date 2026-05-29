@@ -244,11 +244,14 @@ export function AppManager() {
 
   const handleExtract = async (pkg: string) => {
     if (!activeDevice) return;
-    setActionLoading(`extract-${pkg}`)
     try {
       const fileName = `${pkg}.apk`
-      const success = await window.api.extractApp(activeDevice, pkg, `D:\\Downloads\\${fileName}`)
-      if (success) toast.success(`Đã trích xuất: D:\\Downloads\\${fileName}`)
+      const destPath = await window.api.saveFileDialog(fileName)
+      if (!destPath) return
+
+      setActionLoading(`extract-${pkg}`)
+      const success = await window.api.extractApp(activeDevice, pkg, destPath)
+      if (success) toast.success(`Đã lưu: ${destPath}`)
       else toast.error('Trích xuất thất bại!')
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`)
