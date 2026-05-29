@@ -31,7 +31,13 @@ export async function initAdb(onProgress: (msg: string) => void) {
     
     // Kill existing adb processes to prevent socket conflicts (port 5037)
     await killAdbServer()
-    await new Promise(r => setTimeout(r, 800))
+    await new Promise(r => setTimeout(r, 1000)) // Đợi kỹ một chút cho process chết hẳn
+
+    // Chủ động start-server ngay lập tức để tránh trackDevices bị timeout hoặc lỗi Daemon
+    await new Promise<void>((resolve) => {
+      exec(`"${adbExe}" start-server`, () => resolve())
+    })
+    await new Promise(r => setTimeout(r, 500)) // Chờ server khởi động xong
 
     // Update the client in our state object
     adbState.client = adb.createClient({ bin: adbExe })
@@ -69,6 +75,9 @@ export async function watchDevices(onUpdate: (devices: any[]) => void) {
         const devs = await getDevices()
         onUpdate(devs)
       }
+
+      // Lấy danh sách thiết bị ngay khi vừa bật tracker (Dành cho máy đã cắm sẵn từ trước)
+      refresh()
 
       tracker.on('add', refresh)
       tracker.on('remove', refresh)
