@@ -514,9 +514,16 @@ export async function getDeviceInfo(deviceId: string) {
       
       const db: any = batteryProfiles
       for (const brand in db) {
-        if (modelProp && db[brand][modelProp]) { designCap = db[brand][modelProp]; break; }
-        if (marketName && db[brand][marketName]) { designCap = db[brand][marketName]; break; }
-        if (deviceName && db[brand][deviceName]) { designCap = db[brand][deviceName]; break; }
+        let match = db[brand][modelProp] || db[brand][marketName] || db[brand][deviceName]
+        if (match) { 
+          if (Array.isArray(match)) {
+            designCap = match[0]
+            if (match[1]) cpuName = match[1]
+          } else {
+            designCap = match
+          }
+          break; 
+        }
       }
     } catch(e) {
       console.error('Failed to parse battery_profiles.json', e)
