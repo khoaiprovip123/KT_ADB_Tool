@@ -77,6 +77,17 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     return { allowed: false, risk: 'SAFE', mode: 'READ_ONLY', reason: 'Lệnh rỗng.' }
   }
 
+  // Phát hiện và chặn chèn nhiều câu lệnh (Command Chaining / Command Injection)
+  const commandInjectionRegex = /[;&|`$\n\r]/
+  if (commandInjectionRegex.test(trimmed)) {
+    return {
+      allowed: false,
+      risk: 'DANGEROUS',
+      mode: 'RAW_SHELL',
+      reason: 'Phát hiện ký tự nối lệnh hoặc subshell nguy hiểm (Command Injection).'
+    }
+  }
+
   // 1. Phân loại REBOOT_OP (Khởi động lại)
   if (trimmed === 'reboot' || trimmed.startsWith('reboot ')) {
     return { allowed: true, risk: 'MEDIUM', mode: 'REBOOT_OP' }

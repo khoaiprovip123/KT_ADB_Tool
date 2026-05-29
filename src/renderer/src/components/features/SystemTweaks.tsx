@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useDeviceStore } from '../../store/deviceStore'
 import { BatchResultModal } from './BatchResultModal'
+import { validateDpi, validatePackageName, escapeShell } from '../../../utils/validation'
 
 type TweakCategory = 'debloat' | 'display' | 'security' | 'game' | 'animations' | 'controls' | 'multitasking'
 type RiskLevel = 'SAFE' | 'RISKY' | 'KEEP'
@@ -110,8 +111,17 @@ export function SystemTweaks() {
   }
 
   // Utilities
-  const escapeShell = (str: string) => `'${str.replace(/'/g, "'\\''")}'`
-  const validateDpi = (dpi: number) => dpi >= 120 && dpi <= 640
+  const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 1000): Promise<T> => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn()
+      } catch (err) {
+        if (i === maxRetries - 1) throw err
+        await new Promise(r => setTimeout(r, delay * (i + 1)))
+      }
+    }
+    throw new Error('Max retries exceeded')
+  }
 
 
   // Load all tweaks status and display metrics from actual device
@@ -314,13 +324,14 @@ export function SystemTweaks() {
   // --- Display & DPI command execution ---
   const applyDpi = async (dpi: number) => {
     if (!activeDevice) return
-    if (!validateDpi(dpi)) {
-      showToast('DPI không hợp lệ (phải từ 120 đến 640)', 'error')
+    const validation = validateDpi(dpi)
+    if (!validation.valid) {
+      showToast(validation.error!, 'error')
       return
     }
     setActionLoading('apply-dpi')
     try {
-      const res = await window.api.setDpi(activeDevice, dpi)
+      const res = await withRetry(() => window.api.setDpi(activeDevice, dpi))
       if (res.success) {
         setCustomDpi(dpi)
         setDeviceDpi(dpi)
@@ -600,23 +611,27 @@ export function SystemTweaks() {
 
   const fixNotificationDelay = async (pkg: string) => {
     if (!activeDevice || !pkg) return
+    if (!validatePackageName(pkg)) {
+      showToast('Tên gói ứng dụng không hợp lệ!', 'error')
+      return
+    }
     setActionLoading('fix_notify')
     addLog(`[ACTION] Bắt đầu sửa trễ thông báo cho gói ứng dụng: ${pkg}`)
     try {
       // 1. Whitelist from doze battery optimization
       const safePkg = escapeShell(pkg)
       addLog(`[EXEC] shell dumpsys deviceidle whitelist +${safePkg}`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${safePkg}`)
+      const res1 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell dumpsys deviceidle whitelist +${safePkg}`))
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Allow run in background
       addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
+      const res2 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`))
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       // 3. Set standby bucket to active
       addLog(`[EXEC] shell am set-standby-bucket ${safePkg} active`)
-      const res3 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`)
+      const res3 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`))
       addLog(`[RESULT] ${res3.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã hoàn tất cấu hình tối ưu thông báo & chạy nền cho ${pkg}`)
@@ -631,18 +646,22 @@ export function SystemTweaks() {
 
   const freezeBackgroundApp = async (pkg: string) => {
     if (!activeDevice || !pkg) return
+    if (!validatePackageName(pkg)) {
+      showToast('Tên gói ứng dụng không hợp lệ!', 'error')
+      return
+    }
     setActionLoading('freeze_bg')
     addLog(`[ACTION] Chặn chạy ngầm (Đóng băng) gói ứng dụng: ${pkg}`)
     try {
       // 1. Disallow run in background
       const safePkg = escapeShell(pkg)
       addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND ignore`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND ignore`)
+      const res1 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND ignore`))
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Set standby bucket to restricted
       addLog(`[EXEC] shell am set-standby-bucket ${safePkg} restricted`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} restricted`)
+      const res2 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} restricted`))
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã đóng băng thành công chạy ngầm của ${pkg}`)
@@ -657,18 +676,22 @@ export function SystemTweaks() {
 
   const unfreezeBackgroundApp = async (pkg: string) => {
     if (!activeDevice || !pkg) return
+    if (!validatePackageName(pkg)) {
+      showToast('Tên gói ứng dụng không hợp lệ!', 'error')
+      return
+    }
     setActionLoading('unfreeze_bg')
     addLog(`[ACTION] Khôi phục chạy ngầm cho gói ứng dụng: ${pkg}`)
     try {
       // 1. Allow run in background
       const safePkg = escapeShell(pkg)
       addLog(`[EXEC] shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
-      const res1 = await window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`)
+      const res1 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell cmd appops set ${safePkg} RUN_IN_BACKGROUND allow`))
       addLog(`[RESULT] ${res1.output.trim() || 'Success'}`)
 
       // 2. Set standby bucket to active
       addLog(`[EXEC] shell am set-standby-bucket ${safePkg} active`)
-      const res2 = await window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`)
+      const res2 = await withRetry(() => window.api.runAdbCommand(activeDevice, `shell am set-standby-bucket ${safePkg} active`))
       addLog(`[RESULT] ${res2.output.trim() || 'Success'}`)
 
       addLog(`[SUCCESS] Đã mở băng thành công cho ${pkg}`)
