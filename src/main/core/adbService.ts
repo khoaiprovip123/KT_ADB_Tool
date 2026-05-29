@@ -319,8 +319,12 @@ export async function getDeviceInfo(deviceId: string) {
     
     // Process CPU Name
     let cpuName = socModel || board.toUpperCase()
-    // Map common codenames to readable Snapdragon/MediaTek names if socModel is missing
+    // Map common codenames to readable Snapdragon/MediaTek names
     const cpuMap: Record<string, string> = {
+      'sm7325': 'Snapdragon 778G',
+      'sm8450': 'Snapdragon 8 Gen 1',
+      'sm8550': 'Snapdragon 8 Gen 2',
+      'sm8650': 'Snapdragon 8 Gen 3',
       'lahaina': 'Snapdragon 888',
       'taro': 'Snapdragon 8 Gen 1',
       'kalama': 'Snapdragon 8 Gen 2',
@@ -332,9 +336,14 @@ export async function getDeviceInfo(deviceId: string) {
       'renoir': 'Snapdragon 780G',
       'kona': 'Snapdragon 865',
       'lito': 'Snapdragon 765G',
-      'mt6893': 'Dimensity 1200'
+      'mt6893': 'Dimensity 1200',
+      'mt6895': 'Dimensity 8100',
+      'mt6983': 'Dimensity 9000'
     }
-    if (!socModel && cpuMap[board.toLowerCase()]) {
+    
+    if (socModel && cpuMap[socModel.toLowerCase()]) {
+      cpuName = cpuMap[socModel.toLowerCase()]
+    } else if (cpuMap[board.toLowerCase()]) {
       cpuName = cpuMap[board.toLowerCase()]
     }
 
