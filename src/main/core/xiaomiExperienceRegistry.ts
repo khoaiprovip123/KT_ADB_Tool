@@ -113,8 +113,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
     readCommand: { namespace: "global", key: "force_fsg_nav_bar" },
-    enableCommand: "settings put global force_fsg_nav_bar 1",
-    disableCommand: "settings put global force_fsg_nav_bar 0",
+    enableCommand: "settings put global force_fsg_nav_bar 1 && settings put global hide_gesture_line 1",
+    disableCommand: "settings put global force_fsg_nav_bar 0 && settings put global hide_gesture_line 0",
     defaultValue: "0",
   },
 
@@ -164,6 +164,22 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     disableCommand: "settings put global miui_optimization 1",
     defaultValue: "1",
     activeValues: ["0"],
+  },
+  {
+    id: "task_stack_ios",
+    title: "Xếp chồng đa nhiệm giống iOS",
+    description:
+      "Chuyển đổi giao diện màn hình Đa nhiệm (Recent Apps) sang dạng xếp chồng (Stack style) mượt mà như iOS.",
+    category: "launcher",
+    risk: "SAFE",
+    detectStrategy: {
+      brand: ["XIAOMI", "REDMI", "POCO"],
+    },
+    readCommand: { namespace: "global", key: "task_stack_view_layout_style" },
+    enableCommand: "settings put global task_stack_view_layout_style 2",
+    disableCommand: "settings put global task_stack_view_layout_style 1",
+    defaultValue: "1",
+    activeValues: ["2"],
   },
 
   // 4. Âm thanh & Rung
@@ -262,6 +278,38 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     readCommand: { namespace: "global", key: "miui_analytics_enabled" },
     enableCommand: "settings put global miui_analytics_enabled 0",
     disableCommand: "settings put global miui_analytics_enabled 1",
+    defaultValue: "1",
+    activeValues: ["0"],
+  },
+  {
+    id: "smart_island",
+    title: "Đảo động HyperOS (Smart Island)",
+    description:
+      "Kích hoạt hiệu ứng Đảo động/Capsule thông minh hiển thị sạc, nhạc, cuộc gọi trên thanh trạng thái HyperOS.",
+    category: "display",
+    risk: "SAFE",
+    detectStrategy: {
+      brand: ["XIAOMI", "REDMI", "POCO"],
+    },
+    readCommand: { namespace: "global", key: "status_bar_show_smart_island" },
+    enableCommand: "settings put global status_bar_show_smart_island 1 && settings put global status_bar_show_capsule 1",
+    disableCommand: "settings put global status_bar_show_smart_island 0 && settings put global status_bar_show_capsule 0",
+    defaultValue: "0",
+    activeValues: ["1"],
+  },
+  {
+    id: "hide_fullscreen_shortcuts",
+    title: "Ẩn phím tắt chế độ Toàn màn hình",
+    description:
+      "Tự động ẩn thanh gợi ý/phím tắt bàn phím ảo và thanh điều hướng vướng víu ở chế độ toàn màn hình.",
+    category: "navigation",
+    risk: "SAFE",
+    detectStrategy: {
+      minSdk: 21,
+    },
+    readCommand: { namespace: "secure", key: "show_keyboard_shortcuts_helper" },
+    enableCommand: "settings put secure show_keyboard_shortcuts_helper 0 && settings put global policy_control immersive.full=*",
+    disableCommand: "settings put secure show_keyboard_shortcuts_helper 1 && settings put global policy_control null",
     defaultValue: "1",
     activeValues: ["0"],
   },

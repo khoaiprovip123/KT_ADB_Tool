@@ -199,6 +199,38 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     activeValues: ["0"],
     isXiaomiOnly: true,
   },
+  {
+    id: "task_stack_ios",
+    title: "Xếp chồng đa nhiệm giống iOS",
+    description:
+      "Chuyển đổi giao diện màn hình Đa nhiệm (Recent Apps) sang dạng xếp chồng (Stack style) mượt mà như iOS.",
+    category: "launcher",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["2"],
+    isXiaomiOnly: true,
+  },
+  {
+    id: "smart_island",
+    title: "Đảo động HyperOS (Smart Island)",
+    description:
+      "Kích hoạt hiệu ứng Đảo động/Capsule thông minh hiển thị sạc, nhạc, cuộc gọi trên thanh trạng thái HyperOS.",
+    category: "display",
+    risk: "SAFE",
+    defaultValue: "0",
+    activeValues: ["1"],
+    isXiaomiOnly: true,
+  },
+  {
+    id: "hide_fullscreen_shortcuts",
+    title: "Ẩn phím tắt chế độ Toàn màn hình",
+    description:
+      "Tự động ẩn thanh gợi ý/phím tắt bàn phím ảo và thanh điều hướng vướng víu ở chế độ toàn màn hình.",
+    category: "navigation",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["0"],
+  },
 ];
 
 export function UserExperience() {

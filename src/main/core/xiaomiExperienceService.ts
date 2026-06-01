@@ -126,12 +126,24 @@ export async function applyExperienceItem(
   if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
 
   const cmd = enable ? item.enableCommand : item.disableCommand;
-  const output = await runAdbCommand(deviceId, cmd, () => {});
-  const success =
-    !output.toLowerCase().includes("failed") &&
-    !output.toLowerCase().includes("error");
+  const subCmds = cmd.split("&&").map((s) => s.trim()).filter(Boolean);
 
-  return { success, output: output.trim() };
+  let success = true;
+  let combinedOutput = "";
+
+  for (const subCmd of subCmds) {
+    const output = await runAdbCommand(deviceId, subCmd, () => {});
+    combinedOutput += (combinedOutput ? "\n" : "") + output.trim();
+    if (
+      output.toLowerCase().includes("failed") ||
+      output.toLowerCase().includes("error") ||
+      output.includes("[BLOCKED BY SAFETY LAYER]")
+    ) {
+      success = false;
+    }
+  }
+
+  return { success, output: combinedOutput.trim() };
 }
 
 /**
@@ -145,10 +157,22 @@ export async function rollbackExperienceItem(
   if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
 
   const cmd = `settings put ${item.readCommand.namespace} ${item.readCommand.key} ${item.defaultValue}`;
-  const output = await runAdbCommand(deviceId, cmd, () => {});
-  const success =
-    !output.toLowerCase().includes("failed") &&
-    !output.toLowerCase().includes("error");
+  const subCmds = cmd.split("&&").map((s) => s.trim()).filter(Boolean);
 
-  return { success, output: output.trim() };
+  let success = true;
+  let combinedOutput = "";
+
+  for (const subCmd of subCmds) {
+    const output = await runAdbCommand(deviceId, subCmd, () => {});
+    combinedOutput += (combinedOutput ? "\n" : "") + output.trim();
+    if (
+      output.toLowerCase().includes("failed") ||
+      output.toLowerCase().includes("error") ||
+      output.includes("[BLOCKED BY SAFETY LAYER]")
+    ) {
+      success = false;
+    }
+  }
+
+  return { success, output: combinedOutput.trim() };
 }
