@@ -215,6 +215,26 @@ describe("ADB Safety Layer Tests", () => {
       expect(r5.allowed).toBe(true);
       expect(r5.risk).toBe("MEDIUM");
     });
+
+    it("should allow newly added experience commands", () => {
+      const c1 = evaluateCommand("settings put global task_stack_view_layout_style 2");
+      expect(c1.allowed).toBe(true);
+
+      const c2 = evaluateCommand("settings put global status_bar_show_smart_island 1");
+      expect(c2.allowed).toBe(true);
+
+      const c3 = evaluateCommand("settings put global status_bar_show_capsule 1");
+      expect(c3.allowed).toBe(true);
+
+      const c4 = evaluateCommand("settings put secure show_keyboard_shortcuts_helper 0");
+      expect(c4.allowed).toBe(true);
+
+      const c5 = evaluateCommand("settings put global policy_control immersive.full=*");
+      expect(c5.allowed).toBe(true);
+
+      const c6 = evaluateCommand("settings put global hide_gesture_line 1");
+      expect(c6.allowed).toBe(true);
+    });
   });
 
   describe("buildShellCommand", () => {
