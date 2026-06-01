@@ -6,7 +6,7 @@ import { app } from "electron";
 import { spawn, exec } from "child_process";
 import * as fs from "fs";
 import batteryProfiles from "./data/battery_profiles.json";
-import { evaluateCommand } from "./adbSafety";
+import { evaluateCommand, cleanAdbPrefix } from "./adbSafety";
 
 export const adbState = {
   client: adb.createClient(),
@@ -112,14 +112,7 @@ export async function runAdbCommand(
   onLog: (log: string) => void,
 ): Promise<string> {
   try {
-    let shellCommand = command;
-    if (shellCommand.startsWith("adb shell ")) {
-      shellCommand = shellCommand.slice(10);
-    } else if (shellCommand.startsWith("shell ")) {
-      shellCommand = shellCommand.slice(6);
-    } else if (shellCommand.startsWith("adb ")) {
-      shellCommand = shellCommand.slice(4);
-    }
+    let shellCommand = cleanAdbPrefix(command);
 
     // Đánh giá mức độ an toàn của câu lệnh shell
     const safety = evaluateCommand(shellCommand);

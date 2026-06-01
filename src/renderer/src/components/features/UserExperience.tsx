@@ -25,7 +25,7 @@ interface XiaomiExperienceItem {
   id: string;
   title: string;
   description: string;
-  category: "display" | "navigation" | "launcher" | "sound" | "game" | "ads";
+  category: "display" | "navigation" | "launcher" | "sound" | "game" | "ads" | "utility";
   risk: "SAFE" | "MEDIUM" | "RISKY" | "DANGEROUS";
   defaultValue: string;
   activeValues?: string[];
@@ -50,9 +50,10 @@ interface ToastMessage {
 }
 
 const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
+  // ═══ HIỂN THỊ & MÀN HÌNH ═══
   {
     id: "show_refresh_rate",
-    title: "Hiển thị tốc độ làm tươi",
+    title: "Hiển thị tốc độ làm tươi (FPS)",
     description:
       "Hiện số FPS/Tần số quét màn hình theo thời gian thực ở góc trái trên cùng.",
     category: "display",
@@ -62,13 +63,13 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
   },
   {
     id: "force_high_refresh_rate",
-    title: "Ép tần số quét tối đa",
+    title: "Ép tần số quét tối đa (120Hz)",
     description:
-      "Ép màn hình chạy ở tần số quét cao nhất liên tục (ví dụ 120Hz), loại bỏ tự động tụt Hz.",
+      "Ép màn hình chạy ở tần số quét cao nhất liên tục (120Hz), loại bỏ tự động tụt Hz.",
     category: "display",
     risk: "MEDIUM",
     defaultValue: "60",
-    activeValues: ["120"],
+    activeValues: ["120", "90", "144"],
   },
   {
     id: "reading_mode",
@@ -84,22 +85,45 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     id: "speed_animations",
     title: "Tăng tốc hoạt ảnh chuyển cảnh (0.5x)",
     description:
-      "Tăng tốc độ hoạt ảnh chuyển cảnh hệ thống lên gấp đôi (0.5x) giúp máy phản hồi cực kỳ nhanh nhạy và mượt mà.",
+      "Tăng tốc độ hoạt ảnh chuyển cảnh hệ thống lên gấp đôi (0.5x) giúp máy phản hồi cực kỳ nhanh nhạy.",
     category: "display",
     risk: "SAFE",
     defaultValue: "1.0",
     activeValues: ["0.5"],
   },
   {
-    id: "touch_response_enhancement",
-    title: "Tăng tốc độ phản hồi cảm ứng",
+    id: "smart_island",
+    title: "Đảo động HyperOS (Smart Island)",
     description:
-      "Giảm độ trễ cảm ứng nhận vào, tăng cảm giác vuốt chạm tức thì mượt mà hơn.",
-    category: "navigation",
+      "Kích hoạt hiệu ứng Đảo động/Capsule thông minh hiển thị sạc, nhạc, cuộc gọi trên thanh trạng thái HyperOS.",
+    category: "display",
     risk: "SAFE",
-    defaultValue: "500",
-    activeValues: ["250", "200", "150"],
+    defaultValue: "0",
+    activeValues: ["1"],
+    isXiaomiOnly: true,
   },
+  {
+    id: "dark_mode",
+    title: "Bật Dark Mode toàn hệ thống",
+    description:
+      "Kích hoạt chế độ tối trên toàn bộ giao diện hệ thống và ứng dụng hỗ trợ.",
+    category: "display",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["2"],
+  },
+  {
+    id: "dynamic_resolution",
+    title: "Tắt Dynamic Resolution (Tăng chất lượng hiển thị)",
+    description:
+      "Tắt cơ chế tự động hạ độ phân giải để tiết kiệm pin. Màn hình luôn hiển thị ở độ phân giải tối đa.",
+    category: "display",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["0"],
+    isXiaomiOnly: true,
+  },
+  // ═══ CỬ CHỈ & ĐIỀU HƯỚNG ═══
   {
     id: "gesture_line_hide",
     title: "Ẩn thanh gạch trắng (Full Screen Indicator)",
@@ -107,15 +131,46 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
       "Ẩn thanh điều hướng cử chỉ phía dưới cùng để tối ưu không gian màn hình vô cực.",
     category: "navigation",
     risk: "SAFE",
-    defaultValue: "null",
-    activeValues: ["immersive.full=*"],
+    defaultValue: "0",
+    activeValues: ["1"],
     isXiaomiOnly: true,
   },
+  {
+    id: "hide_fullscreen_shortcuts",
+    title: "Ẩn phím tắt chế độ Toàn màn hình",
+    description:
+      "Tự động ẩn thanh gợi ý/phím tắt bàn phím ảo và thanh điều hướng ở chế độ toàn màn hình.",
+    category: "navigation",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["0"],
+  },
+  {
+    id: "touch_response_enhancement",
+    title: "Tăng tốc độ phản hồi cảm ứng",
+    description:
+      "Giảm độ trễ cảm ứng nhận vào từ 500ms xuống 200ms, tăng cảm giác vuốt chạm tức thì mượt mà hơn.",
+    category: "navigation",
+    risk: "SAFE",
+    defaultValue: "500",
+    activeValues: ["250", "200", "150"],
+  },
+  {
+    id: "immersive_fullscreen",
+    title: "Chế độ Toàn màn hình tuyệt đối",
+    description:
+      "Ẩn hoàn toàn thanh trạng thái và thanh điều hướng, giúp toàn bộ màn hình hiển thị nội dung.",
+    category: "navigation",
+    risk: "MEDIUM",
+    defaultValue: "null",
+    activeValues: ["immersive.full=*"],
+  },
+  // ═══ LAUNCHER & ĐA NHIỆM ═══
   {
     id: "recent_apps_blur",
     title: "Làm mờ ứng dụng trong Đa nhiệm",
     description:
-      "Tự động làm mờ nội dung preview các ứng dụng được chọn trong màn hình đa nhiệm để bảo mật thông tin.",
+      "Tự động làm mờ nội dung preview các ứng dụng trong màn hình đa nhiệm để bảo mật thông tin.",
     category: "launcher",
     risk: "SAFE",
     defaultValue: "0",
@@ -145,6 +200,18 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     isXiaomiOnly: true,
   },
   {
+    id: "task_stack_ios",
+    title: "Xếp chồng đa nhiệm giống iOS",
+    description:
+      "Chuyển đổi giao diện màn hình Đa nhiệm sang dạng xếp chồng (Stack style) như iOS.",
+    category: "launcher",
+    risk: "SAFE",
+    defaultValue: "1",
+    activeValues: ["2"],
+    isXiaomiOnly: true,
+  },
+  // ═══ ÂM THANH & RUNG ═══
+  {
     id: "haptic_feedback_level",
     title: "Phản hồi rung nâng cao (MIUI Haptics)",
     description:
@@ -154,6 +221,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     defaultValue: "1",
     activeValues: ["1"],
   },
+  // ═══ GAME & HIỆU NĂNG ═══
   {
     id: "game_turbo_overlay",
     title: "Bật Game Turbo Toolbox",
@@ -175,9 +243,10 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     defaultValue: "0",
     activeValues: ["2"],
   },
+  // ═══ CHẶN QUẢNG CÁO & GỢI Ý ═══
   {
     id: "disable_personalized_ads",
-    title: "Vô hiệu hóa quảng cáo cá nhân (msa)",
+    title: "Vô hiệu hóa quảng cáo cá nhân (MSA)",
     description:
       "Tắt thuật toán thu thập hành vi người dùng để phân phối quảng cáo mục tiêu trên toàn hệ thống Xiaomi.",
     category: "ads",
@@ -208,34 +277,13 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     activeValues: ["0"],
     isXiaomiOnly: true,
   },
+  // ═══ TIỆN ÍCH BỔ SUNG ═══
   {
-    id: "task_stack_ios",
-    title: "Xếp chồng đa nhiệm giống iOS",
+    id: "hide_bg_notification",
+    title: "Ẩn thông báo \"Ứng dụng đang chạy ngầm\"",
     description:
-      "Chuyển đổi giao diện màn hình Đa nhiệm (Recent Apps) sang dạng xếp chồng (Stack style) mượt mà như iOS.",
-    category: "launcher",
-    risk: "SAFE",
-    defaultValue: "1",
-    activeValues: ["2"],
-    isXiaomiOnly: true,
-  },
-  {
-    id: "smart_island",
-    title: "Đảo động HyperOS (Smart Island)",
-    description:
-      "Kích hoạt hiệu ứng Đảo động/Capsule thông minh hiển thị sạc, nhạc, cuộc gọi trên thanh trạng thái HyperOS.",
-    category: "display",
-    risk: "SAFE",
-    defaultValue: "0",
-    activeValues: ["1"],
-    isXiaomiOnly: true,
-  },
-  {
-    id: "hide_fullscreen_shortcuts",
-    title: "Ẩn phím tắt chế độ Toàn màn hình",
-    description:
-      "Tự động ẩn thanh gợi ý/phím tắt bàn phím ảo và thanh điều hướng vướng víu ở chế độ toàn màn hình.",
-    category: "navigation",
+      "Ẩn cảnh báo hệ thống về ứng dụng chạy ngầm, giúp thanh thông báo sạch sẽ hơn.",
+    category: "utility",
     risk: "SAFE",
     defaultValue: "1",
     activeValues: ["0"],
@@ -329,6 +377,11 @@ export function UserExperience() {
       label: "Chặn QC & Gợi ý",
       icon: <Megaphone className="w-4 h-4" />,
     },
+    {
+      id: "utility",
+      label: "Tiện ích bổ sung",
+      icon: <Sliders className="w-4 h-4" />,
+    },
   ];
 
   // Toast trigger
@@ -392,13 +445,14 @@ export function UserExperience() {
           nextEnable,
         );
         if (res.success) {
+          const fallbackNote = res.usedFallback ? " (dùng lệnh thay thế)" : "";
           showToast(
-            `Đã ${nextEnable ? "kích hoạt" : "vô hiệu hóa"} thành công: ${capItem.item.title}`,
-            "success",
+            `Đã ${nextEnable ? "kích hoạt" : "vô hiệu hóa"} thành công: ${capItem.item.title}${fallbackNote}`,
+            res.usedFallback ? "warning" : "success",
           );
           await loadCapabilities();
         } else {
-          showToast(`Lỗi thực thi: ${res.output}`, "error");
+          showToast(`Lệnh không tương thích với ROM này. Chi tiết: ${res.output?.substring(0, 120)}`, "error");
         }
       } catch (error: any) {
         showToast(`Thất bại: ${error.message}`, "error");

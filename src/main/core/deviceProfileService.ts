@@ -25,6 +25,10 @@ export type CapabilityState =
  */
 async function execShell(deviceId: string, command: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`ADB command timeout: ${command}`));
+    }, 5000); // 5 seconds timeout
+
     adbState.client
       .shell(deviceId, command)
       .then((stream: any) => {
@@ -32,12 +36,22 @@ async function execShell(deviceId: string, command: string): Promise<string> {
         stream.on("data", (chunk: Buffer) => {
           output += chunk.toString();
         });
-        stream.on("end", () => resolve(output.trim()));
-        stream.on("error", (err: any) => reject(err));
+        stream.on("end", () => {
+          clearTimeout(timeout);
+          resolve(output.trim());
+        });
+        stream.on("error", (err: any) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
       })
-      .catch((err: any) => reject(err));
+      .catch((err: any) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
   });
 }
+
 
 /**
  * Lấy profile chi tiết của thiết bị Android qua getprop

@@ -1,6 +1,6 @@
 import { runAdbCommand } from "./adbService";
 import { ADVANCED_COMMANDS } from "./advancedCommandRegistry";
-import { evaluateCommand, buildShellCommand } from "./adbSafety";
+import { evaluateCommand, buildShellCommand, cleanAdbPrefix } from "./adbSafety";
 
 export class AdvancedAdbService {
   /**
@@ -166,7 +166,7 @@ export class AdvancedAdbService {
     deviceId: string,
     command: string,
   ): Promise<{ success: boolean; output: string }> {
-    const trimmed = command.trim();
+    const trimmed = cleanAdbPrefix(command);
 
     // Ngăn chặn các câu lệnh cực kỳ nguy hiểm có thể phá hủy thiết bị
     if (

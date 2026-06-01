@@ -202,14 +202,26 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     return { allowed: true, risk: "MEDIUM", mode: "RAW_SHELL" };
   }
 
-  // 3d. Các lệnh pm an toàn (list, path, dump, clear)
+  // 3d. Các lệnh pm an toàn (list, path, dump, clear, enable, install-existing)
   if (
     trimmed.startsWith("pm list ") ||
     trimmed.startsWith("pm path ") ||
     trimmed.startsWith("pm dump ") ||
-    trimmed.startsWith("pm clear ")
+    trimmed.startsWith("pm clear ") ||
+    trimmed.startsWith("pm enable ") ||
+    trimmed.startsWith("pm install-existing ")
   ) {
     return { allowed: true, risk: "SAFE", mode: "PACKAGE_OP" };
+  }
+
+  // 3e. settings list (đọc toàn bộ settings namespace)
+  if (trimmed.startsWith("settings list ")) {
+    return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
+  }
+
+  // 3f. device_config list (đọc config)
+  if (trimmed.startsWith("device_config ")) {
+    return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
   }
 
   // 4. Phân loại PACKAGE_OP (Cài đặt, gỡ cài đặt, biên dịch ART)
@@ -313,3 +325,24 @@ export function buildShellCommand(
 
   return command;
 }
+
+/**
+ * Làm sạch tất cả các tiền tố "adb shell", "shell", "adb" lặp lại dư thừa ở đầu câu lệnh.
+ */
+export function cleanAdbPrefix(cmd: string): string {
+  let cleaned = cmd.trim();
+  while (true) {
+    const lower = cleaned.toLowerCase();
+    if (lower.startsWith("adb shell ")) {
+      cleaned = cleaned.slice(10).trim();
+    } else if (lower.startsWith("shell ")) {
+      cleaned = cleaned.slice(6).trim();
+    } else if (lower.startsWith("adb ")) {
+      cleaned = cleaned.slice(4).trim();
+    } else {
+      break;
+    }
+  }
+  return cleaned;
+}
+

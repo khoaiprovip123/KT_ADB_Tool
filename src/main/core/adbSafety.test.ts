@@ -5,6 +5,7 @@ import {
   validateRemotePath,
   evaluateCommand,
   buildShellCommand,
+  cleanAdbPrefix,
 } from "./adbSafety";
 
 describe("ADB Safety Layer Tests", () => {
@@ -235,6 +236,40 @@ describe("ADB Safety Layer Tests", () => {
       const c6 = evaluateCommand("settings put global hide_gesture_line 1");
       expect(c6.allowed).toBe(true);
     });
+
+    it("should allow pm enable and pm install-existing commands", () => {
+      const c1 = evaluateCommand("pm enable com.miui.daemon");
+      expect(c1.allowed).toBe(true);
+      expect(c1.mode).toBe("PACKAGE_OP");
+
+      const c2 = evaluateCommand("pm install-existing --user 0 com.miui.systemAdSolution");
+      expect(c2.allowed).toBe(true);
+      expect(c2.mode).toBe("PACKAGE_OP");
+    });
+
+    it("should allow settings list as read-only", () => {
+      const c1 = evaluateCommand("settings list global");
+      expect(c1.allowed).toBe(true);
+      expect(c1.mode).toBe("READ_ONLY");
+    });
+
+    it("should allow fallback commands for experience items", () => {
+      // Fallback cho FPS show
+      const c1 = evaluateCommand("settings put system fps_show 1");
+      expect(c1.allowed).toBe(true);
+
+      // Fallback cho dark mode
+      const c2 = evaluateCommand("settings put secure ui_night_mode 2");
+      expect(c2.allowed).toBe(true);
+
+      // Fallback cho refresh rate
+      const c3 = evaluateCommand("settings put system screen_refresh_rate 120");
+      expect(c3.allowed).toBe(true);
+
+      // cmd power set-mode
+      const c4 = evaluateCommand("cmd power set-mode 2");
+      expect(c4.allowed).toBe(true);
+    });
   });
 
   describe("buildShellCommand", () => {
@@ -264,4 +299,16 @@ describe("ADB Safety Layer Tests", () => {
       ).toThrow();
     });
   });
+
+  describe("cleanAdbPrefix", () => {
+    it("should clean single and redundant adb shell, shell, adb prefixes", () => {
+      expect(cleanAdbPrefix("adb shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("adb shell adb shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("adb settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("  adb shell   shell   settings put global show_refresh_rate 1  ")).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+    });
+  });
 });
+

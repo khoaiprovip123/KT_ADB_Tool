@@ -26,7 +26,6 @@ export async function getExperienceCapabilities(
     const profile = await getDeviceProfile(deviceId);
     const installedPkgs = await getInstalledPackageSet(deviceId);
 
-    // Đọc settings snapshot để tìm kiếm key nhanh hơn
     const globalSettings = await readSettingsSnapshot(deviceId, "global");
     const secureSettings = await readSettingsSnapshot(deviceId, "secure");
     const systemSettings = await readSettingsSnapshot(deviceId, "system");
@@ -74,7 +73,6 @@ export async function getExperienceCapabilities(
       const currentValue = snapshot[readCmd.key];
 
       if (currentValue === undefined) {
-        // Thay vì trả về UNKNOWN khi key chưa khởi tạo, mặc định coi là SUPPORTED_OFF với defaultValue
         result.push({
           item,
           status: "SUPPORTED_OFF",
@@ -114,18 +112,18 @@ export async function readExperienceItem(
   return res.trim();
 }
 
-/**
- * Áp dụng cấu hình bật/tắt cho item tùy biến trải nghiệm
- */
-export async function applyExperienceItem(
-  deviceId: string,
-  itemId: string,
-  enable: boolean,
-): Promise<{ success: boolean; output: string }> {
-  const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
-  if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
+// ═══════════════════════════════════════════════════════════
+// CƠ CHẾ TỰ ĐỘNG KIỂM SOÁT (Auto-Verify + Fallback Engine)
+// ═══════════════════════════════════════════════════════════
 
-  const cmd = enable ? item.enableCommand : item.disableCommand;
+/**
+ * Thực thi một chuỗi lệnh (phân tách bằng &&).
+ * Trả về true nếu không có lệnh con nào báo lỗi tường minh.
+ */
+async function executeCommandChain(
+  deviceId: string,
+  cmd: string,
+): Promise<{ success: boolean; output: string }> {
   const subCmds = cmd.split("&&").map((s) => s.trim()).filter(Boolean);
 
   let success = true;
@@ -133,11 +131,15 @@ export async function applyExperienceItem(
 
   for (const subCmd of subCmds) {
     const output = await runAdbCommand(deviceId, subCmd, () => {});
-    combinedOutput += (combinedOutput ? "\n" : "") + output.trim();
+    const trimmed = output.trim();
+    combinedOutput += (combinedOutput ? "\n" : "") + trimmed;
+
     if (
-      output.toLowerCase().includes("failed") ||
-      output.toLowerCase().includes("error") ||
-      output.includes("[BLOCKED BY SAFETY LAYER]")
+      trimmed.toLowerCase().includes("failed") ||
+      trimmed.toLowerCase().includes("error") ||
+      trimmed.includes("[BLOCKED BY SAFETY LAYER]") ||
+      trimmed.toLowerCase().includes("not found") ||
+      trimmed.toLowerCase().includes("exception")
     ) {
       success = false;
     }
@@ -147,32 +149,128 @@ export async function applyExperienceItem(
 }
 
 /**
+ * Đọc lại giá trị thực tế từ thiết bị sau khi áp dụng lệnh.
+ * Xác minh bằng cách so sánh với activeValues hoặc defaultValue.
+ */
+async function verifyCommandEffect(
+  deviceId: string,
+  item: XiaomiExperienceItem,
+  enable: boolean,
+): Promise<boolean> {
+  try {
+    // Đợi 200ms cho settings ổn định trước khi đọc lại
+    await new Promise((r) => setTimeout(r, 200));
+
+    const cmd = `settings get ${item.readCommand.namespace} ${item.readCommand.key}`;
+    const raw = await runAdbCommand(deviceId, cmd, () => {});
+    const currentValue = raw.trim();
+
+    // Bỏ qua verification cho các lệnh pm (uninstall/disable) — không đọc qua settings get
+    if (
+      item.enableCommand.startsWith("pm ") ||
+      item.disableCommand.startsWith("pm ")
+    ) {
+      return true; // Tin tưởng kết quả executeCommandChain cho pm commands
+    }
+
+    // Giá trị "null" từ settings get = key chưa tồn tại
+    if (currentValue === "null" || currentValue === "") {
+      // Nếu đang bật mà key chưa tồn tại → lệnh chưa tác dụng
+      return !enable;
+    }
+
+    if (enable) {
+      // Khi bật: giá trị phải nằm trong activeValues
+      if (item.activeValues) {
+        return item.activeValues.includes(currentValue);
+      }
+      return currentValue === "1";
+    } else {
+      // Khi tắt: giá trị phải trùng defaultValue hoặc KHÔNG nằm trong activeValues
+      if (item.activeValues) {
+        return !item.activeValues.includes(currentValue);
+      }
+      return currentValue === item.defaultValue || currentValue === "0";
+    }
+  } catch {
+    // Nếu không đọc được (thiết bị ngắt kết nối...) → coi như chưa xác minh
+    return false;
+  }
+}
+
+/**
+ * Áp dụng cấu hình bật/tắt cho item tùy biến trải nghiệm.
+ *
+ * Cơ chế hoạt động (Execute → Verify → Fallback):
+ * 1. Chạy lệnh chính
+ * 2. Đọc lại giá trị từ thiết bị để xác minh thực sự có tác dụng
+ * 3. Nếu chưa tác dụng → tự động chuyển sang lệnh fallback tiếp theo
+ * 4. Lặp lại bước 2-3 cho đến khi thành công hoặc hết fallback
+ */
+export async function applyExperienceItem(
+  deviceId: string,
+  itemId: string,
+  enable: boolean,
+): Promise<{ success: boolean; output: string; usedFallback?: boolean }> {
+  const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
+  if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
+
+  let fullLog = "";
+
+  // ── Bước 1: Thử lệnh chính ──
+  const primaryCmd = enable ? item.enableCommand : item.disableCommand;
+  const primaryResult = await executeCommandChain(deviceId, primaryCmd);
+  fullLog += `[Primary] ${primaryResult.output}`;
+
+  if (primaryResult.success) {
+    // Xác minh lệnh chính có thực sự tác dụng
+    const verified = await verifyCommandEffect(deviceId, item, enable);
+    if (verified) {
+      return { success: true, output: fullLog.trim(), usedFallback: false };
+    }
+    fullLog += "\n[Verify] Lệnh chính đã chạy nhưng giá trị chưa thay đổi trên thiết bị.";
+  } else {
+    fullLog += "\n[Primary] Lệnh chính thất bại.";
+  }
+
+  // ── Bước 2: Tự động thử từng lệnh fallback ──
+  const fallbacks = enable
+    ? item.fallbackEnableCommands
+    : item.fallbackDisableCommands;
+
+  if (fallbacks && fallbacks.length > 0) {
+    for (let i = 0; i < fallbacks.length; i++) {
+      const fallbackCmd = fallbacks[i];
+      fullLog += `\n[Fallback ${i + 1}/${fallbacks.length}] Đang thử: ${fallbackCmd}`;
+
+      const fallbackResult = await executeCommandChain(deviceId, fallbackCmd);
+      fullLog += `\n[Fallback ${i + 1}] ${fallbackResult.output}`;
+
+      if (fallbackResult.success) {
+        // Xác minh fallback có thực sự tác dụng
+        const verified = await verifyCommandEffect(deviceId, item, enable);
+        if (verified) {
+          fullLog += `\n[Verify] ✓ Fallback ${i + 1} đã xác minh thành công.`;
+          return { success: true, output: fullLog.trim(), usedFallback: true };
+        }
+        fullLog += `\n[Verify] Fallback ${i + 1} đã chạy nhưng giá trị chưa thay đổi, thử lệnh tiếp...`;
+      } else {
+        fullLog += `\n[Fallback ${i + 1}] Thất bại, thử lệnh tiếp...`;
+      }
+    }
+  }
+
+  // ── Bước 3: Tất cả đều thất bại ──
+  fullLog += "\n[Result] ✗ Tất cả lệnh (chính + fallback) đều không tác dụng trên thiết bị này.";
+  return { success: false, output: fullLog.trim(), usedFallback: true };
+}
+
+/**
  * Khôi phục cấu hình mặc định (Rollback) của tùy chỉnh
  */
 export async function rollbackExperienceItem(
   deviceId: string,
   itemId: string,
 ): Promise<{ success: boolean; output: string }> {
-  const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
-  if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
-
-  const cmd = `settings put ${item.readCommand.namespace} ${item.readCommand.key} ${item.defaultValue}`;
-  const subCmds = cmd.split("&&").map((s) => s.trim()).filter(Boolean);
-
-  let success = true;
-  let combinedOutput = "";
-
-  for (const subCmd of subCmds) {
-    const output = await runAdbCommand(deviceId, subCmd, () => {});
-    combinedOutput += (combinedOutput ? "\n" : "") + output.trim();
-    if (
-      output.toLowerCase().includes("failed") ||
-      output.toLowerCase().includes("error") ||
-      output.includes("[BLOCKED BY SAFETY LAYER]")
-    ) {
-      success = false;
-    }
-  }
-
-  return { success, output: combinedOutput.trim() };
+  return applyExperienceItem(deviceId, itemId, false);
 }

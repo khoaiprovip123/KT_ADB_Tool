@@ -25,7 +25,7 @@ export default function About() {
             KT ADB Tool <span className="text-blue-600">Pro</span>
           </h1>
           <p className="text-lg font-bold text-slate-400 mt-1 tracking-tight">
-            Phiên bản 2.2.0-PRO-MAX
+            Phiên bản 2.3.0-PRO-MAX
           </p>
           <div className="flex gap-2 mt-3">
             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest border border-blue-100">
@@ -65,12 +65,12 @@ export default function About() {
           </h3>
           <ul className="space-y-2.5">
             {[
+              "Execute-Verify-Fallback Engine (v2.3)",
               "App Manager Glassmorphism (v2.1)",
               "File Manager Pro (Immersive Preview)",
               "Thanh tác vụ hàng loạt dạng nổi (Floating Bar)",
               "Hệ thống lọc & Tìm kiếm thông minh mới",
               "Tối ưu hóa không gian hiển thị (No-Scroll)",
-              "Cài đặt APK thông minh (Shell mode)",
               "Nhật ký lệnh thời gian thực",
             ].map((feature, i) => (
               <li
