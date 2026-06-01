@@ -58,6 +58,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "display",
     risk: "SAFE",
     defaultValue: "0",
+    activeValues: ["1"],
   },
   {
     id: "force_high_refresh_rate",
@@ -67,6 +68,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "display",
     risk: "MEDIUM",
     defaultValue: "60",
+    activeValues: ["120"],
   },
   {
     id: "reading_mode",
@@ -76,6 +78,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "display",
     risk: "SAFE",
     defaultValue: "0",
+    activeValues: ["1"],
   },
   {
     id: "speed_animations",
@@ -94,7 +97,8 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
       "Giảm độ trễ cảm ứng nhận vào, tăng cảm giác vuốt chạm tức thì mượt mà hơn.",
     category: "navigation",
     risk: "SAFE",
-    defaultValue: "0",
+    defaultValue: "500",
+    activeValues: ["250", "200", "150"],
   },
   {
     id: "gesture_line_hide",
@@ -103,7 +107,8 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
       "Ẩn thanh điều hướng cử chỉ phía dưới cùng để tối ưu không gian màn hình vô cực.",
     category: "navigation",
     risk: "SAFE",
-    defaultValue: "0",
+    defaultValue: "null",
+    activeValues: ["immersive.full=*"],
     isXiaomiOnly: true,
   },
   {
@@ -114,6 +119,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "launcher",
     risk: "SAFE",
     defaultValue: "0",
+    activeValues: ["1"],
     isXiaomiOnly: true,
   },
   {
@@ -124,6 +130,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "launcher",
     risk: "SAFE",
     defaultValue: "0",
+    activeValues: ["1"],
     isXiaomiOnly: true,
   },
   {
@@ -145,6 +152,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "sound",
     risk: "SAFE",
     defaultValue: "1",
+    activeValues: ["1"],
   },
   {
     id: "game_turbo_overlay",
@@ -154,6 +162,7 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
     category: "game",
     risk: "SAFE",
     defaultValue: "1",
+    activeValues: ["1"],
     isXiaomiOnly: true,
   },
   {
@@ -163,8 +172,8 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
       "Mở khóa giới hạn CPU/GPU của hệ thống để tối đa hóa FPS khi chơi game và xử lý tác vụ nặng.",
     category: "game",
     risk: "MEDIUM",
-    defaultValue: "normal",
-    activeValues: ["high"],
+    defaultValue: "0",
+    activeValues: ["2"],
   },
   {
     id: "disable_personalized_ads",
