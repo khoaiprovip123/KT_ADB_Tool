@@ -1,96 +1,170 @@
-import React, { useState, useEffect } from 'react'
-import { Cpu, Settings as SettingsIcon, Smartphone, LayoutGrid, Terminal, SlidersHorizontal, ChevronLeft, ChevronRight, FolderOpen, Zap, Sparkles, Sliders } from 'lucide-react'
-import { useDeviceStore } from './store/deviceStore'
-import { useSettingsStore } from './store/settingsStore'
-import { LogTerminal } from './components/layout/LogTerminal'
-import { FloatingQuickBoot } from './components/layout/FloatingQuickBoot'
-import { Dashboard } from './components/features/Dashboard'
-import { AppManager } from './components/features/AppManager'
-import { FileManager } from './components/features/FileManager'
-import { SystemTweaks } from './components/features/SystemTweaks'
-import { SystemOptimization } from './components/features/SystemOptimization'
-import { UserExperience } from './components/features/UserExperience'
-import { AdvancedAdb } from './components/features/AdvancedAdb'
-import Settings from './features/settings/Settings'
-import { ControlCenterModal } from './components/layout/ControlCenterModal'
-import { ConnectionManagerModal } from './components/layout/ConnectionManagerModal'
+import React, { useState, useEffect } from "react";
+import {
+  Cpu,
+  Settings as SettingsIcon,
+  Smartphone,
+  LayoutGrid,
+  Terminal,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  FolderOpen,
+  Zap,
+  Sparkles,
+  Sliders,
+} from "lucide-react";
+import { useDeviceStore } from "./store/deviceStore";
+import { useSettingsStore } from "./store/settingsStore";
+import { LogTerminal } from "./components/layout/LogTerminal";
+import { FloatingQuickBoot } from "./components/layout/FloatingQuickBoot";
+import { Dashboard } from "./components/features/Dashboard";
+import { AppManager } from "./components/features/AppManager";
+import { FileManager } from "./components/features/FileManager";
+import { SystemTweaks } from "./components/features/SystemTweaks";
+import { SystemOptimization } from "./components/features/SystemOptimization";
+import { UserExperience } from "./components/features/UserExperience";
+import { AdvancedAdb } from "./components/features/AdvancedAdb";
+import Settings from "./features/settings/Settings";
+import { ControlCenterModal } from "./components/layout/ControlCenterModal";
+import { ConnectionManagerModal } from "./components/layout/ConnectionManagerModal";
 
-import { ToastProvider } from './components/layout/ToastProvider'
-import { ErrorBoundary } from './components/layout/ErrorBoundary'
+import { ToastProvider } from "./components/layout/ToastProvider";
+import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [isLogOpen, setIsLogOpen] = useState(false)
-  const [isCcOpen, setIsCcOpen] = useState(false)
-  const [isConnManagerOpen, setIsConnManagerOpen] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const { devices, activeDevice, setDevices, addLog } = useDeviceStore()
-  const { loadSettings } = useSettingsStore()
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isCcOpen, setIsCcOpen] = useState(false);
+  const [isConnManagerOpen, setIsConnManagerOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { devices, activeDevice, setDevices, addLog } = useDeviceStore();
+  const { loadSettings } = useSettingsStore();
 
   useEffect(() => {
     // Tải cài đặt từ Electron Store
-    loadSettings()
-    
+    loadSettings();
+
     // Khởi tạo ADB và tải Platform-tools tự động
     window.api.initAdb().then(() => {
-      window.api.getDevices().then(setDevices)
-    })
+      window.api.getDevices().then(setDevices);
+    });
 
     // Lắng nghe thiết bị cắm/rút
     window.api.onDeviceUpdate((updatedDevices) => {
-      setDevices(updatedDevices)
-    })
+      setDevices(updatedDevices);
+    });
 
     // Lắng nghe stream Log từ lệnh ADB
     window.api.onLogStream((log) => {
-      const cleanLog = log.trim()
-      if (!cleanLog) return
-      if (cleanLog.includes('connected successfully')) return
-      if (cleanLog.includes('inaccessible or not found')) return
-      if (cleanLog.includes('not found') && cleanLog.includes('/system/bin/sh')) return
-      addLog(log)
-    })
-  }, [setDevices, addLog])
+      const cleanLog = log.trim();
+      if (!cleanLog) return;
+      if (cleanLog.includes("connected successfully")) return;
+      if (cleanLog.includes("inaccessible or not found")) return;
+      if (cleanLog.includes("not found") && cleanLog.includes("/system/bin/sh"))
+        return;
+      addLog(log);
+    });
+  }, [setDevices, addLog]);
 
   return (
     <div className="flex h-screen w-full bg-[#f4f7fb] text-slate-800 overflow-hidden font-sans">
       <ToastProvider />
       {/* SIDEBAR */}
-      <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300 ease-in-out flex flex-col justify-between bg-white/80 backdrop-blur-xl border-r border-glass-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative`}>
+      <aside
+        className={`${isSidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out flex flex-col justify-between bg-white/80 backdrop-blur-xl border-r border-glass-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative`}
+      >
         {/* Toggle Button */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute -right-3 top-9 bg-white border border-slate-200 shadow-sm rounded-full p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors z-20"
         >
-          {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
         </button>
 
-        <div className={`p-6 ${!isSidebarOpen ? 'px-4' : ''}`}>
-          <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'} mb-10 overflow-hidden`}>
+        <div className={`p-6 ${!isSidebarOpen ? "px-4" : ""}`}>
+          <div
+            className={`flex items-center ${isSidebarOpen ? "gap-3" : "justify-center"} mb-10 overflow-hidden`}
+          >
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 shrink-0">
               <Smartphone className="text-white w-6 h-6" />
             </div>
             {isSidebarOpen && (
               <div className="whitespace-nowrap transition-opacity duration-300">
-                <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">KT ADB Tool</h1>
-                <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">Enterprise Edition</p>
+                <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                  KT ADB Tool
+                </h1>
+                <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+                  Enterprise Edition
+                </p>
               </div>
             )}
           </div>
 
           <nav className="space-y-2">
-            <NavItem icon={<LayoutGrid />} label="Tổng quan" active={activeTab === 'dashboard'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
-            <NavItem icon={<Cpu />} label="Quản lý ứng dụng" active={activeTab === 'system'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('system')} />
-            <NavItem icon={<FolderOpen />} label="Quản lý tệp tin" active={activeTab === 'files'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('files')} />
-            <NavItem icon={<Zap />} label="Tối ưu hệ thống" active={activeTab === 'optimize'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('optimize')} />
-            <NavItem icon={<Sparkles />} label="Trải nghiệm người dùng" active={activeTab === 'experience'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('experience')} />
-            <NavItem icon={<SlidersHorizontal />} label="Tinh chỉnh hệ thống" active={activeTab === 'tweaks'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('tweaks')} />
-            <NavItem icon={<Sliders />} label="Nâng cao ADB" active={activeTab === 'advanced'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('advanced')} />
+            <NavItem
+              icon={<LayoutGrid />}
+              label="Tổng quan"
+              active={activeTab === "dashboard"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("dashboard")}
+            />
+            <NavItem
+              icon={<Cpu />}
+              label="Quản lý ứng dụng"
+              active={activeTab === "system"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("system")}
+            />
+            <NavItem
+              icon={<FolderOpen />}
+              label="Quản lý tệp tin"
+              active={activeTab === "files"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("files")}
+            />
+            <NavItem
+              icon={<Zap />}
+              label="Tối ưu hệ thống"
+              active={activeTab === "optimize"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("optimize")}
+            />
+            <NavItem
+              icon={<Sparkles />}
+              label="Trải nghiệm người dùng"
+              active={activeTab === "experience"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("experience")}
+            />
+            <NavItem
+              icon={<SlidersHorizontal />}
+              label="Tinh chỉnh hệ thống"
+              active={activeTab === "tweaks"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("tweaks")}
+            />
+            <NavItem
+              icon={<Sliders />}
+              label="Nâng cao ADB"
+              active={activeTab === "advanced"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("advanced")}
+            />
           </nav>
         </div>
 
-        <div className={`p-6 ${!isSidebarOpen ? 'px-4' : ''}`}>
-          <NavItem icon={<SettingsIcon />} label="Cài đặt" active={activeTab === 'settings'} isExpanded={isSidebarOpen} onClick={() => setActiveTab('settings')} />
+        <div className={`p-6 ${!isSidebarOpen ? "px-4" : ""}`}>
+          <NavItem
+            icon={<SettingsIcon />}
+            label="Cài đặt"
+            active={activeTab === "settings"}
+            isExpanded={isSidebarOpen}
+            onClick={() => setActiveTab("settings")}
+          />
         </div>
       </aside>
 
@@ -98,14 +172,23 @@ function App() {
       <main className="flex-1 flex flex-col relative z-0">
         <header className="h-20 bg-white/50 backdrop-blur-md border-b border-white/40 px-8 flex items-center justify-between sticky top-0 z-20">
           <h2 className="text-xl font-semibold capitalize text-slate-800">
-            {activeTab === 'dashboard' ? 'Tổng quan' :
-              activeTab === 'system' ? 'Quản lý ứng dụng' :
-                activeTab === 'files' ? 'Quản lý tệp tin' :
-                  activeTab === 'optimize' ? 'Tối ưu hệ thống' :
-                    activeTab === 'experience' ? 'Trải nghiệm người dùng' :
-                      activeTab === 'tweaks' ? 'Tinh chỉnh hệ thống' :
-                        activeTab === 'advanced' ? 'Nâng cao ADB' :
-                          activeTab === 'settings' ? 'Cài đặt' : activeTab}
+            {activeTab === "dashboard"
+              ? "Tổng quan"
+              : activeTab === "system"
+                ? "Quản lý ứng dụng"
+                : activeTab === "files"
+                  ? "Quản lý tệp tin"
+                  : activeTab === "optimize"
+                    ? "Tối ưu hệ thống"
+                    : activeTab === "experience"
+                      ? "Trải nghiệm người dùng"
+                      : activeTab === "tweaks"
+                        ? "Tinh chỉnh hệ thống"
+                        : activeTab === "advanced"
+                          ? "Nâng cao ADB"
+                          : activeTab === "settings"
+                            ? "Cài đặt"
+                            : activeTab}
           </h2>
 
           <div className="flex items-center gap-4">
@@ -117,7 +200,10 @@ function App() {
                 <SlidersHorizontal className="w-4 h-4" />
                 <span>Điều khiển</span>
               </button>
-              <ControlCenterModal isOpen={isCcOpen} onClose={() => setIsCcOpen(false)} />
+              <ControlCenterModal
+                isOpen={isCcOpen}
+                onClose={() => setIsCcOpen(false)}
+              />
             </div>
 
             <button
@@ -136,61 +222,92 @@ function App() {
                   <>
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="text-sm font-medium text-slate-700">
-                      {devices.find(d => d.id === activeDevice)?.model || devices.find(d => d.id === activeDevice)?.id || 'Connected'}
-                      <span className="text-slate-400 ml-1">({devices.length})</span>
+                      {devices.find((d) => d.id === activeDevice)?.model ||
+                        devices.find((d) => d.id === activeDevice)?.id ||
+                        "Connected"}
+                      <span className="text-slate-400 ml-1">
+                        ({devices.length})
+                      </span>
                     </span>
                   </>
                 ) : (
                   <>
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-sm font-medium text-slate-500">Chưa kết nối</span>
+                    <span className="text-sm font-medium text-slate-500">
+                      Chưa kết nối
+                    </span>
                   </>
                 )}
               </button>
-              <ConnectionManagerModal isOpen={isConnManagerOpen} onClose={() => setIsConnManagerOpen(false)} />
+              <ConnectionManagerModal
+                isOpen={isConnManagerOpen}
+                onClose={() => setIsConnManagerOpen(false)}
+              />
             </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-hidden p-8 relative">
           <ErrorBoundary>
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'system' && <AppManager />}
-            {activeTab === 'files' && <FileManager />}
-            {activeTab === 'experience' && <UserExperience />}
-            {activeTab === 'tweaks' && <SystemTweaks />}
-            {activeTab === 'optimize' && <SystemOptimization />}
-            {activeTab === 'advanced' && <AdvancedAdb />}
-            {activeTab === 'settings' && <Settings />}
-            {activeTab !== 'dashboard' && activeTab !== 'system' && activeTab !== 'files' && activeTab !== 'experience' && activeTab !== 'tweaks' && activeTab !== 'optimize' && activeTab !== 'advanced' && activeTab !== 'settings' && (
-              <div className="flex items-center justify-center h-full text-slate-400">
-                Tính năng đang được phát triển...
-              </div>
-            )}
+            {activeTab === "dashboard" && <Dashboard />}
+            {activeTab === "system" && <AppManager />}
+            {activeTab === "files" && <FileManager />}
+            {activeTab === "experience" && <UserExperience />}
+            {activeTab === "tweaks" && <SystemTweaks />}
+            {activeTab === "optimize" && <SystemOptimization />}
+            {activeTab === "advanced" && <AdvancedAdb />}
+            {activeTab === "settings" && <Settings />}
+            {activeTab !== "dashboard" &&
+              activeTab !== "system" &&
+              activeTab !== "files" &&
+              activeTab !== "experience" &&
+              activeTab !== "tweaks" &&
+              activeTab !== "optimize" &&
+              activeTab !== "advanced" &&
+              activeTab !== "settings" && (
+                <div className="flex items-center justify-center h-full text-slate-400">
+                  Tính năng đang được phát triển...
+                </div>
+              )}
           </ErrorBoundary>
         </div>
 
         <LogTerminal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
-        {activeTab === 'dashboard' && <FloatingQuickBoot />}
+        {activeTab === "dashboard" && <FloatingQuickBoot />}
       </main>
     </div>
-  )
+  );
 }
 
-function NavItem({ icon, label, active, isExpanded, onClick }: { icon: React.ReactElement, label: string, active: boolean, isExpanded: boolean, onClick: () => void }) {
+function NavItem({
+  icon,
+  label,
+  active,
+  isExpanded,
+  onClick,
+}: {
+  icon: React.ReactElement;
+  label: string;
+  active: boolean;
+  isExpanded: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center ${isExpanded ? 'gap-3 px-4' : 'justify-center px-0'} py-3 rounded-xl transition-all duration-300 font-medium ${active
-        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-        : 'text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
-        }`}
+      className={`w-full flex items-center ${isExpanded ? "gap-3 px-4" : "justify-center px-0"} py-3 rounded-xl transition-all duration-300 font-medium ${
+        active
+          ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+          : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-800"
+      }`}
       title={!isExpanded ? label : undefined}
     >
-      {React.cloneElement(icon, { className: 'w-5 h-5 shrink-0' })}
-      {isExpanded && <span className="whitespace-nowrap overflow-hidden">{label}</span>}
+      {React.cloneElement(icon, { className: "w-5 h-5 shrink-0" })}
+      {isExpanded && (
+        <span className="whitespace-nowrap overflow-hidden">{label}</span>
+      )}
     </button>
-  )
+  );
 }
 
-export default App
+export default App;

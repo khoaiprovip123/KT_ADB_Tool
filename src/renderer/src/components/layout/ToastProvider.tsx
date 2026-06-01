@@ -1,23 +1,23 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { useToastStore, Toast } from '../../store/toastStore'
-import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react'
+import { motion, AnimatePresence } from "framer-motion";
+import { useToastStore, Toast } from "../../store/toastStore";
+import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 
 const toastIcons = {
   success: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
   error: <XCircle className="w-5 h-5 text-red-500" />,
   info: <Info className="w-5 h-5 text-blue-500" />,
-  warning: <AlertTriangle className="w-5 h-5 text-amber-500" />
-}
+  warning: <AlertTriangle className="w-5 h-5 text-amber-500" />,
+};
 
 const toastBg = {
-  success: 'bg-emerald-50 border-emerald-200/50',
-  error: 'bg-red-50 border-red-200/50',
-  info: 'bg-blue-50 border-blue-200/50',
-  warning: 'bg-amber-50 border-amber-200/50'
-}
+  success: "bg-emerald-50 border-emerald-200/50",
+  error: "bg-red-50 border-red-200/50",
+  info: "bg-blue-50 border-blue-200/50",
+  warning: "bg-amber-50 border-amber-200/50",
+};
 
 export function ToastProvider() {
-  const { toasts, removeToast } = useToastStore()
+  const { toasts, removeToast } = useToastStore();
 
   return (
     <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
@@ -32,12 +32,14 @@ export function ToastProvider() {
           >
             <div className="shrink-0 mt-0.5">{toastIcons[t.type]}</div>
             <div className="flex flex-col flex-1">
-              <span className="text-sm font-bold text-slate-800 break-words pr-4">{t.message}</span>
+              <span className="text-sm font-bold text-slate-800 break-words pr-4">
+                {t.message}
+              </span>
               {t.action && (
                 <button
                   onClick={() => {
-                    t.action?.onClick()
-                    removeToast(t.id)
+                    t.action?.onClick();
+                    removeToast(t.id);
                   }}
                   className="mt-2 self-start px-3 py-1.5 bg-white/60 hover:bg-white text-xs font-black uppercase tracking-wider rounded-lg border border-slate-200/50 shadow-sm transition-colors text-slate-700"
                 >
@@ -45,7 +47,7 @@ export function ToastProvider() {
                 </button>
               )}
             </div>
-            <button 
+            <button
               onClick={() => removeToast(t.id)}
               className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 transition-colors"
             >
@@ -55,5 +57,5 @@ export function ToastProvider() {
         ))}
       </AnimatePresence>
     </div>
-  )
+  );
 }

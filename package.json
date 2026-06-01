@@ -1,7 +1,7 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.1.0-PRO-MAX",
-  "description": "KT ADB Tool Pro - Giải pháp quản lý Android chuyên nghiệp và tối ưu",
+  "version": "2.2.0-PRO-MAX",
+  "description": "KT ADB Tool Pro - Giải pháp tối ưu hóa và quản lý Android chuyên nghiệp toàn diện",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
   "scripts": {
@@ -58,6 +58,6 @@
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
-    "vitest": "^4.1.7"
+    "vitest": "^3.2.4"
   }
 }

@@ -1,7 +1,7 @@
 export interface AppInfo {
   pkg: string;
-  type: 'system' | 'user';
-  status: 'enabled' | 'disabled';
+  type: "system" | "user";
+  status: "enabled" | "disabled";
 }
 
 export interface BatchProgress {

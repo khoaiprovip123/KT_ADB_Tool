@@ -1,75 +1,96 @@
-import { useState } from 'react'
-import { X, Smartphone, Wifi, Loader2, Link2, KeyRound, RefreshCw } from 'lucide-react'
-import { useDeviceStore } from '../../store/deviceStore'
+import { useState } from "react";
+import {
+  X,
+  Smartphone,
+  Wifi,
+  Loader2,
+  Link2,
+  KeyRound,
+  RefreshCw,
+} from "lucide-react";
+import { useDeviceStore } from "../../store/deviceStore";
 
-export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const { devices, activeDevice, setActiveDevice } = useDeviceStore()
-  const [activeTab, setActiveTab] = useState<'connect' | 'pair'>('connect')
-  const [ipInput, setIpInput] = useState('')
-  const [pairIpInput, setPairIpInput] = useState('')
-  const [pairCode, setPairCode] = useState('')
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isPairing, setIsPairing] = useState(false)
-  const [isFixing, setIsFixing] = useState(false)
+export function ConnectionManagerModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const { devices, activeDevice, setActiveDevice } = useDeviceStore();
+  const [activeTab, setActiveTab] = useState<"connect" | "pair">("connect");
+  const [ipInput, setIpInput] = useState("");
+  const [pairIpInput, setPairIpInput] = useState("");
+  const [pairCode, setPairCode] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isPairing, setIsPairing] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
 
   const handleFixConnection = async () => {
-    setIsFixing(true)
+    setIsFixing(true);
     try {
-      const result = await window.api.fixConnection()
+      const result = await window.api.fixConnection();
       if (result.success) {
-        useDeviceStore.getState().setDevices(result.devices || [])
-        alert(result.message || 'Đã reset server ADB thành công!')
+        useDeviceStore.getState().setDevices(result.devices || []);
+        alert(result.message || "Đã reset server ADB thành công!");
       } else {
-        alert(result.message || 'Reset ADB thất bại.')
+        alert(result.message || "Reset ADB thất bại.");
       }
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`)
+      alert(`Lỗi: ${err.message}`);
     } finally {
-      setIsFixing(false)
+      setIsFixing(false);
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleConnect = async () => {
-    if (!ipInput.trim()) return
-    setIsConnecting(true)
-    const success = await window.api.connectIp(ipInput.trim())
-    await window.api.getDevices().then(devices => {
-      useDeviceStore.getState().setDevices(devices)
-    })
-    setIsConnecting(false)
-    
+    if (!ipInput.trim()) return;
+    setIsConnecting(true);
+    const success = await window.api.connectIp(ipInput.trim());
+    await window.api.getDevices().then((devices) => {
+      useDeviceStore.getState().setDevices(devices);
+    });
+    setIsConnecting(false);
+
     if (success) {
-      setIpInput('')
-      onClose()
+      setIpInput("");
+      onClose();
     } else {
-      alert('Kết nối thất bại. Vui lòng xem Logs hoặc kiểm tra lại IP/Mạng.')
+      alert("Kết nối thất bại. Vui lòng xem Logs hoặc kiểm tra lại IP/Mạng.");
     }
-  }
+  };
 
   const handlePair = async () => {
-    if (!pairIpInput.trim() || !pairCode.trim()) return
-    setIsPairing(true)
-    const success = await window.api.pairDevice(pairIpInput.trim(), pairCode.trim())
-    setIsPairing(false)
+    if (!pairIpInput.trim() || !pairCode.trim()) return;
+    setIsPairing(true);
+    const success = await window.api.pairDevice(
+      pairIpInput.trim(),
+      pairCode.trim(),
+    );
+    setIsPairing(false);
     if (success) {
-      alert('Ghép nối thành công! Vui lòng xem Port kết nối trên điện thoại và dùng Direct Connect để kết nối.')
-      setActiveTab('connect')
-      setPairIpInput('')
-      setPairCode('')
+      alert(
+        "Ghép nối thành công! Vui lòng xem Port kết nối trên điện thoại và dùng Direct Connect để kết nối.",
+      );
+      setActiveTab("connect");
+      setPairIpInput("");
+      setPairCode("");
     } else {
-      alert('Ghép nối thất bại. Vui lòng kiểm tra lại IP, Port và Pairing Code.')
+      alert(
+        "Ghép nối thất bại. Vui lòng kiểm tra lại IP, Port và Pairing Code.",
+      );
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
@@ -78,7 +99,7 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
             </div>
             <h3 className="font-semibold text-slate-800">Quản lý Kết nối</h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
           >
@@ -88,21 +109,21 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
 
         <div className="p-6 space-y-6">
           <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button 
-              onClick={() => setActiveTab('connect')} 
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'connect' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            <button
+              onClick={() => setActiveTab("connect")}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === "connect" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"}`}
             >
               Kết nối Trực tiếp
             </button>
-            <button 
-              onClick={() => setActiveTab('pair')} 
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'pair' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            <button
+              onClick={() => setActiveTab("pair")}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === "pair" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"}`}
             >
               Ghép nối Android 11+
             </button>
           </div>
 
-          {activeTab === 'connect' && (
+          {activeTab === "connect" && (
             <div className="space-y-3 animate-in fade-in slide-in-from-left-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Kết nối Thiết bị Không dây
@@ -117,7 +138,7 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
                     placeholder="VD: 192.168.1.5:5555"
                     value={ipInput}
                     onChange={(e) => setIpInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
+                    onKeyDown={(e) => e.key === "Enter" && handleConnect()}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 font-medium"
                   />
                 </div>
@@ -126,13 +147,17 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
                   disabled={!ipInput.trim() || isConnecting}
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                 >
-                  {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kết nối'}
+                  {isConnecting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Kết nối"
+                  )}
                 </button>
               </div>
             </div>
           )}
 
-          {activeTab === 'pair' && (
+          {activeTab === "pair" && (
             <div className="space-y-3 animate-in fade-in slide-in-from-right-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Thông tin Ghép nối
@@ -159,16 +184,22 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
                     placeholder="Mã ghép nối Wi-Fi (VD: 123456)"
                     value={pairCode}
                     onChange={(e) => setPairCode(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handlePair()}
+                    onKeyDown={(e) => e.key === "Enter" && handlePair()}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 font-medium"
                   />
                 </div>
                 <button
                   onClick={handlePair}
-                  disabled={!pairIpInput.trim() || !pairCode.trim() || isPairing}
+                  disabled={
+                    !pairIpInput.trim() || !pairCode.trim() || isPairing
+                  }
                   className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  {isPairing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ghép nối Thiết bị'}
+                  {isPairing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Ghép nối Thiết bị"
+                  )}
                 </button>
               </div>
             </div>
@@ -186,44 +217,62 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
                 className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 disabled:text-slate-400 transition-colors uppercase tracking-wide bg-blue-50 hover:bg-blue-100/80 px-3 py-1.5 rounded-full"
                 title="Tắt các tiến trình ADB xung đột và khởi động lại Server"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isFixing ? 'animate-spin' : ''}`} />
-                <span>{isFixing ? 'Đang sửa...' : 'Sửa lỗi kết nối'}</span>
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isFixing ? "animate-spin" : ""}`}
+                />
+                <span>{isFixing ? "Đang sửa..." : "Sửa lỗi kết nối"}</span>
               </button>
             </div>
-            
+
             <div className="space-y-2 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
               {devices.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
                   Chưa có thiết bị nào kết nối
                 </div>
               ) : (
-                devices.map(device => (
+                devices.map((device) => (
                   <button
                     key={device.id}
                     onClick={() => {
-                      setActiveDevice(device.id)
-                      onClose()
+                      setActiveDevice(device.id);
+                      onClose();
                     }}
                     className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${
                       activeDevice === device.id
-                        ? 'bg-blue-50 border-blue-200 shadow-sm'
-                        : 'bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50'
+                        ? "bg-blue-50 border-blue-200 shadow-sm"
+                        : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        activeDevice === device.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {device.id.includes(':5555') ? <Wifi className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          activeDevice === device.id
+                            ? "bg-blue-100 text-blue-600"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {device.id.includes(":5555") ? (
+                          <Wifi className="w-5 h-5" />
+                        ) : (
+                          <Smartphone className="w-5 h-5" />
+                        )}
                       </div>
                       <div className="text-left">
-                        <div className={`text-sm font-semibold ${activeDevice === device.id ? 'text-blue-900' : 'text-slate-700'}`}>
+                        <div
+                          className={`text-sm font-semibold ${activeDevice === device.id ? "text-blue-900" : "text-slate-700"}`}
+                        >
                           {device.model || device.id}
                         </div>
                         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                          <span className={`w-1.5 h-1.5 rounded-full ${device.status === 'device' ? 'bg-green-500' : 'bg-red-500'}`} />
-                          {device.status === 'device' ? 'Đã kết nối' : device.status}
-                          {device.id.includes(':5555') && <span className="text-blue-500">• Không dây</span>}
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${device.status === "device" ? "bg-green-500" : "bg-red-500"}`}
+                          />
+                          {device.status === "device"
+                            ? "Đã kết nối"
+                            : device.status}
+                          {device.id.includes(":5555") && (
+                            <span className="text-blue-500">• Không dây</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -238,5 +287,5 @@ export function ConnectionManagerModal({ isOpen, onClose }: { isOpen: boolean, o
         </div>
       </div>
     </div>
-  )
+  );
 }

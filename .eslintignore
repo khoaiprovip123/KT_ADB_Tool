@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+.eslintrc.cjs
+postcss.config.js
+tailwind.config.js
+electron.vite.config.ts
+vitest.config.ts

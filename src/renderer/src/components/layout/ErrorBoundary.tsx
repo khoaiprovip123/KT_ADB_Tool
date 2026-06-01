@@ -1,33 +1,33 @@
-import { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertTriangle, RefreshCcw } from 'lucide-react'
+import { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 interface Props {
-  children?: ReactNode
+  children?: ReactNode;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
+  hasError: boolean;
+  error: Error | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
-    error: null
-  }
+    error: null,
+  };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo)
+    console.error("Uncaught error:", error, errorInfo);
   }
 
   private handleReload = () => {
-    this.setState({ hasError: false, error: null })
-    window.location.reload()
-  }
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
 
   public render() {
     if (this.state.hasError) {
@@ -37,9 +37,11 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <AlertTriangle size={32} />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Đã xảy ra lỗi nghiêm trọng</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">
+              Đã xảy ra lỗi nghiêm trọng
+            </h2>
             <p className="text-sm text-slate-500 mb-6 line-clamp-3">
-              {this.state.error?.message || 'Không thể render Component này.'}
+              {this.state.error?.message || "Không thể render Component này."}
             </p>
             <button
               onClick={this.handleReload}
@@ -50,9 +52,9 @@ export class ErrorBoundary extends Component<Props, State> {
             </button>
           </div>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }

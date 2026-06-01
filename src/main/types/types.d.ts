@@ -1,2 +1,2 @@
-declare module 'adbkit';
-declare module 'adm-zip';
+declare module "adbkit";
+declare module "adm-zip";
