@@ -6,7 +6,8 @@
   "author": "khoaiprovip123",
   "scripts": {
     "format": "prettier --write .",
-    "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
+    "lint:fix": "npm run lint -- --fix",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -59,5 +60,37 @@
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
     "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "com.khoaiprovip.kt-adb-tool",
+    "productName": "KT ADB Tool Pro",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "xiaomi_bloatware_removal.json",
+        "to": "."
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "resources/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }

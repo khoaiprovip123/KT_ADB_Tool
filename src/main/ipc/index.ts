@@ -1,5 +1,5 @@
-import { ipcMain } from "electron";
-import { initAdb, watchDevices, runAdbCommand } from "../core/adbService";
+import { ipcMain, app } from "electron";
+import { initAdb, watchDevices, runAdbCommand } from "../core/adbCore";
 import { registerDeviceHandlers } from "./deviceHandlers";
 import { registerAppHandlers } from "./appHandlers";
 import { registerFileHandlers } from "./fileHandlers";
@@ -7,6 +7,7 @@ import { registerSystemTweaksHandlers } from "./systemTweaksHandlers";
 import { registerXiaomiExperienceHandlers } from "./xiaomiExperienceHandlers";
 import { registerAdvancedAdbHandlers } from "./advancedAdbHandlers";
 import { store } from "../store";
+import { assertValidDeviceId, assertValidShellCommand } from "./validate";
 
 export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   // ── Core ADB ──────────────────────────────────────────────────────────────
@@ -28,20 +29,26 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   });
 
   ipcMain.handle("adb:run-command", async (_event, { deviceId, command }) => {
-    const output = (await runAdbCommand(deviceId, command, (log) => {
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("adb:log-stream", log);
-      }
-    })) as string;
-    const isError =
-      output.startsWith("ERROR:") ||
-      output.startsWith("CRITICAL ERROR:") ||
-      output === "FAILED" ||
-      output.startsWith("[BLOCKED BY SAFETY LAYER]");
-    return {
-      success: !isError,
-      output: output,
-    };
+    try {
+      assertValidDeviceId(deviceId);
+      assertValidShellCommand(command);
+      const output = (await runAdbCommand(deviceId, command, (log) => {
+        if (!mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("adb:log-stream", log);
+        }
+      })) as string;
+      const isError =
+        output.startsWith("ERROR:") ||
+        output.startsWith("CRITICAL ERROR:") ||
+        output === "FAILED" ||
+        output.startsWith("[BLOCKED BY SAFETY LAYER]");
+      return {
+        success: !isError,
+        output: output,
+      };
+    } catch (err: any) {
+      return { success: false, output: err.message };
+    }
   });
 
   // ── Sub-module Handlers ───────────────────────────────────────────────────
@@ -87,5 +94,24 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
       return;
     }
     (store as any).delete(key);
+  });
+
+  // ── App Version & Update Handlers ─────────────────────────────────────────
+  ipcMain.handle("app:get-version", () => {
+    return app.getVersion();
+  });
+
+  ipcMain.handle("app:check-for-updates", async () => {
+    const { checkForUpdates } = await import("../core/updateService");
+    return checkForUpdates();
+  });
+
+  ipcMain.handle("app:download-install-update", async (_event, downloadUrl: string) => {
+    const { downloadAndInstallUpdate } = await import("../core/updateService");
+    return downloadAndInstallUpdate(downloadUrl, (progress) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("app:update-progress", progress);
+      }
+    });
   });
 }

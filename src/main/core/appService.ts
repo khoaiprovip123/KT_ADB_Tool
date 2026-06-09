@@ -1,5 +1,6 @@
 import * as fs from "fs";
-import { adbState } from "./adbService";
+import { adbState } from "./adbCore";
+import { validatePackageName } from "./adbSafety";
 
 export interface AppInfo {
   pkg: string;
@@ -15,6 +16,15 @@ const BLACKLIST = [
   "com.android.contacts",
   "com.miui.securitycenter",
 ];
+
+const APP_ACTIONS = new Set([
+  "uninstall",
+  "disable",
+  "enable",
+  "clear",
+  "stop",
+  "restore",
+]);
 
 export async function getPackages(
   deviceId: string,
@@ -82,6 +92,10 @@ export async function manageApp(
   onLog: (log: string) => void,
 ) {
   try {
+    if (!validatePackageName(pkgName) || !APP_ACTIONS.has(action)) {
+      return { success: false, output: "Invalid app command parameters" };
+    }
+
     if (
       (action === "uninstall" || action === "disable") &&
       BLACKLIST.includes(pkgName)
@@ -149,6 +163,10 @@ export async function extractApp(
   onLog: (log: string) => void,
 ) {
   try {
+    if (!validatePackageName(pkgName)) {
+      throw new Error("Tên package không hợp lệ");
+    }
+
     onLog(`Đang trích xuất APK của ${pkgName}...`);
 
     const pathOutput = await new Promise<string>((resolve) => {

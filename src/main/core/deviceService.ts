@@ -1,7 +1,9 @@
 import * as path from "path";
 import { app } from "electron";
 import { spawn } from "child_process";
-import { adbState } from "./adbService";
+import { adbState } from "./adbCore";
+
+export { getDeviceInfo } from "./deviceInfoService";
 
 function getAdbExe(): string {
   const binPath = app.isPackaged
@@ -10,6 +12,10 @@ function getAdbExe(): string {
   return path.join(binPath, "adb.exe");
 }
 
+const activeScrcpyProcesses = new Map<string, any>();
+const IP_REGEX = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?$/;
+const PAIR_CODE_REGEX = /^\d{6}$/;
+
 // Chạy Scrcpy
 export async function runScrcpy(
   deviceId: string,
@@ -17,6 +23,14 @@ export async function runScrcpy(
   onLog: (log: string) => void,
 ) {
   try {
+    const existing = activeScrcpyProcesses.get(deviceId);
+    if (existing) {
+      try {
+        existing.kill();
+      } catch {}
+      activeScrcpyProcesses.delete(deviceId);
+    }
+
     const binPath = app.isPackaged
       ? path.join(process.resourcesPath, "bin")
       : path.join(__dirname, "../../resources/bin");
@@ -26,14 +40,16 @@ export async function runScrcpy(
     if (turnScreenOff) args.push("--turn-screen-off");
 
     const scrcpyProcess = spawn(scrcpyExe, args);
+    activeScrcpyProcesses.set(deviceId, scrcpyProcess);
 
     scrcpyProcess.stdout.on("data", (data) => onLog(`[Scrcpy] ${data}`));
     scrcpyProcess.stderr.on("data", (data) =>
       onLog(`[Scrcpy Warning] ${data}`),
     );
-    scrcpyProcess.on("close", (code) =>
-      onLog(`[Scrcpy] Exited with code ${code}`),
-    );
+    scrcpyProcess.on("close", (code) => {
+      activeScrcpyProcesses.delete(deviceId);
+      onLog(`[Scrcpy] Exited with code ${code}`);
+    });
 
     return "STARTED";
   } catch (error: any) {
@@ -49,6 +65,11 @@ export async function connectWifi(
   onLog: (log: string) => void,
 ) {
   try {
+    if (!IP_REGEX.test(ip)) {
+      onLog(`Lỗi: Địa chỉ IP không hợp lệ: ${ip}`);
+      return false;
+    }
+
     const adbExe = getAdbExe();
 
     onLog("Đang chuyển đổi sang chế độ Wireless (TCPIP 5555)...");
@@ -82,6 +103,11 @@ export async function connectWifi(
 // Kết nối IP trực tiếp
 export async function connectIp(ip: string, onLog: (log: string) => void) {
   try {
+    if (!IP_REGEX.test(ip)) {
+      onLog(`Lỗi: Địa chỉ IP không hợp lệ: ${ip}`);
+      return false;
+    }
+
     const adbExe = getAdbExe();
     const targetIp = ip.includes(":") ? ip : `${ip}:5555`;
 
@@ -121,6 +147,15 @@ export async function pairDevice(
   onLog: (log: string) => void,
 ) {
   try {
+    if (!IP_REGEX.test(ipPort)) {
+      onLog(`Lỗi: Địa chỉ IP:Port không hợp lệ: ${ipPort}`);
+      return false;
+    }
+    if (!PAIR_CODE_REGEX.test(code)) {
+      onLog(`Lỗi: Mã Pairing Code không hợp lệ (phải gồm 6 chữ số): ${code}`);
+      return false;
+    }
+
     const adbExe = getAdbExe();
 
     onLog(`Đang ghép nối với ${ipPort} bằng mã ${code} ...`);
@@ -175,8 +210,6 @@ export async function pairDevice(
     return false;
   }
 }
-
-export { adbState };
 
 export interface StorageStats {
   total: number;

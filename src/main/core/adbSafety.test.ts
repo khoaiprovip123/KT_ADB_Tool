@@ -52,9 +52,14 @@ describe("ADB Safety Layer Tests", () => {
       expect(validateRemotePath("/sdcard/Download/../../etc/passwd")).toBe(
         false,
       ); // path traversal
+      expect(validateRemotePath("/system/build.prop")).toBe(false);
+      expect(validateRemotePath("/")).toBe(false);
       expect(validateRemotePath("/sdcard/Download/file.txt; rm -rf /")).toBe(
         false,
       ); // command injection
+      expect(validateRemotePath('/sdcard/Download/file"; reboot; "')).toBe(
+        false,
+      ); // quote breakout
       expect(validateRemotePath("/sdcard/`id`")).toBe(false); // backticks
       expect(validateRemotePath("/a".repeat(520))).toBe(false); // too long
     });
@@ -311,4 +316,3 @@ describe("ADB Safety Layer Tests", () => {
     });
   });
 });
-

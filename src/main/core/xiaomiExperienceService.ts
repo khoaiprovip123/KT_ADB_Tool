@@ -8,7 +8,8 @@ import {
   readSettingsSnapshot,
   CapabilityState,
 } from "./deviceProfileService";
-import { runAdbCommand } from "./adbService";
+import { runAdbCommand } from "./adbCore";
+import type { XiaomiApplyResult } from "@shared/types/xiaomi";
 
 export interface ExperienceItemStatus {
   item: XiaomiExperienceItem;
@@ -26,9 +27,11 @@ export async function getExperienceCapabilities(
     const profile = await getDeviceProfile(deviceId);
     const installedPkgs = await getInstalledPackageSet(deviceId);
 
-    const globalSettings = await readSettingsSnapshot(deviceId, "global");
-    const secureSettings = await readSettingsSnapshot(deviceId, "secure");
-    const systemSettings = await readSettingsSnapshot(deviceId, "system");
+    const [globalSettings, secureSettings, systemSettings] = await Promise.all([
+      readSettingsSnapshot(deviceId, "global"),
+      readSettingsSnapshot(deviceId, "secure"),
+      readSettingsSnapshot(deviceId, "system"),
+    ]);
 
     const result: ExperienceItemStatus[] = [];
 
@@ -72,10 +75,13 @@ export async function getExperienceCapabilities(
 
       const currentValue = snapshot[readCmd.key];
 
-      if (currentValue === undefined) {
+      if (currentValue === undefined || currentValue === "null") {
+        const isEnabled = item.activeValues
+          ? item.activeValues.includes(item.defaultValue)
+          : item.defaultValue === "1" || item.defaultValue === "120";
         result.push({
           item,
-          status: "SUPPORTED_OFF",
+          status: isEnabled ? "SUPPORTED_ON" : "SUPPORTED_OFF",
           currentValue: item.defaultValue,
         });
       } else {
@@ -136,6 +142,7 @@ async function executeCommandChain(
 
     if (
       trimmed.toLowerCase().includes("failed") ||
+      trimmed.toLowerCase().includes("failure") ||
       trimmed.toLowerCase().includes("error") ||
       trimmed.includes("[BLOCKED BY SAFETY LAYER]") ||
       trimmed.toLowerCase().includes("not found") ||
@@ -165,12 +172,18 @@ async function verifyCommandEffect(
     const raw = await runAdbCommand(deviceId, cmd, () => {});
     const currentValue = raw.trim();
 
-    // Bỏ qua verification cho các lệnh pm (uninstall/disable) — không đọc qua settings get
+    // Xác minh thực tế cho lệnh pm (uninstall/disable) thay vì bỏ qua
     if (
       item.enableCommand.startsWith("pm ") ||
       item.disableCommand.startsWith("pm ")
     ) {
-      return true; // Tin tưởng kết quả executeCommandChain cho pm commands
+      const installedPkgs = await getInstalledPackageSet(deviceId);
+      const targetPkg = item.detectStrategy.packages?.[0] || "";
+      if (!targetPkg) return true;
+
+      // Nếu đang bật (enable): ứng dụng quảng cáo phải được gỡ bỏ (không còn trong installedPkgs)
+      // Nếu đang tắt (disable/restore): ứng dụng quảng cáo phải được khôi phục (nằm trong installedPkgs)
+      return enable ? !installedPkgs.has(targetPkg) : installedPkgs.has(targetPkg);
     }
 
     // Giá trị "null" từ settings get = key chưa tồn tại
@@ -211,9 +224,46 @@ export async function applyExperienceItem(
   deviceId: string,
   itemId: string,
   enable: boolean,
-): Promise<{ success: boolean; output: string; usedFallback?: boolean }> {
+): Promise<XiaomiApplyResult> {
   const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
   if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
+
+  // Kiểm tra tính tương thích của thiết bị trước khi thực thi
+  const profile = await getDeviceProfile(deviceId);
+  const { brand, minSdk, packages } = item.detectStrategy;
+
+  if (brand && brand.length > 0) {
+    const brandMatch = brand.some((b) =>
+      profile.brand.toUpperCase().includes(b.toUpperCase()),
+    );
+    if (!brandMatch) {
+      return {
+        success: false,
+        output: `[UNSUPPORTED] Thiết bị thuộc thương hiệu "${profile.brand}" không hỗ trợ tính năng này (Yêu cầu: ${brand.join(", ")}).`,
+        usedFallback: false,
+      };
+    }
+  }
+
+  if (minSdk && profile.sdk < minSdk) {
+    return {
+      success: false,
+      output: `[UNSUPPORTED] Phiên bản Android hiện tại (SDK ${profile.sdk}) thấp hơn mức yêu cầu của tính năng này (Yêu cầu: SDK ${minSdk}).`,
+      usedFallback: false,
+    };
+  }
+
+  if (packages && packages.length > 0) {
+    const installedPkgs = await getInstalledPackageSet(deviceId);
+    const pkgsInstalled = packages.every((pkg) => installedPkgs.has(pkg));
+    if (!pkgsInstalled) {
+      return {
+        success: false,
+        output: `[UNSUPPORTED] Không tìm thấy các gói ứng dụng hệ thống bắt buộc: ${packages.join(", ")}.`,
+        usedFallback: false,
+      };
+    }
+  }
 
   let fullLog = "";
 

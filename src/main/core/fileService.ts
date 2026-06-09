@@ -1,10 +1,30 @@
 import * as fs from "fs";
 import * as path from "path";
-import { adbState } from "./adbService";
+import { adbState } from "./adbCore";
+import { shellQuote, validateRemotePath } from "./adbSafety";
+
+const NON_MODIFIABLE_REMOTE_ROOTS = [
+  "/sdcard",
+  "/storage",
+  "/storage/emulated",
+  "/storage/emulated/0",
+  "/data/local/tmp",
+];
+
+function assertSafeRemotePath(remotePath: string, allowRoot = true) {
+  if (!validateRemotePath(remotePath)) {
+    throw new Error("Unsafe remote path");
+  }
+  const normalizedPath = remotePath.trim().replace(/\/+/g, "/");
+  if (!allowRoot && NON_MODIFIABLE_REMOTE_ROOTS.includes(normalizedPath)) {
+    throw new Error("Refusing to modify storage root");
+  }
+}
 
 export async function listDirectory(deviceId: string, remotePath: string) {
   try {
     if (!deviceId) throw new Error("Device ID is required");
+    assertSafeRemotePath(remotePath);
 
     const files = await Promise.race([
       adbState.client.readdir(deviceId, remotePath),
@@ -35,9 +55,10 @@ export async function listDirectory(deviceId: string, remotePath: string) {
 
 export async function createDirectory(deviceId: string, remotePath: string) {
   try {
+    assertSafeRemotePath(remotePath, false);
     await new Promise<void>((resolve, reject) => {
       adbState.client
-        .shell(deviceId, `mkdir -p "${remotePath}"`)
+        .shell(deviceId, `mkdir -p ${shellQuote(remotePath)}`)
         .then((stream: any) => {
           stream.on("data", () => {});
           stream.on("end", resolve);
@@ -54,9 +75,10 @@ export async function createDirectory(deviceId: string, remotePath: string) {
 
 export async function deleteFile(deviceId: string, remotePath: string) {
   try {
+    assertSafeRemotePath(remotePath, false);
     await new Promise<void>((resolve, reject) => {
       adbState.client
-        .shell(deviceId, `rm -rf "${remotePath}"`)
+        .shell(deviceId, `rm -rf ${shellQuote(remotePath)}`)
         .then((stream: any) => {
           stream.on("data", () => {});
           stream.on("end", resolve);
@@ -77,9 +99,11 @@ export async function renameFile(
   newPath: string,
 ) {
   try {
+    assertSafeRemotePath(oldPath, false);
+    assertSafeRemotePath(newPath, false);
     await new Promise<void>((resolve, reject) => {
       adbState.client
-        .shell(deviceId, `mv "${oldPath}" "${newPath}"`)
+        .shell(deviceId, `mv ${shellQuote(oldPath)} ${shellQuote(newPath)}`)
         .then((stream: any) => {
           stream.on("data", () => {});
           stream.on("end", resolve);
@@ -101,6 +125,7 @@ export async function pushFile(
   onLog: (log: string) => void,
 ) {
   try {
+    assertSafeRemotePath(remotePath, false);
     onLog(`Đang tải lên: ${path.basename(localPath)} -> ${remotePath}`);
     const transfer = await adbState.client.push(
       deviceId,
@@ -135,6 +160,7 @@ export async function pullFile(
   onLog: (log: string) => void,
 ) {
   try {
+    assertSafeRemotePath(remotePath, false);
     onLog(`Đang tải về: ${remotePath} -> ${localPath}`);
     const transfer = await adbState.client.pull(deviceId, remotePath);
     return new Promise((resolve, reject) => {
@@ -162,6 +188,7 @@ export async function pullFile(
 
 export async function getFileBase64(deviceId: string, remotePath: string) {
   try {
+    assertSafeRemotePath(remotePath, false);
     const transfer = await adbState.client.pull(deviceId, remotePath);
     return new Promise<string>((resolve, reject) => {
       const chunks: Buffer[] = [];

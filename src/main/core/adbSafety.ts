@@ -28,7 +28,8 @@ const PACKAGE_NAME_REGEX =
 const SETTINGS_KEY_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 // Danh sách các ký tự nguy hiểm cấm xuất hiện trong đường dẫn để chống chèn lệnh
-const DANGEROUS_PATH_CHARS = /[;&|`$\n\r]/;
+const DANGEROUS_PATH_CHARS = /[\0"';&|`$\n\r\\*?[\]{}<>]/;
+const SAFE_REMOTE_ROOTS = ["/sdcard", "/storage", "/data/local/tmp"];
 
 /**
  * Kiểm tra tính hợp lệ của Android Package Name.
@@ -53,19 +54,22 @@ export function validateSettingsKey(key: string): boolean {
 export function validateRemotePath(remotePath: string): boolean {
   if (!remotePath || remotePath.length > 512) return false;
 
+  const normalizedPath = remotePath.trim().replace(/\/+/g, "/");
+
   // Chống chèn ký tự điều khiển lệnh
-  if (DANGEROUS_PATH_CHARS.test(remotePath)) return false;
+  if (DANGEROUS_PATH_CHARS.test(normalizedPath)) return false;
 
   // Chống Path Traversal quay ngược thư mục nguy hiểm
-  if (remotePath.includes("..")) return false;
+  if (normalizedPath.includes("..")) return false;
 
-  // Cho phép các thư mục Android an toàn hoặc cấu trúc root chuẩn
-  return (
-    remotePath.startsWith("/") ||
-    remotePath.startsWith("/sdcard") ||
-    remotePath.startsWith("/storage") ||
-    remotePath.startsWith("/data/local/tmp")
+  // Chỉ cho phép các vùng lưu trữ người dùng hoặc thư mục tạm ADB.
+  return SAFE_REMOTE_ROOTS.some(
+    (root) => normalizedPath === root || normalizedPath.startsWith(`${root}/`),
   );
+}
+
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 /**
@@ -159,6 +163,9 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "wm size",
     "wm density",
     "df",
+    "ip ",
+    "netstat ",
+    "ss ",
     "getenforce",
     "which ",
     "id",
@@ -228,15 +235,23 @@ export function evaluateCommand(cmd: string): EvaluationResult {
   if (trimmed.startsWith("pm ") || trimmed.startsWith("cmd package ")) {
     // Chặn các tác vụ nguy hại hoặc can thiệp lõi nếu không thuộc whitelist
     if (trimmed.includes("disable-user") || trimmed.includes("uninstall")) {
-      // Cần trích xuất package name để xác thực
-      const parts = trimmed.split(/\s+/);
-      const pkg = parts[parts.length - 1]; // Thường package ở cuối cùng
-      if (pkg && !validatePackageName(pkg)) {
+      // Tìm chuỗi khớp định dạng Package Name trong câu lệnh
+      const match = trimmed.match(/(?:disable-user|uninstall)(?:\s+-[a-zA-Z0-9-]+|\s+--[a-zA-Z0-9-]+|\s+\d+)*\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)/);
+      if (!match) {
         return {
           allowed: false,
           risk: "DANGEROUS",
           mode: "PACKAGE_OP",
-          reason: `Tên Package không an toàn hoặc sai định dạng: ${pkg}`,
+          reason: "Không tìm thấy tên Package hợp lệ hoặc sai cấu trúc lệnh.",
+        };
+      }
+      const pkg = match[1];
+      if (pkg.length > 128) {
+        return {
+          allowed: false,
+          risk: "DANGEROUS",
+          mode: "PACKAGE_OP",
+          reason: "Tên Package quá dài.",
         };
       }
       return { allowed: true, risk: "RISKY", mode: "PACKAGE_OP" };
@@ -330,19 +345,5 @@ export function buildShellCommand(
  * Làm sạch tất cả các tiền tố "adb shell", "shell", "adb" lặp lại dư thừa ở đầu câu lệnh.
  */
 export function cleanAdbPrefix(cmd: string): string {
-  let cleaned = cmd.trim();
-  while (true) {
-    const lower = cleaned.toLowerCase();
-    if (lower.startsWith("adb shell ")) {
-      cleaned = cleaned.slice(10).trim();
-    } else if (lower.startsWith("shell ")) {
-      cleaned = cleaned.slice(6).trim();
-    } else if (lower.startsWith("adb ")) {
-      cleaned = cleaned.slice(4).trim();
-    } else {
-      break;
-    }
-  }
-  return cleaned;
+  return cmd.trim().replace(/^(adb\s+shell\s+|shell\s+|adb\s+)+/i, "").trim();
 }
-

@@ -20,9 +20,8 @@ import { FloatingQuickBoot } from "./components/layout/FloatingQuickBoot";
 import { Dashboard } from "./components/features/Dashboard";
 import { AppManager } from "./components/features/AppManager";
 import { FileManager } from "./components/features/FileManager";
-import { SystemTweaks } from "./components/features/SystemTweaks";
 import { SystemOptimization } from "./components/features/SystemOptimization";
-import { UserExperience } from "./components/features/UserExperience";
+import { ExperienceCenter } from "./components/features/ExperienceCenter";
 import { AdvancedAdb } from "./components/features/AdvancedAdb";
 import Settings from "./features/settings/Settings";
 import { ControlCenterModal } from "./components/layout/ControlCenterModal";
@@ -135,17 +134,10 @@ function App() {
             />
             <NavItem
               icon={<Sparkles />}
-              label="Trải nghiệm người dùng"
+              label="UX & Tinh chỉnh"
               active={activeTab === "experience"}
               isExpanded={isSidebarOpen}
               onClick={() => setActiveTab("experience")}
-            />
-            <NavItem
-              icon={<SlidersHorizontal />}
-              label="Tinh chỉnh hệ thống"
-              active={activeTab === "tweaks"}
-              isExpanded={isSidebarOpen}
-              onClick={() => setActiveTab("tweaks")}
             />
             <NavItem
               icon={<Sliders />}
@@ -181,14 +173,12 @@ function App() {
                   : activeTab === "optimize"
                     ? "Tối ưu hệ thống"
                     : activeTab === "experience"
-                      ? "Trải nghiệm người dùng"
-                      : activeTab === "tweaks"
-                        ? "Tinh chỉnh hệ thống"
-                        : activeTab === "advanced"
-                          ? "Nâng cao ADB"
-                          : activeTab === "settings"
-                            ? "Cài đặt"
-                            : activeTab}
+                      ? "Trung tâm trải nghiệm"
+                      : activeTab === "advanced"
+                        ? "Nâng cao ADB"
+                        : activeTab === "settings"
+                          ? "Cài đặt"
+                          : activeTab}
           </h2>
 
           <div className="flex items-center gap-4">
@@ -247,13 +237,16 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden p-8 relative">
+        <div
+          className={`flex-1 overflow-hidden relative ${
+            activeTab === "experience" ? "p-4" : "p-8"
+          }`}
+        >
           <ErrorBoundary>
             {activeTab === "dashboard" && <Dashboard />}
             {activeTab === "system" && <AppManager />}
             {activeTab === "files" && <FileManager />}
-            {activeTab === "experience" && <UserExperience />}
-            {activeTab === "tweaks" && <SystemTweaks />}
+            {activeTab === "experience" && <ExperienceCenter />}
             {activeTab === "optimize" && <SystemOptimization />}
             {activeTab === "advanced" && <AdvancedAdb />}
             {activeTab === "settings" && <Settings />}
@@ -261,7 +254,6 @@ function App() {
               activeTab !== "system" &&
               activeTab !== "files" &&
               activeTab !== "experience" &&
-              activeTab !== "tweaks" &&
               activeTab !== "optimize" &&
               activeTab !== "advanced" &&
               activeTab !== "settings" && (

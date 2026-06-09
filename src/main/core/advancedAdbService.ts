@@ -1,6 +1,8 @@
-import { runAdbCommand } from "./adbService";
+import { runAdbCommand } from "./adbCore";
 import { ADVANCED_COMMANDS } from "./advancedCommandRegistry";
 import { evaluateCommand, buildShellCommand, cleanAdbPrefix } from "./adbSafety";
+
+const GETPROP_REGEX = /^\[([^\]]+)\]:\s*\[([^\]]*)\]$/;
 
 export class AdvancedAdbService {
   /**
@@ -19,7 +21,7 @@ export class AdvancedAdbService {
         if (!trimmed) continue;
 
         // Định dạng getprop: [ro.product.model]: [Redmi Note 12]
-        const match = trimmed.match(/^\[([^\]]+)\]:\s*\[([^\]]*)\]$/);
+        const match = trimmed.match(GETPROP_REGEX);
         if (match) {
           result.push({
             key: match[1],
@@ -51,6 +53,16 @@ export class AdvancedAdbService {
         `settings list ${namespace}`,
         () => {},
       );
+
+      if (
+        output.startsWith("FAILED") ||
+        output.startsWith("ERROR") ||
+        output.startsWith("CRITICAL ERROR") ||
+        output.includes("[BLOCKED BY SAFETY LAYER]")
+      ) {
+        return [];
+      }
+
       const lines = output.split("\n");
       const result: Array<{ key: string; value: string }> = [];
 
@@ -83,7 +95,12 @@ export class AdvancedAdbService {
    */
   async getDumpsys(deviceId: string, service: string): Promise<string> {
     const cleanService = service.trim().toLowerCase();
-    // Giới hạn chỉ cho phép các dumpsys an toàn để tránh quá tải
+    
+    // Chỉ cho phép chữ cái thường (ví dụ: battery, wifi, activity)
+    if (!/^[a-z]+$/.test(cleanService)) {
+      throw new Error(`Dịch vụ không hợp lệ: ${service}`);
+    }
+
     const allowedDumpsys = [
       "battery",
       "power",
@@ -93,22 +110,13 @@ export class AdvancedAdbService {
       "activity",
     ];
 
-    // Nếu dumpsys có chứa tham số package
-    let isAllowed = false;
-    for (const allowed of allowedDumpsys) {
-      if (cleanService.startsWith(allowed)) {
-        isAllowed = true;
-        break;
-      }
-    }
-
-    if (!isAllowed) {
+    if (!allowedDumpsys.includes(cleanService)) {
       throw new Error(
         `Dịch vụ dumpsys không được hỗ trợ hoặc không an toàn: ${service}`,
       );
     }
 
-    return await runAdbCommand(deviceId, `dumpsys ${service}`, () => {});
+    return await runAdbCommand(deviceId, `dumpsys ${cleanService}`, () => {});
   }
 
   /**

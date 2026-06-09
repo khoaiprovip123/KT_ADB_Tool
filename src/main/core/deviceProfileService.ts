@@ -1,4 +1,4 @@
-import { adbState } from "./adbService";
+import { adbState } from "./adbCore";
 
 export interface DeviceProfile {
   brand: string;

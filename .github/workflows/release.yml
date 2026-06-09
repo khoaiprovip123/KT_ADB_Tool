@@ -1,0 +1,77 @@
+name: Automated Windows Installer Deploy Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  compile-and-publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python Runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Compilers Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller requests
+
+      - name: Injection Version Dynamic Data
+        shell: bash
+        run: |
+          # Ghi đè tự động mã Tag vào file cấu hình Python
+          VERSION_TAG=${GITHUB_REF#refs/tags/}
+          echo "CURRENT_VERSION = '$VERSION_TAG'" > version_config.py
+          
+          # Cập nhật số phiên bản đồng bộ vào file script Inno Setup
+          sed -i "s/AppVersion=.*/AppVersion=$VERSION_TAG/g" installer.iss
+
+      - name: PyInstaller Compiling Process
+        run: |
+          # Build ra dạng thư mục folder (--onedir) thay vì 1 file nén đơn lẻ
+          pyinstaller --onedir --noconsole main.py
+
+      - name: Compile Installer Package via Inno Setup
+        uses: amake/setup-innosetup@v1
+        with:
+          inno-version: latest
+
+      - name: Execution Inno Setup Build Command
+        run: |
+          iscc installer.iss
+
+      - name: Generate Auto Changelogs
+        id: build_changelog
+        shell: bash
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$latest_tag" ]; then
+            log_data=$(git log --oneline)
+          else
+            log_data=$(git log ${latest_tag}..HEAD --oneline)
+          fi
+          echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_ENV
+          echo "$log_data" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create GitHub Release and Upload Installer Artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Production Release ${{ github.ref_name }}
+          body: |
+            ## Automated Change Release Logs:
+            ${{ env.CHANGELOG_CONTENT }}
+          draft: false
+          prerelease: false
+          files: output/Application_Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

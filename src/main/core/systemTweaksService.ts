@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { app } from "electron";
-import { execAdb } from "./adbService";
+import { execAdb } from "./adbCore";
+import { validatePackageName } from "./adbSafety";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,10 @@ export async function getPackageStatus(
   deviceId: string,
   packageName: string,
 ): Promise<PkgStatus> {
+  if (!validatePackageName(packageName)) {
+    return "uninstalled";
+  }
+
   try {
     const [allOut, disabledOut] = await Promise.all([
       execAdb(deviceId, `shell pm list packages ${packageName}`),
@@ -155,6 +160,13 @@ export async function debloatPackage(
   action: DebloatAction,
   preferDisable = false,
 ): Promise<{ success: boolean; message: string }> {
+  if (!validatePackageName(packageName)) {
+    return {
+      success: false,
+      message: "[BLOCKED] Tên package không hợp lệ.",
+    };
+  }
+
   if (PROTECTED_PACKAGES.has(packageName)) {
     return {
       success: false,
@@ -178,11 +190,30 @@ export async function debloatPackage(
         break;
     }
 
-    const output = await execAdb(deviceId, cmd);
-    const success =
+    let output = await execAdb(deviceId, cmd);
+
+    // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException, tự động chạy uninstall --user 0
+    if (
+      (action === "uninstall" || action === "disable") &&
+      (output.includes("SecurityException") || output.includes("Cannot disable"))
+    ) {
+      const fallbackCmd = `shell pm uninstall --user 0 ${packageName}`;
+      output = await execAdb(deviceId, fallbackCmd);
+    }
+
+    let success =
       output.includes("Success") ||
       output.includes("success") ||
       action === "restore";
+
+    // Nếu ứng dụng không tồn tại hoặc đã gỡ từ trước, coi như thành công
+    if (!success && (
+      output.includes("Unknown package") ||
+      output.includes("not installed")
+    )) {
+      success = true;
+    }
+
     return { success, message: output.trim() };
   } catch (err: any) {
     return { success: false, message: err.message ?? "Unknown error" };
@@ -405,11 +436,62 @@ export async function applyTweak(
   enable: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cmd = enable ? tweak.enableCmd : tweak.disableCmd;
-    const output = await execAdb(deviceId, cmd);
+    let cmd = enable ? tweak.enableCmd : tweak.disableCmd;
+    let output = await execAdb(deviceId, cmd);
+    const lowerOutput = output.toLowerCase();
+
+    // Lấy tên package nếu lệnh là pm
+    const pmMatch = cmd.match(/pm\s+(?:disable-user|uninstall|install-existing)[^\n\r]*?\s+([a-zA-Z0-9._-]+)/);
+    const targetPkg = pmMatch ? pmMatch[1] : null;
+
+    if (targetPkg) {
+      // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException, tự động chạy uninstall --user 0
+      if (
+        (lowerOutput.includes("securityexception") || lowerOutput.includes("cannot disable")) &&
+        cmd.includes("disable-user")
+      ) {
+        const fallbackCmd = `shell pm uninstall --user 0 ${targetPkg}`;
+        output = await execAdb(deviceId, fallbackCmd);
+      }
+
+      // Check success again after fallback
+      const finalLower = output.toLowerCase();
+      let success =
+        finalLower.includes("success") ||
+        cmd.includes("install-existing");
+
+      if (!success && (
+        finalLower.includes("unknown package") ||
+        finalLower.includes("not installed")
+      )) {
+        return { success: true, message: "Gói ứng dụng không tồn tại trên thiết bị, tự động bỏ qua." };
+      }
+
+      if (!success && (
+        finalLower.includes("failed") ||
+        finalLower.includes("failure") ||
+        finalLower.includes("error") ||
+        finalLower.includes("exception")
+      )) {
+        return { success: false, message: output.trim() };
+      }
+
+      return { success: true, message: output.trim() || "OK" };
+    }
+
+    // Đối với các lệnh không phải pm (settings get/put, wm...)
+    if (
+      lowerOutput.includes("failed") ||
+      lowerOutput.includes("failure") ||
+      lowerOutput.includes("error") ||
+      lowerOutput.includes("exception")
+    ) {
+      return { success: false, message: output.trim() };
+    }
+
     return { success: true, message: output.trim() || "OK" };
   } catch (err: any) {
-    return { success: false, message: err.message };
+    return { success: false, message: err.message ?? "Unknown error" };
   }
 }
 
@@ -447,8 +529,8 @@ export async function setDpi(
   deviceId: string,
   dpi: number,
 ): Promise<{ success: boolean; message: string }> {
-  if (dpi < 100 || dpi > 640) {
-    return { success: false, message: "DPI phải nằm trong khoảng 100–640" };
+  if (!Number.isInteger(dpi) || dpi < 160 || dpi > 640) {
+    return { success: false, message: "DPI phải nằm trong khoảng 160–640" };
   }
   try {
     await execAdb(deviceId, `shell wm density ${dpi}`);
@@ -474,6 +556,17 @@ export async function setResolution(
   width: number,
   height: number,
 ): Promise<{ success: boolean; message: string }> {
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 480 ||
+    width > 3840 ||
+    height < 800 ||
+    height > 3840
+  ) {
+    return { success: false, message: "Độ phân giải không hợp lệ" };
+  }
+
   try {
     await execAdb(deviceId, `shell wm size ${width}x${height}`);
     return {
@@ -688,5 +781,12 @@ const BUILTIN_BLOATWARE_DB: BloatwareEntry[] = [
     risk: "RISKY",
     category: "Google",
     preferDisable: true,
+  },
+  {
+    package: "com.miui.browser",
+    name: "Mi Browser",
+    description: "Trình duyệt mặc định Xiaomi bảo mật kém, chứa quảng cáo. Hãy cài sẵn Chrome/Edge trước khi gỡ.",
+    risk: "RISKY",
+    category: "Browser",
   },
 ];

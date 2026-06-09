@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { electronAPI } from "@electron-toolkit/preload";
 
 // Validate input before sending to main process
 const validateCommand = (deviceId: string, command: string): boolean => {
@@ -51,12 +50,16 @@ const api = {
   manageApp: (
     deviceId: string,
     pkgName: string,
-    action: "uninstall" | "disable" | "enable" | "clear" | "stop",
+    action: "uninstall" | "disable" | "enable" | "clear" | "stop" | "restore",
   ) => {
     if (!/^[a-zA-Z0-9._-]+$/.test(pkgName)) {
       return Promise.reject(new Error("Invalid package name"));
     }
-    if (!["uninstall", "disable", "enable", "clear", "stop"].includes(action)) {
+    if (
+      !["uninstall", "disable", "enable", "clear", "stop", "restore"].includes(
+        action,
+      )
+    ) {
       return Promise.reject(new Error("Invalid action"));
     }
     return ipcRenderer.invoke("adb:manage-app", { deviceId, pkgName, action });
@@ -217,18 +220,26 @@ const api = {
   storeSet: (key: string, val: any) =>
     ipcRenderer.invoke("store:set", key, val),
   storeDelete: (key: string) => ipcRenderer.invoke("store:delete", key),
+
+  // App Version & Auto-update
+  getAppVersion: () => ipcRenderer.invoke("app:get-version"),
+  checkForUpdates: () => ipcRenderer.invoke("app:check-for-updates"),
+  downloadAndInstallUpdate: (downloadUrl: string) =>
+    ipcRenderer.invoke("app:download-install-update", downloadUrl),
+  onUpdateProgress: (cb: (progress: number) => void) => {
+    const listener = (_e: any, progress: number) => cb(progress);
+    ipcRenderer.on("app:update-progress", listener);
+    return () => ipcRenderer.removeListener("app:update-progress", listener);
+  },
 };
 
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld("electron", electronAPI);
     contextBridge.exposeInMainWorld("api", api);
   } catch (error) {
     console.error("Preload Error:", error);
   }
 } else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI;
   // @ts-ignore (define in dts)
   window.api = api;
 }

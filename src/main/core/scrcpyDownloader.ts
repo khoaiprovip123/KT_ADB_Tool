@@ -10,7 +10,8 @@ export async function ensureScrcpy(
   binPath: string,
   onProgress: (msg: string) => void,
 ) {
-  const scrcpyExe = path.join(binPath, "scrcpy.exe");
+  const scrcpyFolder = path.join(binPath, "scrcpy");
+  const scrcpyExe = path.join(scrcpyFolder, "scrcpy.exe");
 
   if (fs.existsSync(scrcpyExe)) {
     return scrcpyExe;
@@ -53,7 +54,6 @@ export async function ensureScrcpy(
     const zip = new AdmZip(zipPath);
 
     // Extract to resources/bin/scrcpy
-    const scrcpyFolder = path.join(binPath, "scrcpy");
     if (!fs.existsSync(scrcpyFolder))
       fs.mkdirSync(scrcpyFolder, { recursive: true });
 

@@ -1,4 +1,7 @@
-import { ElectronAPI } from "@electron-toolkit/preload";
+import type {
+  XiaomiApplyResult,
+  XiaomiRollbackResult,
+} from "@shared/types/xiaomi";
 
 export interface IADBAPI {
   initAdb: () => Promise<boolean>;
@@ -108,11 +111,11 @@ export interface IADBAPI {
     deviceId: string,
     itemId: string,
     enable: boolean,
-  ) => Promise<{ success: boolean; output: string }>;
+  ) => Promise<XiaomiApplyResult>;
   rollbackXiaomiItem: (
     deviceId: string,
     itemId: string,
-  ) => Promise<{ success: boolean; output: string }>;
+  ) => Promise<XiaomiRollbackResult>;
 
   // Advanced ADB
   getProps: (
@@ -137,11 +140,21 @@ export interface IADBAPI {
   storeGet: (key: string) => Promise<any>;
   storeSet: (key: string, val: any) => Promise<void>;
   storeDelete: (key: string) => Promise<void>;
+
+  // App Version & Auto-update
+  getAppVersion: () => Promise<string>;
+  checkForUpdates: () => Promise<{
+    available: boolean;
+    version: string;
+    changelog: string;
+    downloadUrl: string | null;
+  }>;
+  downloadAndInstallUpdate: (downloadUrl: string) => Promise<void>;
+  onUpdateProgress: (cb: (progress: number) => void) => () => void;
 }
 
 declare global {
   interface Window {
-    electron: ElectronAPI;
     api: IADBAPI;
   }
 }

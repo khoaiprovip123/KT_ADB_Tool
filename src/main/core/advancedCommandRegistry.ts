@@ -49,8 +49,7 @@ export const ADVANCED_COMMANDS: AdvancedCommandDefinition[] = [
     category: "diagnostics",
     risk: "SAFE",
     mode: "READ_ONLY",
-    readTemplate:
-      'dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity"',
+    readTemplate: "dumpsys activity activities",
   },
   {
     id: "diag_package_info",
@@ -196,6 +195,6 @@ export const ADVANCED_COMMANDS: AdvancedCommandDefinition[] = [
     category: "network",
     risk: "SAFE",
     mode: "READ_ONLY",
-    readTemplate: "netstat -anp || ss -an",
+    readTemplate: "netstat -anp",
   },
 ];

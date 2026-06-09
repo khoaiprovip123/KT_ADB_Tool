@@ -1,36 +1,23 @@
 import { ipcMain } from "electron";
-import {
-  getDevices,
-  getDeviceInfo,
-  killAdbServer,
-  initAdb,
-} from "../core/adbService";
+import { getDevices, killAdbServer, initAdb } from "../core/adbCore";
 import {
   runScrcpy,
   connectWifi,
   connectIp,
   pairDevice,
   getStorageStats,
+  getDeviceInfo,
 } from "../core/deviceService";
+import {
+  assertValidSettingsNamespace,
+  isValidDeviceId,
+} from "./validate";
 import {
   getDeviceProfile,
   getInstalledPackageSet,
   readSettingsSnapshot,
   readDeviceConfigSnapshot,
 } from "../core/deviceProfileService";
-
-/**
- * Validate deviceId để tránh injection qua IPC.
- * Device ID hợp lệ chỉ chứa chữ, số, dấu chấm, gạch ngang, hai chấm.
- */
-function isValidDeviceId(id: any): id is string {
-  return (
-    typeof id === "string" &&
-    id.length > 0 &&
-    id.length < 100 &&
-    /^[a-zA-Z0-9_.:-]+$/.test(id)
-  );
-}
 
 export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
   ipcMain.handle("adb:fix-connection", async () => {
@@ -127,6 +114,11 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
     "adb:read-settings-snapshot",
     async (_event, { deviceId, namespace }) => {
       if (!isValidDeviceId(deviceId)) return {};
+      try {
+        assertValidSettingsNamespace(namespace);
+      } catch {
+        return {};
+      }
       return await readSettingsSnapshot(deviceId, namespace);
     },
   );
