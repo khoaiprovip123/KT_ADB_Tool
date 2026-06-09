@@ -21,6 +21,7 @@ function createWindow(): void {
     titleBarStyle: "hiddenInset",
     autoHideMenuBar: true,
     backgroundColor: "#f4f7fb",
+    icon: join(__dirname, "../../resources/icon.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,

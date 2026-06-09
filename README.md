@@ -1,4 +1,4 @@
-# KT ADB Tool Pro v2.3.3-PRO-MAX
+# KT ADB Tool Pro v2.3.4-PRO-MAX
 
 **KT ADB Tool Pro** là giải pháp quản lý thiết bị Android qua ADB, xây dựng trên Electron và ADBKit, với giao diện hiện đại (Glassmorphism).
 

@@ -3,7 +3,7 @@ import { Sparkles, Package, Loader2, ArrowUpCircle } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.3.3-PRO-MAX");
+  const [currentVersion, setCurrentVersion] = useState("v2.3.4-PRO-MAX");
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -228,7 +228,7 @@ export default function Updates() {
         </h3>
 
         <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-slate-200/60">
-          {/* Version 2.3.3 */}
+          {/* Version 2.3.4 */}
           <div className="relative pl-14 group">
             <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
               <Sparkles className="w-5 h-5 text-white" />
@@ -237,7 +237,7 @@ export default function Updates() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
               <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.3-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
+                  v2.3.4-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
                 </div>
                 <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
                   09/06/2026
@@ -246,6 +246,32 @@ export default function Updates() {
               <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
                 <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Tái thiết kế bộ nhận diện & Cửa sổ**: Cập nhật icon ứng dụng hoa sen nở tông màu hồng trên nền sáng tinh tế, tích hợp logo 'KT' có hiệu ứng Liquid Glass và hiệu ứng các tam giác nhỏ màu bay lên.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Version 2.3.3 */}
+          <div className="relative pl-14 group">
+            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="font-black text-slate-700 text-xl tracking-tighter">
+                  v2.3.3-PRO-MAX
+                </div>
+                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
+                  09/06/2026
+                </time>
+              </div>
+              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
                   <span>
                     **Sửa lỗi tự động cập nhật**: Thêm cấu hình chạy quyền admin qua shell Windows để kích hoạt UAC prompt, sửa lỗi treo tiến trình cài đè khi tải về 100%.
                   </span>
