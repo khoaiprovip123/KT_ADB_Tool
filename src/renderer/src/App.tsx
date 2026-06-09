@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Cpu,
   Settings as SettingsIcon,
-  Smartphone,
   LayoutGrid,
   Terminal,
   SlidersHorizontal,
@@ -29,6 +28,7 @@ import { ConnectionManagerModal } from "./components/layout/ConnectionManagerMod
 
 import { ToastProvider } from "./components/layout/ToastProvider";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+import logoImg from "./assets/images/logo.png";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -88,8 +88,8 @@ function App() {
           <div
             className={`flex items-center ${isSidebarOpen ? "gap-3" : "justify-center"} mb-10 overflow-hidden`}
           >
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 shrink-0">
-              <Smartphone className="text-white w-6 h-6" />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+              <img src={logoImg} alt="Logo" className="w-10 h-10 object-contain rounded-xl shadow-sm" />
             </div>
             {isSidebarOpen && (
               <div className="whitespace-nowrap transition-opacity duration-300">
