@@ -1,4 +1,14 @@
+import { useState, useEffect } from "react";
+
 export default function About() {
+  const [appVersion, setAppVersion] = useState("2.3.2-PRO-MAX");
+
+  useEffect(() => {
+    window.api.getAppVersion().then((ver) => {
+      if (ver) setAppVersion(`${ver}`);
+    }).catch(err => console.error("Lấy phiên bản lỗi:", err));
+  }, []);
+
   return (
     <div className="space-y-8 text-slate-600">
       <div className="flex items-center gap-8 pb-8 border-b border-slate-200/60">
@@ -25,7 +35,7 @@ export default function About() {
             KT ADB Tool <span className="text-blue-600">Pro</span>
           </h1>
           <p className="text-lg font-bold text-slate-400 mt-1 tracking-tight">
-            Phiên bản 2.3.0-PRO-MAX
+            Phiên bản {appVersion.startsWith("v") ? appVersion : `v${appVersion}`}
           </p>
           <div className="flex gap-2 mt-3">
             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest border border-blue-100">
