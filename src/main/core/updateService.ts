@@ -66,33 +66,47 @@ export async function downloadAndInstallUpdate(
   const contentLength = response.headers["content-length"];
   const totalLength = parseInt(typeof contentLength === "string" ? contentLength : "0", 10);
   let downloadedLength = 0;
-
-  response.data.on("data", (chunk: Buffer) => {
-    downloadedLength += chunk.length;
-    if (totalLength > 0) {
-      onProgress(Math.round((downloadedLength / totalLength) * 100));
-    }
-  });
-
-  response.data.pipe(writer);
-
   return new Promise((resolve, reject) => {
+    response.data.on("data", (chunk: Buffer) => {
+      downloadedLength += chunk.length;
+      if (totalLength > 0) {
+        onProgress(Math.round((downloadedLength / totalLength) * 100));
+      }
+    });
+
+    response.data.on("error", (err: any) => {
+      writer.close();
+      fs.unlink(destPath, () => {});
+      reject(err);
+    });
+
+    response.data.pipe(writer);
+
     writer.on("finish", () => {
-      // Chạy trình cài đặt NSIS ở chế độ im lặng (/S)
+      // Chạy trình cài đặt NSIS với shell: true để Windows xử lý UAC nâng quyền chính xác và tham số im lặng /S
       const child = spawn(destPath, ["/S"], {
         detached: true,
         stdio: "ignore",
+        shell: true,
       });
+
+      child.on("error", (spawnErr) => {
+        console.error("Lỗi kích hoạt bộ cài:", spawnErr);
+        reject(new Error(`Không thể khởi chạy bộ cài đặt: ${spawnErr.message}`));
+      });
+
       child.unref();
 
-      // Thoát ứng dụng hiện tại để tránh file lock
+      // Thoát ứng dụng hiện tại sau khi kích hoạt bộ cài để giải phóng file lock
       setTimeout(() => {
         app.quit();
-      }, 500);
+      }, 800);
 
       resolve();
     });
+
     writer.on("error", (err) => {
+      fs.unlink(destPath, () => {});
       reject(err);
     });
   });
