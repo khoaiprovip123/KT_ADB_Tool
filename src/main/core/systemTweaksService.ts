@@ -436,7 +436,7 @@ export async function applyTweak(
   enable: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    let cmd = enable ? tweak.enableCmd : tweak.disableCmd;
+    const cmd = enable ? tweak.enableCmd : tweak.disableCmd;
     let output = await execAdb(deviceId, cmd);
     const lowerOutput = output.toLowerCase();
 
@@ -456,7 +456,7 @@ export async function applyTweak(
 
       // Check success again after fallback
       const finalLower = output.toLowerCase();
-      let success =
+      const success =
         finalLower.includes("success") ||
         cmd.includes("install-existing");
 

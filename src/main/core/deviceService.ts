@@ -27,7 +27,9 @@ export async function runScrcpy(
     if (existing) {
       try {
         existing.kill();
-      } catch {}
+      } catch {
+        // Bỏ qua lỗi khi kill process cũ - có thể process đã thoát rồi
+      }
       activeScrcpyProcesses.delete(deviceId);
     }
 
@@ -238,14 +240,15 @@ export async function getStorageStats(
           const total = parseInt(parts[1]) * 1024;
           const used = parseInt(parts[2]) * 1024;
           let free = parseInt(parts[3]) * 1024;
-          if (isNaN(free) && parts.length >= 6) {
+          if (isNaN(free) && parts.length >= 6 && !parts[4].includes("%")) {
             free = parseInt(parts[4]) * 1024;
           }
           const percentageStr = parts.find((p) => p.includes("%")) || "0%";
           const percentage = parseInt(percentageStr.replace("%", ""));
 
           if (!isNaN(total) && !isNaN(used) && !isNaN(percentage)) {
-            return { total, used, free: total - used, percentage };
+            const finalFree = isNaN(free) ? total - used : free;
+            return { total, used, free: finalFree, percentage };
           }
         }
       }

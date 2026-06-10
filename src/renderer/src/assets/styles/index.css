@@ -31,3 +31,92 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* Dark Mode Overrides */
+html.dark {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+}
+
+html.dark body {
+  background-color: #0b0f19;
+  color: #e2e8f0;
+}
+
+/* Sidebar and Header translucency/blur */
+html.dark aside,
+html.dark header,
+html.dark .bg-white,
+html.dark .bg-white\/80,
+html.dark .bg-white\/50,
+html.dark .bg-white\/60,
+html.dark .bg-white\/95 {
+  background-color: rgba(17, 24, 39, 0.75) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Settings, updates, list items, logs, modals, inputs */
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/50,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-100,
+html.dark .bg-slate-100\/50,
+html.dark .bg-slate-100\/80 {
+  background-color: rgba(31, 41, 55, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #374151 !important;
+}
+
+html.dark input::placeholder,
+html.dark select::placeholder,
+html.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+/* Text color adaptations */
+html.dark .text-slate-800,
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: #e5e7eb !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-slate-400 {
+  color: #9ca3af !important;
+}
+
+/* Border adaptations */
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/60,
+html.dark .border-slate-300,
+html.dark .border-white,
+html.dark .border-white\/40,
+html.dark .border-glass-border {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Custom button states */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-100\/80:hover {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+}
+
+/* Text highlights and badges */
+html.dark .text-blue-600 {
+  color: #60a5fa !important;
+}
+html.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+

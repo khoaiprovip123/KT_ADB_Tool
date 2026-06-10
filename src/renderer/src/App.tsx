@@ -36,8 +36,8 @@ function App() {
   const [isCcOpen, setIsCcOpen] = useState(false);
   const [isConnManagerOpen, setIsConnManagerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { settings, loadSettings } = useSettingsStore();
   const { devices, activeDevice, setDevices, addLog } = useDeviceStore();
-  const { loadSettings } = useSettingsStore();
 
   useEffect(() => {
     // Tải cài đặt từ Electron Store
@@ -65,8 +65,22 @@ function App() {
     });
   }, [setDevices, addLog]);
 
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const theme = settings.theme;
+    const isDark =
+      theme === "dark" ||
+      (theme === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (isDark) {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, [settings.theme]);
+
   return (
-    <div className="flex h-screen w-full bg-[#f4f7fb] text-slate-800 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#f4f7fb] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
       <ToastProvider />
       {/* SIDEBAR */}
       <aside

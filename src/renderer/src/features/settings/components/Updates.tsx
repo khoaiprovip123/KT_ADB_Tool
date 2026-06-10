@@ -3,7 +3,7 @@ import { Sparkles, Package, Loader2, ArrowUpCircle } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.3.5-PRO-MAX");
+  const [currentVersion, setCurrentVersion] = useState("v2.3.6-PRO-MAX");
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -80,7 +80,7 @@ export default function Updates() {
             Đảm bảo bạn luôn trải nghiệm phiên bản mạnh mẽ nhất
           </p>
         </div>
-        
+
         {updateStatus !== "checking" && updateStatus !== "downloading" && (
           <button
             onClick={handleCheckUpdate}
@@ -228,6 +228,38 @@ export default function Updates() {
         </h3>
 
         <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-slate-200/60">
+          {/* Version 2.3.6 */}
+          <div className="relative pl-14 group">
+            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="font-black text-slate-800 text-xl tracking-tighter">
+                  v2.3.6-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
+                </div>
+                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
+                  10/06/2026
+                </time>
+              </div>
+              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Tối ưu hóa Giao diện tối**: Tích hợp bộ quy tắc CSS ghi đè Dark Mode đồng bộ tự động cho toàn bộ ứng dụng, đảm bảo tính thẩm mỹ cao và sự thoải mái cho mắt khi sử dụng.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Sửa lỗi dead-code**: Sửa lỗi logic lấy dung lượng bộ nhớ trống `getStorageStats` trên thiết bị và bổ sung bộ lọc bỏ qua định dạng cột phần trăm, tối ưu hiệu năng ADB.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
           {/* Version 2.3.5 */}
           <div className="relative pl-14 group">
             <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
@@ -273,7 +305,7 @@ export default function Updates() {
                 <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
                   <span>
-                    **Tái thiết kế bộ nhận diện & Cửa sổ**: Cập nhật icon ứng dụng hoa sen nở tông màu hồng trên nền sáng tinh tế, tích hợp logo 'KT' có hiệu ứng Liquid Glass và hiệu ứng các tam giác nhỏ màu bay lên.
+                    **Tái thiết kế bộ nhận diện & Cửa sổ**: Cập nhật icon ứng dụng hoa sen nở tông màu hồng trên nền sáng tinh tế, tích hợp logo &apos;KT&apos; có hiệu ứng Liquid Glass và hiệu ứng các tam giác nhỏ màu bay lên.
                   </span>
                 </li>
               </ul>

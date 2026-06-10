@@ -16,7 +16,7 @@ interface SettingsStore {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  theme: "system",
+  theme: "dark",
   autoRefresh: true,
   autoBackupApk: false,
   downloadPath: "",

@@ -1,6 +1,6 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.3.5-PRO-MAX",
+  "version": "2.3.6-PRO-MAX",
   "description": "KT ADB Tool Pro - Giải pháp tối ưu hóa và quản lý Android chuyên nghiệp toàn diện",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
@@ -52,6 +52,7 @@
     "electron-vite": "^2.3.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
     "react": "^18.3.1",
@@ -75,7 +76,9 @@
       {
         "from": "resources/bin",
         "to": "bin",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "xiaomi_bloatware_removal.json",
@@ -83,7 +86,9 @@
       }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "resources/icon.png",
       "signAndEditExecutable": false
     },
