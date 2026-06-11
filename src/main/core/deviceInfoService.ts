@@ -42,7 +42,10 @@ export async function getDeviceInfo(deviceId: string) {
       "Unknown";
 
     const cleanCodename = codename.trim();
-    const friendlyName = (xiaomiCodenames as Record<string, string>)[cleanCodename];
+    let friendlyName = (xiaomiCodenames as Record<string, string>)[cleanCodename];
+    if (friendlyName && friendlyName.includes("|")) {
+      friendlyName = friendlyName.split("|")[0].trim();
+    }
     const displayCodename = friendlyName ? `${codename} (${friendlyName})` : codename;
 
     let model = deviceName || marketName;
