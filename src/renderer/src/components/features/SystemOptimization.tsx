@@ -384,7 +384,7 @@ export function SystemOptimization() {
       </div>
 
       {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar py-4 min-h-0 pr-1 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar pt-4 pb-24 min-h-0 pr-1 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1: Hiệu ứng & Cảm ứng */}
           <div className="bg-white/70 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-3xl p-6 hover:shadow-md transition-shadow space-y-4">
@@ -836,14 +836,14 @@ export function SystemOptimization() {
         </div>
       </div>
 
-      {/* Sticky Bottom Action Bar */}
-      <div className="sticky bottom-0 bg-white/95 border-t border-slate-200/80 py-4 px-6 -mx-6 -mb-6 shadow-[0_-10px_30px_rgba(0,0,0,0.04)] flex justify-end rounded-b-[32px] shrink-0 z-30">
+      {/* Floating Action Button */}
+      <div className="absolute bottom-6 right-6 z-30">
         <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
           onClick={runOptimizationBatch}
           disabled={actionLoading === "optimization_batch"}
-          className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all border border-indigo-500/20 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 group font-black uppercase text-xs tracking-wider"
+          className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-2xl shadow-xl shadow-indigo-600/30 transition-all border border-indigo-500/20 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 group font-black uppercase text-xs tracking-wider"
           title="Bắt đầu tối ưu"
         >
           <span>Bắt đầu tối ưu</span>

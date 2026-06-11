@@ -673,29 +673,6 @@ export function FileManager() {
           )}
         </AnimatePresence>
 
-        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              {currentPath === "HOME" ? storagePoints.length : files.length} MỤC
-            </span>
-            {currentPath !== "HOME" && (
-              <>
-                <div className="w-px h-3 bg-slate-200" />
-                <span>{files.filter((f) => f.isDir).length} THƯ MỤC</span>
-                <span>{files.filter((f) => f.isFile).length} TỆP TIN</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-blue-500/60 font-bold bg-blue-50/50 px-3 py-1 rounded-lg border border-blue-100/50">
-            <Monitor size={10} className="shrink-0" />
-            <span>
-              {currentPath === "HOME"
-                ? "THIS DEVICE"
-                : currentPath.toUpperCase()}
-            </span>
-          </div>
-        </div>
 
         {/* IMAGE PREVIEW MODAL */}
         <AnimatePresence>

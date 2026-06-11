@@ -9,7 +9,6 @@ import {
   User,
   Settings,
   Ban,
-  Sparkles,
   CheckSquare,
   Square,
 } from "lucide-react";
@@ -18,7 +17,7 @@ import { useDeviceStore } from "../../../store/deviceStore";
 import { BatchResultModal } from "../BatchResultModal";
 
 import { AppInfo } from "./types";
-import { CACHE_KEY_PREFIX, BLOATWARE_PRESETS } from "./constants";
+import { CACHE_KEY_PREFIX } from "./constants";
 import { useAppFiltering } from "./hooks/useAppFiltering";
 import { useAppSelection } from "./hooks/useAppSelection";
 import { useAppActions } from "./hooks/useAppActions";
@@ -64,33 +63,7 @@ function FilterBtn({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div
-      className={`${color} px-3 py-1 rounded-full border border-white/50 flex items-center gap-2 transition-all hover:scale-105`}
-    >
-      <div className="shrink-0 opacity-80 scale-90">{icon}</div>
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm font-black text-slate-800 tracking-tight">
-          {value}
-        </span>
-        <span className="text-[8px] font-black text-slate-500/80 uppercase tracking-tighter">
-          {label}
-        </span>
-      </div>
-    </div>
-  );
-}
+
 
 export function AppManager() {
   const { activeDevice } = useDeviceStore();
@@ -221,36 +194,6 @@ export function AppManager() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <StatCard
-              label="Tổng ứng dụng"
-              value={packages.length}
-              icon={<Package size={14} className="text-blue-500" />}
-              color="bg-blue-50/50"
-            />
-            <StatCard
-              label="Bản vá rác"
-              value={
-                BLOATWARE_PRESETS.xiaomi.length +
-                BLOATWARE_PRESETS.samsung.length +
-                BLOATWARE_PRESETS.google.length
-              }
-              icon={<Sparkles size={14} className="text-amber-500" />}
-              color="bg-amber-50/50"
-            />
-            <StatCard
-              label="Ứng dụng gốc"
-              value={filtering.systemCount}
-              icon={<Settings size={14} className="text-red-500" />}
-              color="bg-red-50/50"
-            />
-            <StatCard
-              label="Ứng dụng cài"
-              value={filtering.userCount}
-              icon={<User size={14} className="text-emerald-500" />}
-              color="bg-emerald-50/50"
-            />
-          </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative shrink-0">
