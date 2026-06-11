@@ -1,5 +1,6 @@
-﻿import { adbState } from "./adbCore";
+import { adbState } from "./adbCore";
 import batteryProfiles from "./data/battery_profiles.json";
+import xiaomiCodenames from "./data/xiaomi_codenames.json";
 
 export async function getDeviceInfo(deviceId: string) {
   try {
@@ -35,9 +36,22 @@ export async function getDeviceInfo(deviceId: string) {
     const brand =
       getPropRaw.match(/\[ro\.product\.brand\]: \[(.*?)\]/)?.[1] || "Unknown";
 
+    const codename =
+      getPropRaw.match(/\[ro\.build\.product\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.product\.device\]: \[(.*?)\]/)?.[1] ||
+      "Unknown";
+
+    const cleanCodename = codename.trim();
+    const friendlyName = (xiaomiCodenames as Record<string, string>)[cleanCodename];
+    const displayCodename = friendlyName ? `${codename} (${friendlyName})` : codename;
+
     let model = deviceName || marketName;
     if (!model) {
-      model = `${brand.toUpperCase()} ${modelProp}`;
+      if (friendlyName) {
+        model = friendlyName;
+      } else {
+        model = `${brand.toUpperCase()} ${modelProp}`;
+      }
     }
 
     const osVer =
@@ -107,10 +121,6 @@ export async function getDeviceInfo(deviceId: string) {
     }
 
     // Additional OS info
-    const codename =
-      getPropRaw.match(/\[ro\.build\.product\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.product\.device\]: \[(.*?)\]/)?.[1] ||
-      "Unknown";
     const board =
       getPropRaw.match(/\[ro\.board\.platform\]: \[(.*?)\]/)?.[1] ||
       getPropRaw.match(/\[ro\.hardware\]: \[(.*?)\]/)?.[1] ||
@@ -487,7 +497,7 @@ export async function getDeviceInfo(deviceId: string) {
       storageUsed,
       storagePercent,
       customOs,
-      codename,
+      codename: displayCodename,
       board: board.toUpperCase(),
       cpuName,
       buildId,

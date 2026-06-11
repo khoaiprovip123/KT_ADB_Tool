@@ -3,7 +3,7 @@ import { Sparkles, Package, Loader2, ArrowUpCircle } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.3.6-PRO-MAX");
+  const [currentVersion, setCurrentVersion] = useState("v2.3.7-PRO-MAX");
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -228,6 +228,32 @@ export default function Updates() {
         </h3>
 
         <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-slate-200/60">
+          {/* Version 2.3.7 */}
+          <div className="relative pl-14 group">
+            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="font-black text-slate-800 text-xl tracking-tighter">
+                  v2.3.7-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
+                </div>
+                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
+                  11/06/2026
+                </time>
+              </div>
+              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Cơ sở dữ liệu mã máy Xiaomi**: Tích hợp hơn 200 mã codename thiết bị Xiaomi/Redmi/POCO, tự động nhận diện chính xác và hiển thị tên thương mại thân thiện khi kết nối.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
           {/* Version 2.3.6 */}
           <div className="relative pl-14 group">
             <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
