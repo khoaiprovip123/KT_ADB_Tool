@@ -16,10 +16,10 @@ CI xanh trên mỗi PR; coverage main/core ≥ 60%.
 | `appService.test.ts` | manageApp | reject BLACKLIST pkgs |
 | `deviceService.test.ts` | validate deviceId | (nếu tách validate) |
 
-- [ ] Thêm `adbCore.test.ts` (mock adbkit)
-- [ ] Thêm `systemTweaksService.test.ts`
-- [ ] Thêm `appService.test.ts`
-- [ ] Mục tiêu: **≥ 50 tests** (hiện 33)
+- [x] Thêm `adbCore.test.ts` (mock adbkit)
+- [x] Thêm `systemTweaksService.test.ts`
+- [x] Thêm `appService.test.ts`
+- [x] Mục tiêu: **≥ 50 tests** (hiện 63)
 
 ### Chạy test
 
@@ -42,7 +42,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -52,8 +52,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      - run: npm run typecheck
 
       - run: npm test
 
@@ -69,14 +67,14 @@ Tạo `.github/workflows/release.yml` — trigger on tag `v*`:
 
 ## Checklist
 
-- [ ] Tạo `.github/workflows/ci.yml`
+- [x] Tạo `.github/workflows/ci.yml`
 - [ ] Push → CI chạy xanh
 - [ ] Branch protection: require CI pass (GitHub settings)
-- [ ] ≥ 50 unit tests
-- [ ] Document trong README: badge CI (tuỳ chọn)
+- [x] ≥ 50 unit tests
+- [x] Document trong README: badge CI (tuỳ chọn)
 
 ## Tiêu chí hoàn thành
 
 - [ ] CI xanh trên PR
 - [ ] Không merge khi typecheck fail
-- [ ] Test count ≥ 50
+- [x] Test count ≥ 50

@@ -1,4 +1,5 @@
-# KT ADB Tool Pro v2.3.5-PRO-MAX
+# KT ADB Tool Pro
+[![CI](https://github.com/khoaiprovip123/KT_ADB_Tool/actions/workflows/ci.yml/badge.svg)](https://github.com/khoaiprovip123/KT_ADB_Tool/actions/workflows/ci.yml)
 
 **KT ADB Tool Pro** là giải pháp quản lý thiết bị Android qua ADB, xây dựng trên Electron và ADBKit, với giao diện hiện đại (Glassmorphism).
 
