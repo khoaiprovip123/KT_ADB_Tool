@@ -69,12 +69,12 @@ Tạo `.github/workflows/release.yml` — trigger on tag `v*`:
 
 - [x] Tạo `.github/workflows/ci.yml`
 - [x] Push → CI chạy xanh
-- [ ] Branch protection: require CI pass (GitHub settings)
+- [x] Branch protection: require CI pass (GitHub settings)
 - [x] ≥ 50 unit tests
 - [x] Document trong README: badge CI (tuỳ chọn)
 
 ## Tiêu chí hoàn thành
 
 - [x] CI xanh trên PR
-- [ ] Không merge khi typecheck fail
+- [x] Không merge khi typecheck fail
 - [x] Test count ≥ 50
