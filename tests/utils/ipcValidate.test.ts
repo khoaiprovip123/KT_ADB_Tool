@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as path from "path";
 import {
   assertValidAppAction,
   assertValidDebloatAction,
@@ -17,7 +18,8 @@ describe("main IPC validation", () => {
     expect(() => assertValidDeviceId("ABC123._:-")).not.toThrow();
     expect(() => assertValidPackageName("com.example.my_app")).not.toThrow();
     expect(() => assertValidRemotePath("/sdcard/Download/test file.apk")).not.toThrow();
-    expect(() => assertValidLocalPath("D:\\Downloads\\app.apk")).not.toThrow();
+    const validLocalPath = path.resolve("Downloads", "app.apk");
+    expect(() => assertValidLocalPath(validLocalPath)).not.toThrow();
     expect(() => assertValidSettingsNamespace("global")).not.toThrow();
     expect(() => assertValidAppAction("disable")).not.toThrow();
     expect(() => assertValidDebloatAction("restore")).not.toThrow();
@@ -29,7 +31,9 @@ describe("main IPC validation", () => {
     expect(() => assertValidPackageName("com.example.app; reboot")).toThrow();
     expect(() => assertValidRemotePath('/sdcard/Download/file"; reboot; "')).toThrow();
     expect(() => assertValidRemotePath("/sdcard/Download/$(id)")).toThrow();
-    expect(() => assertValidLocalPath("D:\\Downloads\\app.apk&calc")).toThrow();
+    
+    const invalidLocalPath = path.resolve("Downloads", "app.apk&calc");
+    expect(() => assertValidLocalPath(invalidLocalPath)).toThrow();
     expect(() => assertValidDeviceId("serial;reboot")).toThrow();
   });
 
