@@ -21,7 +21,7 @@ const AppManager = React.lazy(() => import("./components/features/AppManager").t
 const FileManager = React.lazy(() => import("./components/features/FileManager").then(m => ({ default: m.FileManager })));
 const SystemOptimization = React.lazy(() => import("./components/features/SystemOptimization").then(m => ({ default: m.SystemOptimization })));
 const ExperienceCenter = React.lazy(() => import("./components/features/ExperienceCenter").then(m => ({ default: m.ExperienceCenter })));
-const AdvancedAdb = React.lazy(() => import("./components/features/AdvancedAdb").then(m => ({ default: m.AdvancedAdb })));
+const AdvancedAdb = React.lazy(() => import("./features/advanced-adb"));
 const Settings = React.lazy(() => import("./features/settings/Settings"));
 
 const TabLoading = () => (

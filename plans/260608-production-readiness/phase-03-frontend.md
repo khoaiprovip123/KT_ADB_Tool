@@ -60,9 +60,10 @@ src/renderer/src/features/advanced-adb/
 └── components/PresetCommandForm.tsx
 ```
 
-- [ ] Tách 4 panel
-- [ ] Raw shell panel: giữ confirm modal
-- [ ] Test: getprop, settings list, dumpsys battery, preset command
+- [x] Tách 4 panel: DeviceProfile, CommandCatalog, RawShell, History
+- [x] Raw shell panel: Tích hợp slide to unlock + confirm modal
+- [x] Test: getprop, settings list, dumpsys battery, preset command đều hoạt động bình thường
+- [x] Xóa components/features/AdvancedAdb.tsx cũ
 
 ## 3.3 UserExperience.tsx → features/xiaomi-experience/
 

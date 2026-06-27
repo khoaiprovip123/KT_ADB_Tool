@@ -68,7 +68,7 @@ SystemTweaks.tsx (1 file)  →       features/system-tweaks/
 | 00 Hotfix | ✅ Hoàn thành | 100% |
 | 01 Packaging | ✅ Hoàn thành | 100% |
 | 02 Backend | ✅ Hoàn thành | 100% |
-| 03 Frontend | 🔄 Đang làm | 33% |
+| 03 Frontend | 🔄 Đang làm | 66% |
 | 04 Types | ⬜ Chưa bắt đầu | 0% |
 | 05 CI | ✅ Hoàn thành | 100% |
 | 06 Polish | ✅ Hoàn thành | 100% |
