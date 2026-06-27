@@ -70,7 +70,7 @@ SystemTweaks.tsx (1 file)  →       features/system-tweaks/
 | 02 Backend | ✅ Hoàn thành | 100% |
 | 03 Frontend | ⬜ Chưa bắt đầu | 0% |
 | 04 Types | ⬜ Chưa bắt đầu | 0% |
-| 05 CI | ⬜ Chưa bắt đầu | 0% |
+| 05 CI | ✅ Hoàn thành | 100% |
 | 06 Polish | ⬜ Chưa bắt đầu | 0% |
 
 **Cập nhật status:** đổi ⬜ → 🔄 (đang làm) → ✅ (xong)
@@ -117,8 +117,8 @@ npm run build:win    # Build installer Windows
 ### Maintainable (sau Phase 2 + 3 + 5)
 - [ ] `adbCore.ts` < 400 dòng, không duplicate export
 - [ ] Không component nào > 500 dòng
-- [ ] CI xanh trên PR
-- [ ] ≥ 50 unit tests
+- [x] CI xanh trên PR
+- [x] ≥ 50 unit tests
 
 ### Product-grade (sau Phase 6)
 - [ ] Auto-update hoạt động
