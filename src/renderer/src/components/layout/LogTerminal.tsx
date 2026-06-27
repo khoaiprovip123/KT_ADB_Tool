@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { TerminalSquare, Trash2, X, Download } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { toast } from "../../store/toastStore";
 
 export function LogTerminal({
   isOpen,
@@ -18,7 +19,7 @@ export function LogTerminal({
 
   const downloadLogs = (format: "txt" | "json") => {
     if (logs.length === 0) {
-      alert("Không có dữ liệu nhật ký để xuất!");
+      toast.warning("Không có dữ liệu nhật ký để xuất!");
       return;
     }
 

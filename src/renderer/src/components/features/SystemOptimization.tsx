@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { toast } from "../../store/toastStore";
 
 export function SystemOptimization() {
   const { activeDevice, addLog } = useDeviceStore();
@@ -71,7 +72,7 @@ export function SystemOptimization() {
 
   const downloadModalLogs = (format: "txt" | "json") => {
     if (modalLogs.length === 0) {
-      alert("Không có dữ liệu nhật ký để xuất!");
+      toast.warning("Không có dữ liệu nhật ký để xuất!");
       return;
     }
 

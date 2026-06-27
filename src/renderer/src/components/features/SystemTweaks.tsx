@@ -390,13 +390,13 @@ export function SystemTweaks() {
         matched.preferDisable ?? false,
       );
       if (res.success) {
-        alert(`Thao tác [${action}] thành công với gói: ${pkg}`);
+        toast.success(`Thao tác [${action}] thành công với gói: ${pkg}`);
         await loadData();
       } else {
-        alert(`Lỗi: ${res.message}`);
+        toast.error(`Lỗi: ${res.message}`);
       }
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`);
+      toast.error(`Lỗi: ${err.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -454,7 +454,7 @@ export function SystemTweaks() {
       setSelectedBloat(new Set());
       await loadData();
     } catch (err: any) {
-      alert(`Lỗi hàng loạt: ${err.message}`);
+      toast.error(`Lỗi hàng loạt: ${err.message}`);
     } finally {
       setBatchProgress(null);
     }

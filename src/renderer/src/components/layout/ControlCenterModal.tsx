@@ -78,13 +78,13 @@ export function ControlCenterModal({
           <ActionBtn
             icon={<Wifi />}
             label="Bật/Tắt WiFi"
-            onClick={() => runAction("adb shell svc wifi enable")}
+            onClick={() => runAction("svc wifi enable")}
             color="bg-blue-50 text-blue-600 hover:bg-blue-100"
           />
           <ActionBtn
             icon={<Wifi className="rotate-45" />}
             label="Phát WiFi"
-            onClick={() => runAction("adb shell cmd tethering tether wifi")}
+            onClick={() => runAction("cmd tethering tether wifi")}
             color="bg-orange-50 text-orange-600 hover:bg-orange-100"
           />
           <ActionBtn
@@ -92,7 +92,7 @@ export function ControlCenterModal({
             label="Tự động Xoay"
             onClick={() =>
               runAction(
-                "adb shell settings put system accelerometer_rotation 1",
+                "settings put system accelerometer_rotation 1",
               )
             }
             color="bg-purple-50 text-purple-600 hover:bg-purple-100"
@@ -101,14 +101,14 @@ export function ControlCenterModal({
             icon={<Settings />}
             label="Cài đặt"
             onClick={() =>
-              runAction("adb shell am start -a android.settings.SETTINGS")
+              runAction("am start -a android.settings.SETTINGS")
             }
             color="bg-slate-100 text-slate-700 hover:bg-slate-200"
           />
           <ActionBtn
             icon={<PowerOff />}
             label="Tắt màn hình"
-            onClick={() => runAction("adb shell input keyevent 26")}
+            onClick={() => runAction("input keyevent 26")}
             color="bg-red-50 text-red-600 hover:bg-red-100 col-span-2"
           />
         </div>

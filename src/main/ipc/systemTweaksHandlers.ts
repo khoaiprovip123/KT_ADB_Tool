@@ -23,6 +23,7 @@ import {
   assertValidDpi,
   assertValidPackageName,
   assertValidResolution,
+  isValidDeviceId,
 } from "./validate";
 
 export function registerSystemTweaksHandlers(
@@ -143,11 +144,11 @@ export function registerSystemTweaksHandlers(
 
   // ── Display & DPI ──────────────────────────────────────────────────────────
   ipcMain.handle("adb:get-dpi", async (_event, deviceId: string) => {
-    if (!isSafeDeviceId(deviceId)) return null;
+    if (!isValidDeviceId(deviceId)) return null;
     return getCurrentDpi(deviceId);
   });
   ipcMain.handle("adb:get-resolution", async (_event, deviceId: string) => {
-    if (!isSafeDeviceId(deviceId)) return null;
+    if (!isValidDeviceId(deviceId)) return null;
     return getCurrentResolution(deviceId);
   });
   ipcMain.handle("adb:set-dpi", async (_event, deviceId: string, dpi: number) => {
@@ -160,7 +161,7 @@ export function registerSystemTweaksHandlers(
     }
   });
   ipcMain.handle("adb:reset-dpi", async (_event, deviceId: string) => {
-    if (!isSafeDeviceId(deviceId))
+    if (!isValidDeviceId(deviceId))
       return { success: false, message: "Invalid deviceId" };
     return resetDpi(deviceId);
   });
@@ -177,7 +178,7 @@ export function registerSystemTweaksHandlers(
     },
   );
   ipcMain.handle("adb:reset-resolution", async (_event, deviceId: string) => {
-    if (!isSafeDeviceId(deviceId))
+    if (!isValidDeviceId(deviceId))
       return { success: false, message: "Invalid deviceId" };
     return resetResolution(deviceId);
   });
@@ -194,13 +195,4 @@ export function registerSystemTweaksHandlers(
       }
     },
   );
-}
-
-function isSafeDeviceId(deviceId: unknown): deviceId is string {
-  try {
-    assertValidDeviceId(deviceId);
-    return true;
-  } catch {
-    return false;
-  }
 }

@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { toast } from "../../store/toastStore";
 
 export function ConnectionManagerModal({
   isOpen,
@@ -32,12 +33,12 @@ export function ConnectionManagerModal({
       const result = await window.api.fixConnection();
       if (result.success) {
         useDeviceStore.getState().setDevices(result.devices || []);
-        alert(result.message || "Đã reset server ADB thành công!");
+        toast.success(result.message || "Đã reset server ADB thành công!");
       } else {
-        alert(result.message || "Reset ADB thất bại.");
+        toast.error(result.message || "Reset ADB thất bại.");
       }
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`);
+      toast.error(`Lỗi: ${err.message}`);
     } finally {
       setIsFixing(false);
     }
@@ -58,7 +59,7 @@ export function ConnectionManagerModal({
       setIpInput("");
       onClose();
     } else {
-      alert("Kết nối thất bại. Vui lòng xem Logs hoặc kiểm tra lại IP/Mạng.");
+      toast.error("Kết nối thất bại. Vui lòng xem Logs hoặc kiểm tra lại IP/Mạng.");
     }
   };
 
@@ -71,14 +72,14 @@ export function ConnectionManagerModal({
     );
     setIsPairing(false);
     if (success) {
-      alert(
+      toast.success(
         "Ghép nối thành công! Vui lòng xem Port kết nối trên điện thoại và dùng Direct Connect để kết nối.",
       );
       setActiveTab("connect");
       setPairIpInput("");
       setPairCode("");
     } else {
-      alert(
+      toast.error(
         "Ghép nối thất bại. Vui lòng kiểm tra lại IP, Port và Pairing Code.",
       );
     }
