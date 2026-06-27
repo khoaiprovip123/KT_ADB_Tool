@@ -246,7 +246,7 @@ export async function getDeviceInfo(deviceId: string) {
 
     const suRaw = await safeShell("which su");
     const suExists = suRaw.trim().length > 0;
-    const isRooted = suExists ? "Yes" : "No";
+    const isRooted = suExists;
 
     // Lấy thông số pin nâng cao, dumpsys power và dumpsys batteryproperties song song
     const [batteryRaw, powerRaw, propertiesRaw] = await Promise.all([

@@ -78,6 +78,12 @@ function App() {
   }, [setDevices, addLog]);
 
   useEffect(() => {
+    if (activeDevice) {
+      useDeviceStore.getState().refreshDeviceInfo();
+    }
+  }, [activeDevice]);
+
+  useEffect(() => {
     const root = window.document.documentElement;
     const theme = settings.theme;
     const isDark =

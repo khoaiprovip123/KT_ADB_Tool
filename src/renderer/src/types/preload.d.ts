@@ -1,24 +1,25 @@
 import type {
   XiaomiApplyResult,
   XiaomiRollbackResult,
-} from "@shared/types/xiaomi";
+  AdbDevice,
+  DeviceInfo,
+  StorageStats,
+  AppInfo,
+  FileInfo,
+  AdbCommandResult,
+} from "@shared/types";
 
 export interface IADBAPI {
   initAdb: () => Promise<boolean>;
   fixConnection: () => Promise<any>;
-  getDeviceInfo: (deviceId: string) => Promise<any>;
-  getDevices: () => Promise<any[]>;
-  getStorageStats: (deviceId: string) => Promise<{
-    total: number;
-    used: number;
-    free: number;
-    percentage: number;
-  } | null>;
-  onDeviceUpdate: (callback: (devices: any[]) => void) => () => void;
+  getDeviceInfo: (deviceId: string) => Promise<DeviceInfo>;
+  getDevices: () => Promise<AdbDevice[]>;
+  getStorageStats: (deviceId: string) => Promise<StorageStats | null>;
+  onDeviceUpdate: (callback: (devices: AdbDevice[]) => void) => () => void;
   runAdbCommand: (
     deviceId: string,
     command: string,
-  ) => Promise<{ success: boolean; output: string }>;
+  ) => Promise<AdbCommandResult>;
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => Promise<any>;
   connectWifi: (deviceId: string, ip: string) => Promise<any>;
   connectIp: (ip: string) => Promise<any>;
@@ -26,7 +27,7 @@ export interface IADBAPI {
   getPackages: (
     deviceId: string,
     filter: "all" | "system" | "third",
-  ) => Promise<any>;
+  ) => Promise<AppInfo[]>;
   manageApp: (
     deviceId: string,
     pkgName: string,
@@ -39,7 +40,7 @@ export interface IADBAPI {
   ) => Promise<any>;
   installApk: (deviceId: string, apkPath: string) => Promise<any>;
   openApkDialog: () => Promise<any>;
-  listDirectory: (deviceId: string, remotePath: string) => Promise<any>;
+  listDirectory: (deviceId: string, remotePath: string) => Promise<FileInfo[]>;
   createDirectory: (deviceId: string, remotePath: string) => Promise<any>;
   deleteFile: (deviceId: string, remotePath: string) => Promise<any>;
   renameFile: (
@@ -130,11 +131,11 @@ export interface IADBAPI {
     deviceId: string,
     commandId: string,
     params: Record<string, string | number>,
-  ) => Promise<{ success: boolean; output: string }>;
+  ) => Promise<AdbCommandResult>;
   executeRawShell: (
     deviceId: string,
     command: string,
-  ) => Promise<{ success: boolean; output: string }>;
+  ) => Promise<AdbCommandResult>;
 
   // Store
   storeGet: (key: string) => Promise<any>;

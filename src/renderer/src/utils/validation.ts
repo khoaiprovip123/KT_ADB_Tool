@@ -1,13 +1,14 @@
-/**
- * Validation & Security Utilities
- * Centralized place for all input validation and security functions
- */
+import {
+  validateResolution as sharedValidateResolution,
+  validatePackageName as sharedValidatePackageName,
+  escapeShell as sharedEscapeShell,
+  validateAnimationScale as sharedValidateAnimationScale,
+  validatePointerSpeed as sharedValidatePointerSpeed,
+  validateBgLimit as sharedValidateBgLimit,
+  ValidationResult,
+} from "../../../shared/validation";
 
-// 1. DPI Validation
-export interface ValidationResult {
-  valid: boolean;
-  error?: string;
-}
+export type { ValidationResult };
 
 export const validateDpi = (dpi: number): ValidationResult => {
   if (!Number.isInteger(dpi)) {
@@ -22,7 +23,6 @@ export const validateDpi = (dpi: number): ValidationResult => {
   return { valid: true };
 };
 
-// 2. Resolution Validation
 export interface ResolutionValidation extends ValidationResult {
   isLandscape?: boolean;
 }
@@ -31,90 +31,42 @@ export const validateResolution = (
   width: number,
   height: number,
 ): ResolutionValidation => {
-  // Basic range check
-  if (width < 480 || width > 3840) {
-    return { valid: false, error: "Chiều rộng phải từ 480 đến 3840px" };
+  const ok = sharedValidateResolution(width, height);
+  if (!ok) {
+    return { valid: false, error: "Độ phân giải phải từ 480-3840 (W) và 800-3840 (H)" };
   }
-  if (height < 800 || height > 3840) {
-    return { valid: false, error: "Chiều cao phải từ 800 đến 3840px" };
-  }
-
-  // Check aspect ratio (not extreme)
-  const ratio = width / height;
-  if (ratio < 0.3 || ratio > 3) {
-    return { valid: false, error: "Tỷ lệ khung hình không hợp lệ" };
-  }
-
   return {
     valid: true,
     isLandscape: width > height,
   };
 };
 
-// 3. Package Name Validation - CRITICAL!
 export const validatePackageName = (pkg: string): boolean => {
-  // Valid format: com.example.app (phải có ít nhất 1 dấu chấm)
-  // Mỗi segment phải bắt đầu bằng chữ cái hoặc _ (không được bắt đầu bằng số)
-  // Cannot contain: spaces, quotes, backticks, semicolons, etc.
-  const validPattern = /^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)+$/;
-
-  if (!pkg || pkg.length === 0) return false;
-  if (pkg.length > 255) return false;
-  if (!validPattern.test(pkg)) return false;
-
-  // Additional checks for common injection patterns
-  if (pkg.includes(";") || pkg.includes("&") || pkg.includes("|")) return false;
-  if (pkg.includes("`") || pkg.includes('"') || pkg.includes("'")) return false;
-  if (pkg.includes("$") || pkg.includes("(") || pkg.includes(")")) return false;
-
-  return true;
+  return sharedValidatePackageName(pkg);
 };
 
-// 4. Shell Escaping - CRITICAL FOR SECURITY!
-// Chấp nhận input chứa ký tự đặc biệt (như single quote) và escape chúng an toàn
 export const escapeShell = (str: string): string => {
-  if (!str || str.length === 0) {
-    throw new Error("Invalid input: empty string");
-  }
-
-  // Single-quote everything and escape existing single quotes
-  return `'${str.replace(/'/g, "'\\''")}'`;
+  return sharedEscapeShell(str);
 };
 
-// 5. Animation Scale Validation
 export const validateAnimationScale = (scale: number): ValidationResult => {
-  const validScales = [0, 0.5, 1.0, 1.5];
-
-  if (!validScales.includes(scale)) {
+  // Shared chỉ định nghĩa scale là 0 | 0.5 | 1. Tuy nhiên ta cho phép thêm 1.5.
+  const ok = sharedValidateAnimationScale(scale) || scale === 1.5;
+  if (!ok) {
     return {
       valid: false,
-      error: `Animation scale phải là một trong: ${validScales.join(", ")}`,
+      error: "Animation scale phải là một trong: 0, 0.5, 1.0, 1.5",
     };
   }
-
   return { valid: true };
 };
 
-// 6. Pointer Speed Validation
 export const validatePointerSpeed = (speed: number): ValidationResult => {
-  if (!Number.isInteger(speed)) {
-    return { valid: false, error: "Tốc độ con trỏ phải là số nguyên" };
-  }
-  if (speed < -7 || speed > 7) {
-    return { valid: false, error: "Tốc độ con trỏ phải từ -7 đến 7" };
-  }
-  return { valid: true };
+  return sharedValidatePointerSpeed(speed);
 };
 
-// 7. Background Process Limit Validation
 export const validateBgLimit = (limit: number): ValidationResult => {
-  if (limit !== -1 && (limit < 0 || limit > 32)) {
-    return {
-      valid: false,
-      error: "Giới hạn nền phải từ 0 đến 32 (hoặc -1 cho mặc định)",
-    };
-  }
-  return { valid: true };
+  return sharedValidateBgLimit(limit);
 };
 
 export default {

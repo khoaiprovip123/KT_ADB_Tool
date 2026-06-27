@@ -20,24 +20,15 @@ export interface EvaluationResult {
   reason?: string;
 }
 
-// Regex kiểm tra Package Name Android (ví dụ: com.android.settings)
-const PACKAGE_NAME_REGEX =
-  /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$/;
+import {
+  validatePackageName,
+  validateRemotePath,
+  shellQuote,
+  SETTINGS_KEY_REGEX,
+  REMOTE_PATH_DANGEROUS_CHARS,
+} from "../../shared/validation";
 
-// Regex kiểm tra Key của Android Settings (ví dụ: window_animation_scale)
-const SETTINGS_KEY_REGEX = /^[a-zA-Z0-9_.-]+$/;
-
-// Danh sách các ký tự nguy hiểm cấm xuất hiện trong đường dẫn để chống chèn lệnh
-const DANGEROUS_PATH_CHARS = /[\0"';&|`$\n\r\\*?[\]{}<>]/;
-const SAFE_REMOTE_ROOTS = ["/sdcard", "/storage", "/data/local/tmp"];
-
-/**
- * Kiểm tra tính hợp lệ của Android Package Name.
- */
-export function validatePackageName(pkg: string): boolean {
-  if (!pkg || pkg.length > 128) return false;
-  return PACKAGE_NAME_REGEX.test(pkg);
-}
+export { validatePackageName, validateRemotePath, shellQuote };
 
 /**
  * Kiểm tra tính hợp lệ của Android Settings Key.
@@ -45,31 +36,6 @@ export function validatePackageName(pkg: string): boolean {
 export function validateSettingsKey(key: string): boolean {
   if (!key || key.length > 128) return false;
   return SETTINGS_KEY_REGEX.test(key);
-}
-
-/**
- * Kiểm tra tính hợp lệ và an toàn của đường dẫn tệp tin trên thiết bị.
- * Chống Path Traversal (..) và Command Injection.
- */
-export function validateRemotePath(remotePath: string): boolean {
-  if (!remotePath || remotePath.length > 512) return false;
-
-  const normalizedPath = remotePath.trim().replace(/\/+/g, "/");
-
-  // Chống chèn ký tự điều khiển lệnh
-  if (DANGEROUS_PATH_CHARS.test(normalizedPath)) return false;
-
-  // Chống Path Traversal quay ngược thư mục nguy hiểm
-  if (normalizedPath.includes("..")) return false;
-
-  // Chỉ cho phép các vùng lưu trữ người dùng hoặc thư mục tạm ADB.
-  return SAFE_REMOTE_ROOTS.some(
-    (root) => normalizedPath === root || normalizedPath.startsWith(`${root}/`),
-  );
-}
-
-export function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 /**
@@ -329,7 +295,7 @@ export function buildShellCommand(
       }
     } else {
       // Với các tham số thông thường, lọc sạch ký tự chèn shell nguy hiểm
-      if (DANGEROUS_PATH_CHARS.test(stringVal)) {
+      if (REMOTE_PATH_DANGEROUS_CHARS.test(stringVal)) {
         throw new Error(`Đầu vào chứa ký tự đặc biệt nguy hiểm: ${stringVal}`);
       }
     }

@@ -139,7 +139,7 @@ AdvancedAdb/
 
 | Phase | Tasks | Effort | Status |
 |---|---|---|---|
-| 1. Validation + Types | 9 tasks | 1-2 ngày | [ ] |
+| 1. Validation + Types | 9 tasks | 1-2 ngày | [x] |
 | 2. Split Components | 28 files tạo mới | 2-3 ngày | [ ] |
 | 3. Tests + Toast | 5 tasks | 1 ngày | [ ] |
 | 4. Performance | 5 tasks | 1-2 ngày | [ ] |

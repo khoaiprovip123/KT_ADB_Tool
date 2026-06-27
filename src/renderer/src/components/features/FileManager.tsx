@@ -25,30 +25,13 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
-
-interface FileInfo {
-  name: string;
-  size: number;
-  mtime: Date;
-  mode: number;
-  isDir: boolean;
-  isFile: boolean;
-}
+import { FileInfo, StoragePoint } from "../../../../shared/types";
 
 export function FileManager() {
   const { activeDevice } = useDeviceStore();
   const [currentPath, setCurrentPath] = useState("HOME");
   const [files, setFiles] = useState<FileInfo[]>([]);
-  const [storagePoints, setStoragePoints] = useState<
-    {
-      name: string;
-      path: string;
-      type: string;
-      used: number;
-      total: number;
-      percent: number;
-    }[]
-  >([]);
+  const [storagePoints, setStoragePoints] = useState<StoragePoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{

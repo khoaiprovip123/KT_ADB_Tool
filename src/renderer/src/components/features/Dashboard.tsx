@@ -11,6 +11,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { DeviceInfo } from "../../../../shared/types";
 
 function RealTimeClock() {
   const [time, setTime] = useState(new Date());
@@ -42,7 +43,7 @@ export function Dashboard() {
   const activeDeviceObj = devices.find((d) => d.id === activeDevice);
   const isReady = activeDeviceObj?.type === "device";
 
-  const [info, setInfo] = useState<any>(null);
+  const [info, setInfo] = useState<DeviceInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [showBatteryModal, setShowBatteryModal] = useState(false);
 
@@ -335,7 +336,7 @@ export function Dashboard() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${info.isRooted === "Yes" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${info.isRooted ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}
                     >
                       <Cpu className="w-4 h-4" />
                     </div>
@@ -344,9 +345,9 @@ export function Dashboard() {
                     </span>
                   </div>
                   <span
-                    className={`text-sm font-bold ${info.isRooted === "Yes" ? "text-red-600" : "text-blue-600"}`}
+                    className={`text-sm font-bold ${info.isRooted ? "text-red-600" : "text-blue-600"}`}
                   >
-                    {info.isRooted === "Yes" ? "Đã Root" : "Chưa Root"}
+                    {info.isRooted ? "Đã Root" : "Chưa Root"}
                   </span>
                 </div>
 
