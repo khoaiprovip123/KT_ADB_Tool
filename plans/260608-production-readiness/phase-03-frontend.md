@@ -41,15 +41,10 @@ src/renderer/src/features/system-tweaks/
 
 ### Checklist tách (theo thứ tự)
 
-- [ ] **Ngày 1:** Extract components cuối file (`CategoryItem`, `StatCard`, `TweakSwitchRow`…)
-- [ ] **Ngày 2:** `DebloatPanel` + `useDebloat`
-- [ ] **Ngày 3:** `DisplayPanel` + `useDisplayTweaks`
-- [ ] **Ngày 4:** `SecurityPanel` + `GamePanel`
-- [ ] **Ngày 5:** `AnimationsPanel` + `ControlsPanel` + `MultitaskingPanel`
-- [ ] **Ngày 6:** `index.tsx` shell + routing category
-- [ ] **Ngày 7:** Xóa `declare const window` local → dùng `preload.d.ts`
-- [ ] Cập nhật `App.tsx` import từ `features/system-tweaks`
-- [ ] Xóa hoặc deprecate `components/features/SystemTweaks.tsx`
+- [x] **Ngày 1-6:** Hoàn thành trích xuất cấu trúc module: `useSystemTweaks`, `DebloatPanel`, `DisplayPanel`, `GenericTweaksPanel`, `index.tsx`
+- [x] **Ngày 7:** Xóa `declare const window` local → dùng `preload.d.ts`
+- [x] Cập nhật `App.tsx` import (đã dọn dẹp)
+- [x] Xóa `components/features/SystemTweaks.tsx`
 
 ## 3.2 AdvancedAdb.tsx → features/advanced-adb/
 
