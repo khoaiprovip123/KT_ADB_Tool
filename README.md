@@ -82,7 +82,7 @@ Sau khi cài, binary nằm tại `resources/bin` cạnh file app (không cần c
 
 ## Kế hoạch phát triển
 
-Xem [plans/260608-production-readiness/plan.md](plans/260608-production-readiness/plan.md) cho roadmap refactor và production readiness.
+Roadmap đang được cập nhật. Xem [GitHub Issues](https://github.com/khoaiprovip123/KT_ADB_Tool/issues) cho danh sách tính năng sắp tới.
 
 ## 🚀 Hệ thống Tự động Cập nhật & CI/CD Build Setup (Python Component)
 
