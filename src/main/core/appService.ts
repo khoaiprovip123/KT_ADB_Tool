@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { adbState } from "./adbCore";
 import { validatePackageName } from "./adbSafety";
+import { shellQuote } from "../../shared/validation";
 
 export interface AppInfo {
   pkg: string;
@@ -223,14 +224,14 @@ export async function installApk(
     const output = await new Promise<string>((resolve) => {
       let data = "";
       adbState.client
-        .shell(deviceId, `pm install -r -d -t -g "${remotePath}"`)
+        .shell(deviceId, `pm install -r -d -t -g ${shellQuote(remotePath)}`)
         .then((s: any) => {
           s.on("data", (c: any) => (data += c));
           s.on("end", () => resolve(data.trim()));
         });
     });
 
-    await adbState.client.shell(deviceId, `rm "${remotePath}"`);
+    await adbState.client.shell(deviceId, `rm ${shellQuote(remotePath)}`);
 
     if (output.toLowerCase().includes("success")) {
       onLog("Cài đặt hoàn tất thành công!");

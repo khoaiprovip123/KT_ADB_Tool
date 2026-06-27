@@ -123,7 +123,7 @@ export function evaluateCommand(cmd: string): EvaluationResult {
   const SAFE_READ_PREFIXES = [
     "getprop",
     "dumpsys",
-    "cat ",
+    "cat ", // CHÚ Ý: cat chỉ an toàn khi đường dẫn đã được xác thực qua validateRemotePath ở tầng trên để tránh Path Traversal đọc file hệ thống nhạy cảm.
     "ls ",
     "ls\n",
     "wm size",
@@ -236,17 +236,34 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     trimmed.startsWith("mkdir ") ||
     trimmed.startsWith("mv ")
   ) {
-    if (
-      trimmed.includes("rm -rf /") &&
-      !trimmed.includes("rm -rf /sdcard") &&
-      !trimmed.includes("rm -rf /storage")
-    ) {
-      return {
-        allowed: false,
-        risk: "DANGEROUS",
-        mode: "FILE_OP",
-        reason: "Cấm xóa phân vùng hệ thống root.",
-      };
+    const normalizedSpaces = trimmed.replace(/\s+/g, " ");
+    const tokens = normalizedSpaces.split(" ");
+    const rmIndex = tokens.findIndex((t) => t === "rm");
+    if (rmIndex !== -1) {
+      let hasRecursive = false;
+      const paths: string[] = [];
+      for (let i = rmIndex + 1; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token.startsWith("-")) {
+          if (token.includes("r")) {
+            hasRecursive = true;
+          }
+        } else {
+          paths.push(token);
+        }
+      }
+      if (hasRecursive) {
+        for (const p of paths) {
+          if (p.startsWith("/") && !p.startsWith("/sdcard") && !p.startsWith("/storage")) {
+            return {
+              allowed: false,
+              risk: "DANGEROUS",
+              mode: "FILE_OP",
+              reason: "Cấm xóa phân vùng hệ thống root hoặc thư mục hệ thống.",
+            };
+          }
+        }
+      }
     }
     return { allowed: true, risk: "RISKY", mode: "FILE_OP" };
   }

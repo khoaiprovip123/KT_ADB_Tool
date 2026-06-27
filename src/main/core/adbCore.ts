@@ -3,7 +3,7 @@ import { ensureAdb } from "./adbDownloader";
 import { ensureScrcpy } from "./scrcpyDownloader";
 import * as path from "path";
 import { app } from "electron";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { evaluateCommand, cleanAdbPrefix } from "./adbSafety";
 
 export const adbState = {
@@ -32,7 +32,9 @@ export async function initAdb(onProgress: (msg: string) => void) {
     await new Promise((r) => setTimeout(r, 1000));
 
     await new Promise<void>((resolve) => {
-      exec(`"${adbExe}" start-server`, () => resolve());
+      const child = spawn(adbExe, ["start-server"]);
+      child.on("close", () => resolve());
+      child.on("error", () => resolve());
     });
     await new Promise((r) => setTimeout(r, 500));
 
@@ -58,13 +60,16 @@ export async function getDevices() {
   }
 }
 
-export async function watchDevices(onUpdate: (devices: any[]) => void) {
+export function watchDevices(onUpdate: (devices: any[]) => void): () => void {
   let isTracking = false;
+  let currentTracker: any = null;
+  let active = true;
 
   const startTracking = async () => {
-    if (isTracking) return;
+    if (isTracking || !active) return;
     try {
       const tracker = await adbState.client.trackDevices();
+      currentTracker = tracker;
       isTracking = true;
 
       const refresh = async () => {
@@ -81,22 +86,30 @@ export async function watchDevices(onUpdate: (devices: any[]) => void) {
       tracker.on("end", () => {
         console.log("Tracking ended, restarting...");
         isTracking = false;
-        setTimeout(startTracking, 2000);
+        if (active) setTimeout(startTracking, 2000);
       });
 
       tracker.on("error", (err: any) => {
         console.error("Tracking error:", err);
         isTracking = false;
-        setTimeout(startTracking, 2000);
+        if (active) setTimeout(startTracking, 2000);
       });
     } catch (error) {
       console.error("Error tracking devices:", error);
       isTracking = false;
-      setTimeout(startTracking, 2000);
+      if (active) setTimeout(startTracking, 2000);
     }
   };
 
   startTracking();
+
+  return () => {
+    active = false;
+    if (currentTracker) {
+      currentTracker.end();
+      currentTracker.removeAllListeners();
+    }
+  };
 }
 
 export async function runAdbCommand(

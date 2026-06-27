@@ -14,6 +14,23 @@ export interface UpdateInfo {
   downloadUrl: string | null;
 }
 
+function parseVersion(v: string): number[] {
+  const clean = v.replace(/^v/, "").split("-")[0];
+  const parts = clean.split(".").map((p) => parseInt(p, 10) || 0);
+  while (parts.length < 3) parts.push(0);
+  return parts;
+}
+
+function isNewerVersion(latest: string, current: string): boolean {
+  const latestParts = parseVersion(latest);
+  const currentParts = parseVersion(current);
+  for (let i = 0; i < 3; i++) {
+    if (latestParts[i] > currentParts[i]) return true;
+    if (latestParts[i] < currentParts[i]) return false;
+  }
+  return false;
+}
+
 export async function checkForUpdates(): Promise<UpdateInfo> {
   try {
     const currentVersion = app.getVersion();
@@ -26,8 +43,8 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
     const release = response.data;
     const latestVersion = release.tag_name.replace(/^v/, "");
 
-    // So sánh phiên bản đơn giản
-    const available = latestVersion !== currentVersion;
+    // So sánh phiên bản bằng semver
+    const available = isNewerVersion(latestVersion, currentVersion);
 
     let downloadUrl: string | null = null;
     if (release.assets && Array.isArray(release.assets)) {
@@ -83,11 +100,11 @@ export async function downloadAndInstallUpdate(
     response.data.pipe(writer);
 
     writer.on("finish", () => {
-      // Chạy trình cài đặt NSIS với shell: true để Windows xử lý UAC nâng quyền chính xác và tham số im lặng /S
+      // Chạy trình cài đặt NSIS với shell: false để tránh Command Injection
       const child = spawn(destPath, ["/S"], {
         detached: true,
         stdio: "ignore",
-        shell: true,
+        shell: false,
       });
 
       child.on("error", (spawnErr) => {

@@ -175,7 +175,12 @@ export async function pullFile(
         resolve(true);
       });
       transfer.on("error", (err: any) => {
+        outStream.destroy();
         onLog(`Lỗi tải về: ${err.message}`);
+        reject(err);
+      });
+      outStream.on("error", (err: any) => {
+        outStream.destroy();
         reject(err);
       });
       transfer.pipe(outStream);

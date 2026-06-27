@@ -191,6 +191,9 @@ export async function debloatPackage(
     }
 
     let output = await execAdb(deviceId, cmd);
+    if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
+      return { success: false, message: output.trim() };
+    }
 
     // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException, tự động chạy uninstall --user 0
     if (
@@ -424,6 +427,9 @@ export async function getTweakStatus(
   if (!tweak.readCmd) return tweak.defaultEnabled;
   try {
     const output = (await execAdb(deviceId, tweak.readCmd)).trim();
+    if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
+      return tweak.defaultEnabled;
+    }
     return output === tweak.enabledValue;
   } catch {
     return tweak.defaultEnabled;
@@ -438,6 +444,9 @@ export async function applyTweak(
   try {
     const cmd = enable ? tweak.enableCmd : tweak.disableCmd;
     let output = await execAdb(deviceId, cmd);
+    if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
+      return { success: false, message: output.trim() };
+    }
     const lowerOutput = output.toLowerCase();
 
     // Lấy tên package nếu lệnh là pm
