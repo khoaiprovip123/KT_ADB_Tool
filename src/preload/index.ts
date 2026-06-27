@@ -27,8 +27,9 @@ const api = {
     ipcRenderer.invoke("adb:get-info", deviceId),
   getDevices: () => ipcRenderer.invoke("adb:get-devices"),
   onDeviceUpdate: (callback: (devices: any[]) => void) => {
-    ipcRenderer.removeAllListeners("adb:device-update");
-    ipcRenderer.on("adb:device-update", (_event, devices) => callback(devices));
+    const listener = (_event: any, devices: any[]) => callback(devices);
+    ipcRenderer.on("adb:device-update", listener);
+    return () => ipcRenderer.removeListener("adb:device-update", listener);
   },
   getStorageStats: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-storage-stats", deviceId),
@@ -163,8 +164,9 @@ const api = {
     ipcRenderer.invoke("dialog:save-file", { defaultName }),
   openFileDialog: () => ipcRenderer.invoke("dialog:open-file"),
   onLogStream: (callback: (log: string) => void) => {
-    ipcRenderer.removeAllListeners("adb:log-stream");
-    ipcRenderer.on("adb:log-stream", (_event, log) => callback(log));
+    const listener = (_event: any, log: string) => callback(log);
+    ipcRenderer.on("adb:log-stream", listener);
+    return () => ipcRenderer.removeListener("adb:log-stream", listener);
   },
 
   // Device Profile & Capability Detection

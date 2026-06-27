@@ -71,7 +71,7 @@ SystemTweaks.tsx (1 file)  →       features/system-tweaks/
 | 03 Frontend | ⬜ Chưa bắt đầu | 0% |
 | 04 Types | ⬜ Chưa bắt đầu | 0% |
 | 05 CI | ✅ Hoàn thành | 100% |
-| 06 Polish | ⬜ Chưa bắt đầu | 0% |
+| 06 Polish | ✅ Hoàn thành | 100% |
 
 **Cập nhật status:** đổi ⬜ → 🔄 (đang làm) → ✅ (xong)
 
@@ -121,9 +121,9 @@ npm run build:win    # Build installer Windows
 - [x] ≥ 50 unit tests
 
 ### Product-grade (sau Phase 6)
-- [ ] Auto-update hoạt động
-- [ ] Lazy load tab
-- [ ] Error UX + audit log lệnh nguy hiểm
+- [x] Auto-update hoạt động
+- [x] Lazy load tab
+- [x] Error UX + audit log lệnh nguy hiểm
 
 ---
 

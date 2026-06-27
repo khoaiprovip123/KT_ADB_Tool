@@ -1,4 +1,4 @@
-import { ipcMain, app } from "electron";
+import { ipcMain, app, dialog } from "electron";
 import { initAdb, watchDevices, runAdbCommand } from "../core/adbCore";
 import { registerDeviceHandlers } from "./deviceHandlers";
 import { registerAppHandlers } from "./appHandlers";
@@ -113,5 +113,9 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
         mainWindow.webContents.send("app:update-progress", progress);
       }
     });
+  });
+
+  ipcMain.on("app:fatal-error", (_event, { title, message }) => {
+    dialog.showErrorBox(title || "Lỗi ứng dụng nghiêm trọng", message || "Lỗi không xác định");
   });
 }

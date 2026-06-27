@@ -17,12 +17,19 @@ import { useSettingsStore } from "./store/settingsStore";
 import { LogTerminal } from "./components/layout/LogTerminal";
 import { FloatingQuickBoot } from "./components/layout/FloatingQuickBoot";
 import { Dashboard } from "./components/features/Dashboard";
-import { AppManager } from "./components/features/AppManager";
-import { FileManager } from "./components/features/FileManager";
-import { SystemOptimization } from "./components/features/SystemOptimization";
-import { ExperienceCenter } from "./components/features/ExperienceCenter";
-import { AdvancedAdb } from "./components/features/AdvancedAdb";
-import Settings from "./features/settings/Settings";
+const AppManager = React.lazy(() => import("./components/features/AppManager").then(m => ({ default: m.AppManager })));
+const FileManager = React.lazy(() => import("./components/features/FileManager").then(m => ({ default: m.FileManager })));
+const SystemOptimization = React.lazy(() => import("./components/features/SystemOptimization").then(m => ({ default: m.SystemOptimization })));
+const ExperienceCenter = React.lazy(() => import("./components/features/ExperienceCenter").then(m => ({ default: m.ExperienceCenter })));
+const AdvancedAdb = React.lazy(() => import("./components/features/AdvancedAdb").then(m => ({ default: m.AdvancedAdb })));
+const Settings = React.lazy(() => import("./features/settings/Settings"));
+
+const TabLoading = () => (
+  <div className="flex flex-col items-center justify-center h-full space-y-4 animate-pulse">
+    <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
+    <p className="text-xs font-black text-slate-400 tracking-widest uppercase">Đang tải giao diện...</p>
+  </div>
+);
 import { ControlCenterModal } from "./components/layout/ControlCenterModal";
 import { ConnectionManagerModal } from "./components/layout/ConnectionManagerModal";
 
@@ -49,12 +56,12 @@ function App() {
     });
 
     // Lắng nghe thiết bị cắm/rút
-    window.api.onDeviceUpdate((updatedDevices) => {
+    const unsubDevice = window.api.onDeviceUpdate((updatedDevices) => {
       setDevices(updatedDevices);
     });
 
     // Lắng nghe stream Log từ lệnh ADB
-    window.api.onLogStream((log) => {
+    const unsubLog = window.api.onLogStream((log) => {
       const cleanLog = log.trim();
       if (!cleanLog) return;
       if (cleanLog.includes("connected successfully")) return;
@@ -63,6 +70,11 @@ function App() {
         return;
       addLog(log);
     });
+
+    return () => {
+      unsubDevice();
+      unsubLog();
+    };
   }, [setDevices, addLog]);
 
   useEffect(() => {
@@ -257,13 +269,15 @@ function App() {
           }`}
         >
           <ErrorBoundary>
-            {activeTab === "dashboard" && <Dashboard />}
-            {activeTab === "system" && <AppManager />}
-            {activeTab === "files" && <FileManager />}
-            {activeTab === "experience" && <ExperienceCenter />}
-            {activeTab === "optimize" && <SystemOptimization />}
-            {activeTab === "advanced" && <AdvancedAdb />}
-            {activeTab === "settings" && <Settings />}
+            <React.Suspense fallback={<TabLoading />}>
+              {activeTab === "dashboard" && <Dashboard />}
+              {activeTab === "system" && <AppManager />}
+              {activeTab === "files" && <FileManager />}
+              {activeTab === "experience" && <ExperienceCenter />}
+              {activeTab === "optimize" && <SystemOptimization />}
+              {activeTab === "advanced" && <AdvancedAdb />}
+              {activeTab === "settings" && <Settings />}
+            </React.Suspense>
             {activeTab !== "dashboard" &&
               activeTab !== "system" &&
               activeTab !== "files" &&

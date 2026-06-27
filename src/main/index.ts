@@ -1,14 +1,23 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipc";
 
-// Ngăn chặn popup lỗi JavaScript khi socket ADB đột ngột ngắt kết nối (ECONNRESET/ECONNREFUSED)
+// Ngăn chặn popup lỗi JavaScript và hiển thị dialog cảnh báo lỗi hệ thống nghiêm trọng
 process.on("uncaughtException", (error) => {
   console.error("[Uncaught Exception Alert]:", error);
+  dialog.showErrorBox(
+    "Lỗi hệ thống nghiêm trọng",
+    `Ứng dụng gặp lỗi không mong muốn:\n${error.stack || error.message}`
+  );
 });
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("[Unhandled Rejection Alert]:", promise, "reason:", reason);
+process.on("unhandledRejection", (reason: any) => {
+  console.error("[Unhandled Rejection Alert]:", reason);
+  const errMsg = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  dialog.showErrorBox(
+    "Lỗi hệ thống nghiêm trọng (Promise Rejection)",
+    `Xảy ra lỗi bất đồng bộ chưa được xử lý:\n${errMsg}`
+  );
 });
 
 function createWindow(): void {
@@ -32,6 +41,40 @@ function createWindow(): void {
 
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
+
+    // Tự động kiểm tra cập nhật sau 3 giây khi khởi động
+    setTimeout(async () => {
+      try {
+        const { checkForUpdates } = await import("./core/updateService");
+        const updateInfo = await checkForUpdates();
+        if (updateInfo.available) {
+          const { response } = await dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Phát hiện bản cập nhật mới",
+            message: `Phiên bản mới v${updateInfo.version} đã sẵn sàng!`,
+            detail: `Nội dung cập nhật:\n${updateInfo.changelog || "Không có chi tiết."}\n\nBạn có muốn tải xuống và nâng cấp tự động không?`,
+            buttons: ["Nâng cấp ngay", "Để sau"],
+            defaultId: 0,
+            cancelId: 1,
+          });
+
+          if (response === 0 && updateInfo.downloadUrl) {
+            dialog.showMessageBox(mainWindow, {
+              type: "info",
+              title: "Đang tải bản cập nhật",
+              message: "Bản cập nhật đang được tải xuống ở chế độ nền. Ứng dụng sẽ tự động đóng và cài đặt lại khi hoàn tất.",
+              buttons: ["OK"],
+            });
+            const { downloadAndInstallUpdate } = await import("./core/updateService");
+            downloadAndInstallUpdate(updateInfo.downloadUrl, () => {}).catch((err: any) => {
+              dialog.showErrorBox("Lỗi cập nhật", `Quá trình tải bản cập nhật gặp lỗi:\n${err.message}`);
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Auto-update check failed:", err);
+      }
+    }, 3000);
   });
 
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {

@@ -563,26 +563,14 @@ export function AdvancedAdb() {
     }
   };
 
-  // --- RAW SHELL RUNNER ---
-  const handleShellSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeDevice || !shellInput.trim()) return;
-
-    const cmd = shellInput.trim();
-    setShellInput("");
-    setTypedCommands((prev) => {
-      if (prev[prev.length - 1] === cmd) return prev;
-      return [...prev, cmd];
-    });
-    setHistoryIndex(-1);
-
+  const executeShellCommand = async (deviceId: string, cmd: string) => {
     setShellLogs((prev) => [
       ...prev,
       { type: "input", text: `$ adb shell ${cmd}` },
     ]);
 
     try {
-      const res = await window.api.executeRawShell(activeDevice, cmd);
+      const res = await window.api.executeRawShell(deviceId, cmd);
 
       if (res.success) {
         setShellLogs((prev) => [
@@ -602,6 +590,33 @@ export function AdvancedAdb() {
       showToast(error.message, "error");
       addHistory(cmd, "RAW_SHELL", false, error.message);
     }
+  };
+
+  // --- RAW SHELL RUNNER ---
+  const handleShellSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeDevice || !shellInput.trim()) return;
+
+    const cmd = shellInput.trim();
+    const deviceId = activeDevice; // Capture value to ensure not null inside callback
+    setShellInput("");
+    setTypedCommands((prev) => {
+      if (prev[prev.length - 1] === cmd) return prev;
+      return [...prev, cmd];
+    });
+    setHistoryIndex(-1);
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Xác nhận chạy lệnh Raw Shell",
+      message: "Cảnh báo: Bạn đang tự chạy lệnh ADB trực tiếp (Raw Shell). Lệnh này có thể can thiệp sâu vào hệ thống và gây brick thiết bị hoặc mất mát dữ liệu nếu sai sót.",
+      risk: "DANGEROUS",
+      commandText: `adb shell ${cmd}`,
+      onConfirm: () => {
+        setConfirmModal(null);
+        executeShellCommand(deviceId, cmd);
+      },
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

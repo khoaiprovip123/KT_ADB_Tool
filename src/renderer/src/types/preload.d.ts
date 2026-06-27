@@ -14,7 +14,7 @@ export interface IADBAPI {
     free: number;
     percentage: number;
   } | null>;
-  onDeviceUpdate: (callback: (devices: any[]) => void) => void;
+  onDeviceUpdate: (callback: (devices: any[]) => void) => () => void;
   runAdbCommand: (
     deviceId: string,
     command: string,
@@ -91,7 +91,7 @@ export interface IADBAPI {
   setAnimationScale: (deviceId: string, scale: 0 | 0.5 | 1.0) => Promise<any>;
   saveFileDialog: (defaultName: string) => Promise<any>;
   openFileDialog: () => Promise<any>;
-  onLogStream: (callback: (log: string) => void) => void;
+  onLogStream: (callback: (log: string) => void) => () => void;
 
   // Device Profile & Capability Detection
   getDeviceProfile: (deviceId: string) => Promise<any>;
