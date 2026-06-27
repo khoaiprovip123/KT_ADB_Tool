@@ -89,7 +89,7 @@ describe("appService", () => {
     it("should list and classify packages correctly", async () => {
       // Mock different responses for system, third-party, and disabled packages
       let shellCallIndex = 0;
-      vi.mocked(adbState.client.shell).mockImplementation(async (deviceId, cmd) => {
+      vi.mocked(adbState.client.shell).mockImplementation(async (_deviceId: string, cmd: string) => {
         shellCallIndex++;
         if (cmd === "pm list packages -s") {
           return createMockStream("package:com.android.settings\npackage:com.android.phone\n") as any;
