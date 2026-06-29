@@ -2,9 +2,26 @@ import { app, BrowserWindow, dialog } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipc";
 
+function isIgnorableError(error: any): boolean {
+  if (!error) return false;
+  const msg = String(error.message || error).toLowerCase();
+  const code = String(error.code || "").toLowerCase();
+  return (
+    code === "econnreset" ||
+    msg.includes("econnreset") ||
+    msg.includes("connection reset") ||
+    code === "epipe" ||
+    msg.includes("epipe") ||
+    msg.includes("broken pipe") ||
+    code === "econnrefused" ||
+    msg.includes("econnrefused")
+  );
+}
+
 // Ngăn chặn popup lỗi JavaScript và hiển thị dialog cảnh báo lỗi hệ thống nghiêm trọng
 process.on("uncaughtException", (error) => {
   console.error("[Uncaught Exception Alert]:", error);
+  if (isIgnorableError(error)) return;
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng",
     `Ứng dụng gặp lỗi không mong muốn:\n${error.stack || error.message}`
@@ -13,6 +30,7 @@ process.on("uncaughtException", (error) => {
 
 process.on("unhandledRejection", (reason: any) => {
   console.error("[Unhandled Rejection Alert]:", reason);
+  if (isIgnorableError(reason)) return;
   const errMsg = reason instanceof Error ? reason.stack || reason.message : String(reason);
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng (Promise Rejection)",
