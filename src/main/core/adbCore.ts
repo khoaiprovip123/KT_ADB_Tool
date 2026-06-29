@@ -33,8 +33,18 @@ export async function initAdb(onProgress: (msg: string) => void) {
 
     await new Promise<void>((resolve) => {
       const child = spawn(adbExe, ["start-server"]);
-      child.on("close", () => resolve());
-      child.on("error", () => resolve());
+      const timer = setTimeout(() => {
+        child.kill();
+        resolve();
+      }, 5000);
+      child.on("close", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
     await new Promise((r) => setTimeout(r, 500));
 
