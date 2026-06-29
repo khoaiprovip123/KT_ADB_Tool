@@ -4,6 +4,76 @@ import xiaomiCodenames from "./data/xiaomi_codenames.json";
 
 export async function getDeviceInfo(deviceId: string) {
   try {
+    // 1. Kiểm tra trạng thái thiết bị trong danh sách
+    const devices = await adbState.client.listDevices();
+    const device = devices.find((d: any) => d.id === deviceId);
+
+    if (!device) {
+      throw new Error("Device not found");
+    }
+
+    if (device.type === "unauthorized") {
+      return {
+        id: deviceId,
+        model: "Thiết bị chưa cấp quyền",
+        brand: "Vui lòng cho phép gỡ lỗi USB (USB Debugging) trên màn hình điện thoại.",
+        codename: "unauthorized",
+        osVersion: "Unknown",
+        sdkVersion: "Unknown",
+        cpuAbi: "Unknown",
+        ipAddress: "Unknown",
+        batteryLevel: 0,
+        batteryStatus: "Unknown",
+        batteryTemp: 0,
+        batteryHealth: "Unknown",
+        ramTotal: "0 GB",
+        ramUsed: "0 GB",
+        ramFree: "0 GB",
+        ramUsagePercent: 0,
+        storageInternal: { total: "0 GB", used: "0 GB", free: "0 GB", percent: 0 },
+        storageSdcard: null,
+        screenResolution: "Unknown",
+        screenDpi: 0,
+        uptime: "Unknown",
+        selinux: "Unknown",
+        isRooted: false,
+        cryptoState: "Unknown",
+        isUnauthorized: true,
+        isOffline: false,
+      };
+    }
+
+    if (device.type === "offline") {
+      return {
+        id: deviceId,
+        model: "Thiết bị ngoại tuyến",
+        brand: "Vui lòng kiểm tra lại cáp kết nối hoặc Driver USB.",
+        codename: "offline",
+        osVersion: "Unknown",
+        sdkVersion: "Unknown",
+        cpuAbi: "Unknown",
+        ipAddress: "Unknown",
+        batteryLevel: 0,
+        batteryStatus: "Unknown",
+        batteryTemp: 0,
+        batteryHealth: "Unknown",
+        ramTotal: "0 GB",
+        ramUsed: "0 GB",
+        ramFree: "0 GB",
+        ramUsagePercent: 0,
+        storageInternal: { total: "0 GB", used: "0 GB", free: "0 GB", percent: 0 },
+        storageSdcard: null,
+        screenResolution: "Unknown",
+        screenDpi: 0,
+        uptime: "Unknown",
+        selinux: "Unknown",
+        isRooted: false,
+        cryptoState: "Unknown",
+        isUnauthorized: false,
+        isOffline: true,
+      };
+    }
+
     const safeShell = (cmd: string): Promise<string> => {
       return new Promise<string>((resolve) => {
         adbState.client
@@ -18,11 +88,15 @@ export async function getDeviceInfo(deviceId: string) {
       });
     };
 
-    const getPropRaw = await safeShell("getprop");
-
-    const wmSizeRaw = await safeShell("wm size");
-
-    const uptimeRaw = await safeShell("uptime");
+    // Chạy song song 6 lệnh shell cơ bản ngay từ đầu để tăng tốc độ nhận diện
+    const [getPropRaw, wmSizeRaw, uptimeRaw, storageRaw, selinuxRaw, suRaw] = await Promise.all([
+      safeShell("getprop"),
+      safeShell("wm size"),
+      safeShell("uptime"),
+      safeShell("df"),
+      safeShell("getenforce"),
+      safeShell("which su"),
+    ]);
 
     const deviceName = getPropRaw.match(
       /\[persist\.sys\.device_name\]: \[(.*?)\]/,
@@ -190,8 +264,6 @@ export async function getDeviceInfo(deviceId: string) {
     }
 
     // Lấy thông số Storage
-    const storageRaw = await safeShell("df");
-
     let storageTotal = "0GB";
     let storageUsed = "0GB";
     let storagePercent = 0;
@@ -241,10 +313,8 @@ export async function getDeviceInfo(deviceId: string) {
     const cryptoState =
       cryptoStateRaw.charAt(0).toUpperCase() + cryptoStateRaw.slice(1);
 
-    const selinuxRaw = await safeShell("getenforce");
     const selinux = selinuxRaw.trim() || "Unknown";
 
-    const suRaw = await safeShell("which su");
     const suExists = suRaw.trim().length > 0;
     const isRooted = suExists;
 

@@ -8,6 +8,7 @@ vi.mock("../../src/main/core/adbCore", () => {
     adbState: {
       client: {
         shell: vi.fn(),
+        listDevices: vi.fn(() => Promise.resolve([{ id: "test-device", type: "device" }])),
       },
     },
   };
