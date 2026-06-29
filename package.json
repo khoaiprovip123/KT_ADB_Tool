@@ -65,6 +65,13 @@
   },
   "build": {
     "appId": "com.khoaiprovip.kt-adb-tool",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "khoaiprovip123",
+        "repo": "KT_ADB_Tool"
+      }
+    ],
     "productName": "KT ADB Tool Pro",
     "directories": {
       "output": "dist"

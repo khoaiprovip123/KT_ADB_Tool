@@ -1,21 +1,20 @@
-name: Automated Windows Installer Deploy Build
+name: Release App
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Chạy tự động khi push tag mới bắt đầu bằng v, ví dụ: v2.4.0-PRO-MAX
+
+permissions:
+  contents: write # Cần quyền write để tạo Release và upload Assets
 
 jobs:
-  compile-and-publish:
+  release:
     runs-on: windows-latest
-    permissions:
-      contents: write
 
     steps:
-      - name: Checkout Source Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,36 +25,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build Electron App
-        run: npm run build:win
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Build
+        run: npm run build
 
-      - name: Generate Auto Changelogs
-        id: build_changelog
-        shell: bash
-        run: |
-          latest_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$latest_tag" ]; then
-            log_data=$(git log --oneline)
-          else
-            log_data=$(git log ${latest_tag}..HEAD --oneline)
-          fi
-          echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_ENV
-          echo "$log_data" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Create GitHub Release and Upload Installer Artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Production Release ${{ github.ref_name }}
-          body: |
-            ## Automated Change Release Logs:
-            ${{ env.CHANGELOG_CONTENT }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/KT ADB Tool Pro Setup *.exe
+      - name: Build & Publish Windows Installer
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
