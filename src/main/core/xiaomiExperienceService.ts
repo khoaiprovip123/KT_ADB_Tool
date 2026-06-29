@@ -134,12 +134,20 @@ async function executeCommandChain(
 
   let success = true;
   let combinedOutput = "";
+  let successSubCmdsCount = 0;
 
   for (const subCmd of subCmds) {
     const output = await runAdbCommand(deviceId, subCmd, () => {});
     const trimmed = output.trim();
-    combinedOutput += (combinedOutput ? "\n" : "") + trimmed;
+    combinedOutput += (combinedOutput ? " " : "") + trimmed;
 
+    const isPmUninstall = subCmd.includes("pm uninstall");
+    const isIgnorablePmError =
+      isPmUninstall &&
+      (trimmed.toLowerCase().includes("not installed") ||
+        trimmed.toLowerCase().includes("success"));
+
+    let subCmdFailed = false;
     if (
       trimmed.toLowerCase().includes("failed") ||
       trimmed.toLowerCase().includes("failure") ||
@@ -148,8 +156,22 @@ async function executeCommandChain(
       trimmed.toLowerCase().includes("not found") ||
       trimmed.toLowerCase().includes("exception")
     ) {
+      if (!isIgnorablePmError) {
+        subCmdFailed = true;
+      }
+    }
+
+    if (!subCmdFailed) {
+      successSubCmdsCount++;
+    } else if (!isPmUninstall) {
       success = false;
     }
+  }
+
+  if (subCmds.every((c) => c.includes("pm uninstall"))) {
+    success = successSubCmdsCount > 0;
+  } else if (successSubCmdsCount === 0) {
+    success = false;
   }
 
   return { success, output: combinedOutput.trim() };
