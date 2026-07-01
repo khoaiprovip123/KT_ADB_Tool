@@ -40,6 +40,7 @@ export async function getPackages(
           .then((s: any) => {
             s.on("data", (c: any) => (data += c));
             s.on("end", () => resolve(data));
+            s.on("error", () => resolve(data));
           })
           .catch(() => resolve(""));
       });
@@ -139,7 +140,8 @@ export async function manageApp(
       adbState.client.shell(deviceId, cmd).then((s: any) => {
         s.on("data", (c: any) => (data += c));
         s.on("end", () => resolve(data));
-      });
+        s.on("error", () => resolve(data));
+      }).catch(() => resolve(""));
     });
 
     const outLower = output.toLowerCase();
@@ -175,7 +177,8 @@ export async function extractApp(
       adbState.client.shell(deviceId, `pm path ${pkgName}`).then((s: any) => {
         s.on("data", (c: any) => (data += c));
         s.on("end", () => resolve(data.trim()));
-      });
+        s.on("error", () => resolve(data.trim()));
+      }).catch(() => resolve(""));
     });
 
     const apkPath = pathOutput.replace("package:", "").trim();
@@ -228,7 +231,8 @@ export async function installApk(
         .then((s: any) => {
           s.on("data", (c: any) => (data += c));
           s.on("end", () => resolve(data.trim()));
-        });
+          s.on("error", () => resolve(data.trim()));
+        }).catch(() => resolve(""));
     });
 
     await adbState.client.shell(deviceId, `rm ${shellQuote(remotePath)}`);

@@ -314,7 +314,7 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     category: "battery",
     risk: "RISKY",
     enableCmd: "shell settings put global background_process_limit 4",
-    disableCmd: "shell settings put global background_process_limit 0",
+    disableCmd: "shell settings put global background_process_limit -1",
     readCmd: "shell settings get global background_process_limit",
     enabledValue: "4",
     defaultEnabled: false,
@@ -418,6 +418,18 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     enabledValue: "0",
     defaultEnabled: false,
   },
+  {
+    id: "xiaomi_notification_fix",
+    label: "Sửa lỗi trễ thông báo Xiaomi (HyperOS/MIUI)",
+    description: "Bỏ qua tối ưu pin Doze Mode/AppOps đối với Google Play Services để thông báo đẩy (FCM) đến tức thì khi tắt màn hình.",
+    category: "performance",
+    risk: "SAFE",
+    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
+    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
+    readCmd: "shell dumpsys deviceidle whitelist",
+    enabledValue: "whitelist",
+    defaultEnabled: false,
+  },
 ];
 
 export async function getTweakStatus(
@@ -430,8 +442,15 @@ export async function getTweakStatus(
     if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
       return tweak.defaultEnabled;
     }
+    if (tweak.id === "xiaomi_notification_fix") {
+      return (
+        output.includes("com.google.android.gms") &&
+        output.includes("com.google.android.gsf")
+      );
+    }
     return output === tweak.enabledValue;
-  } catch {
+  } catch (err: any) {
+    console.error(`Error in getTweakStatus for tweak ${tweak.id}:`, err.message || err);
     return tweak.defaultEnabled;
   }
 }
@@ -443,6 +462,18 @@ export async function applyTweak(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const cmd = enable ? tweak.enableCmd : tweak.disableCmd;
+    if (cmd.includes(" ## ")) {
+      const subCmds = cmd.split(" ## ");
+      let lastOutput = "";
+      for (const subCmd of subCmds) {
+        lastOutput = await execAdb(deviceId, subCmd);
+        if (lastOutput.includes("[BLOCKED BY SAFETY LAYER]")) {
+          return { success: false, message: lastOutput.trim() };
+        }
+      }
+      return { success: true, message: lastOutput.trim() || "OK" };
+    }
+
     let output = await execAdb(deviceId, cmd);
     if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
       return { success: false, message: output.trim() };

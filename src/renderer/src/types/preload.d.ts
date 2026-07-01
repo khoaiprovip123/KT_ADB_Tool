@@ -14,6 +14,10 @@ export interface IADBAPI {
   fixConnection: () => Promise<any>;
   getDeviceInfo: (deviceId: string) => Promise<DeviceInfo>;
   getDevices: () => Promise<AdbDevice[]>;
+  fastbootReboot: (
+    deviceId: string,
+    target?: "bootloader" | "recovery",
+  ) => Promise<{ success: boolean; message: string }>;
   getStorageStats: (deviceId: string) => Promise<StorageStats | null>;
   onDeviceUpdate: (callback: (devices: AdbDevice[]) => void) => () => void;
   runAdbCommand: (

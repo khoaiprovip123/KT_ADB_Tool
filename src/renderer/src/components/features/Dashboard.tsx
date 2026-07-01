@@ -9,8 +9,11 @@ import {
   Battery,
   Thermometer,
   ShieldAlert,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { toast } from "../../store/toastStore";
 import { DeviceInfo } from "../../../../shared/types";
 
 function RealTimeClock() {
@@ -42,6 +45,26 @@ export function Dashboard() {
   const { activeDevice, devices } = useDeviceStore();
   const activeDeviceObj = devices.find((d) => d.id === activeDevice);
   const isReady = activeDeviceObj?.type === "device";
+
+  const handleFastbootReboot = async (target?: "bootloader" | "recovery") => {
+    if (!activeDevice) return;
+    try {
+      const res = await window.api.fastbootReboot(activeDevice, target);
+      if (res.success) {
+        toast.success(
+          target === "bootloader"
+            ? "Đang khởi động lại vào Fastboot..."
+            : target === "recovery"
+              ? "Đang khởi động lại vào Recovery..."
+              : "Đang khởi động lại thiết bị..."
+        );
+      } else {
+        toast.error(`Lỗi: ${res.message}`);
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi thực thi: ${err.message}`);
+    }
+  };
 
   const [info, setInfo] = useState<DeviceInfo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -83,6 +106,48 @@ export function Dashboard() {
           <p className="text-slate-500">
             Vui lòng kết nối thiết bị Android qua USB và bật Gỡ lỗi USB.
           </p>
+        </div>
+      ) : activeDeviceObj?.type === "bootloader" ? (
+        <div className="text-center p-12 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl flex-1 flex flex-col items-center justify-center text-white relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
+          <div className="w-24 h-24 bg-cyan-950/50 rounded-full mx-auto mb-6 flex items-center justify-center border border-cyan-800/50 shadow-lg shadow-cyan-500/10">
+            <Cpu className="text-cyan-400 w-10 h-10 animate-pulse" />
+          </div>
+          <h3 className="text-2xl font-black mb-2 text-cyan-400 tracking-wide uppercase">
+            CHẾ ĐỘ FASTBOOT (BOOTLOADER)
+          </h3>
+          <p className="text-slate-400 max-w-md mx-auto mb-8 text-xs font-semibold leading-relaxed">
+            Thiết bị đang ở chế độ Fastboot. Hầu hết các tính năng ADB sẽ không khả dụng. Bạn có thể sử dụng các lệnh điều khiển nhanh dưới đây.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl">
+            <button
+              onClick={() => handleFastbootReboot()}
+              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+            >
+              <RefreshCw className="text-green-400 w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Khởi động lại</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào Android thường</span>
+            </button>
+            <button
+              onClick={() => handleFastbootReboot("bootloader")}
+              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+            >
+              <Zap className="text-cyan-400 w-6 h-6 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Vào lại Fastboot</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Khởi động lại vào Fastboot</span>
+            </button>
+            <button
+              onClick={() => handleFastbootReboot("recovery")}
+              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+            >
+              <ShieldAlert className="text-amber-400 w-6 h-6" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Vào Recovery</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào Recovery</span>
+            </button>
+          </div>
+          <div className="mt-8 text-[10px] text-slate-500 font-medium bg-slate-950/50 px-4 py-2 rounded-full border border-slate-800/80">
+            ID thiết bị: {activeDevice}
+          </div>
         </div>
       ) : !isReady ? (
         <div className="text-center p-12 bg-white/60 backdrop-blur-2xl rounded-3xl border border-white shadow-xl shadow-slate-200/50 flex-1 flex flex-col items-center justify-center">

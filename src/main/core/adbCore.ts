@@ -5,10 +5,13 @@ import * as path from "path";
 import { app } from "electron";
 import { exec, spawn } from "child_process";
 import { evaluateCommand, cleanAdbPrefix } from "./adbSafety";
+import * as fs from "fs";
 
 export const adbState = {
   client: adb.createClient(),
 };
+
+export let currentAdbExe = "adb";
 
 export async function killAdbServer(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -26,13 +29,13 @@ export async function initAdb(onProgress: (msg: string) => void) {
       ? path.join(process.resourcesPath, "bin")
       : path.join(__dirname, "../../resources/bin");
 
-    const adbExe = await ensureAdb(binPath, onProgress);
+    currentAdbExe = await ensureAdb(binPath, onProgress);
 
     await killAdbServer();
     await new Promise((r) => setTimeout(r, 1000));
 
     await new Promise<void>((resolve) => {
-      const child = spawn(adbExe, ["start-server"]);
+      const child = spawn(currentAdbExe, ["start-server"]);
       const timer = setTimeout(() => {
         child.kill();
         resolve();
@@ -46,9 +49,9 @@ export async function initAdb(onProgress: (msg: string) => void) {
         resolve();
       });
     });
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 2000));
 
-    adbState.client = adb.createClient({ bin: adbExe });
+    adbState.client = adb.createClient({ bin: currentAdbExe });
     onProgress("ADB Client connected successfully.");
 
     ensureScrcpy(binPath, onProgress).catch(() => {});
@@ -60,54 +63,138 @@ export async function initAdb(onProgress: (msg: string) => void) {
   }
 }
 
+import util from "util";
+const execPromise = util.promisify(exec);
+
 export async function getDevices() {
-  try {
-    const devices = await adbState.client.listDevices();
-    return devices;
-  } catch (error) {
-    console.error("Error listing devices:", error);
-    return [];
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // 1. Quét thiết bị ADB
+      const { stdout } = await execPromise(`"${currentAdbExe}" devices`);
+      const lines = stdout.split('\n');
+      const devices: any[] = [];
+      for (const line of lines) {
+        if (line.includes('List of devices attached')) continue;
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          devices.push({ id: parts[0], type: parts[1], status: parts[1] });
+        }
+      }
+
+      // 2. Quét thiết bị Fastboot (nếu có fastboot.exe)
+      try {
+        const fastbootExe = path.join(
+          path.dirname(currentAdbExe),
+          process.platform === "win32" ? "fastboot.exe" : "fastboot"
+        );
+        if (fs.existsSync(fastbootExe)) {
+          const { stdout: fbOut } = await execPromise(`"${fastbootExe}" devices`);
+          const fbLines = fbOut.split('\n');
+          for (const line of fbLines) {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length >= 2) {
+              // Nếu thiết bị chưa được nhận dạng ở ADB mode thì thêm vào dạng bootloader
+              if (!devices.some((d) => d.id === parts[0])) {
+                devices.push({
+                  id: parts[0],
+                  type: "bootloader",
+                  status: "fastboot",
+                  model: "Thiết bị Fastboot",
+                });
+              }
+            }
+          }
+        }
+      } catch (fbErr) {
+        console.warn("[FASTBOOT] Lỗi quét thiết bị:", fbErr);
+      }
+
+      return devices;
+    } catch (error: any) {
+      if (attempt < maxRetries) {
+        console.warn(`[ADB] getDevices attempt ${attempt} failed, retrying in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        console.error("[ADB] getDevices failed after all retries:", error.message || error);
+        return [];
+      }
+    }
   }
+  return [];
 }
 
 export function watchDevices(onUpdate: (devices: any[]) => void): () => void {
   let isTracking = false;
   let currentTracker: any = null;
   let active = true;
+  let retryTimer: any = null;
+  let lastDevsJson = "";
+
+  const cleanupTracker = () => {
+    isTracking = false;
+    if (currentTracker) {
+      try {
+        currentTracker.end();
+      } catch { /* ignore */ }
+      try {
+        currentTracker.removeAllListeners();
+      } catch { /* ignore */ }
+      currentTracker = null;
+    }
+  };
+
+  const refresh = async () => {
+    const devs = await getDevices();
+    const devsJson = JSON.stringify(devs);
+    if (devsJson !== lastDevsJson) {
+      lastDevsJson = devsJson;
+      onUpdate(devs);
+    }
+  };
+
+  const pollInterval = setInterval(refresh, 4000);
 
   const startTracking = async () => {
     if (isTracking || !active) return;
+    isTracking = true;
+
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+
     try {
       const tracker = await adbState.client.trackDevices();
       currentTracker = tracker;
-      isTracking = true;
 
-      const refresh = async () => {
-        const devs = await getDevices();
-        onUpdate(devs);
-      };
-
-      refresh();
+      await refresh();
 
       tracker.on("add", refresh);
       tracker.on("remove", refresh);
       tracker.on("change", refresh);
 
       tracker.on("end", () => {
-        console.log("Tracking ended, restarting...");
-        isTracking = false;
-        if (active) setTimeout(startTracking, 2000);
+        console.log("Tracking ended, restarting in 5s...");
+        cleanupTracker();
+        if (active && !retryTimer) {
+          retryTimer = setTimeout(startTracking, 5000);
+        }
       });
 
       tracker.on("error", (err: any) => {
-        console.error("Tracking error:", err);
-        isTracking = false;
-        if (active) setTimeout(startTracking, 2000);
+        console.warn("Tracking error (safe to ignore if reconnecting):", err.message || err);
+        cleanupTracker();
+        if (active && !retryTimer) {
+          retryTimer = setTimeout(startTracking, 5000);
+        }
       });
     } catch (error) {
-      console.error("Error tracking devices:", error);
-      isTracking = false;
-      if (active) setTimeout(startTracking, 2000);
+      console.warn("Error starting device tracking, retrying in 5s...");
+      cleanupTracker();
+      if (active && !retryTimer) {
+        retryTimer = setTimeout(startTracking, 5000);
+      }
     }
   };
 
@@ -115,10 +202,11 @@ export function watchDevices(onUpdate: (devices: any[]) => void): () => void {
 
   return () => {
     active = false;
-    if (currentTracker) {
-      currentTracker.end();
-      currentTracker.removeAllListeners();
+    clearInterval(pollInterval);
+    if (retryTimer) {
+      clearTimeout(retryTimer);
     }
+    cleanupTracker();
   };
 }
 
@@ -137,19 +225,19 @@ export async function runAdbCommand(
       return blockedMsg;
     }
 
-    const stream = await adbState.client.shell(deviceId, shellCommand);
-
-    return new Promise((resolve) => {
-      let output = "";
-      stream.on("data", (data: Buffer) => {
-        const text = data.toString();
-        output += text;
-        onLog(text);
-      });
-      stream.on("end", () => resolve(output));
-      stream.on("error", (err: any) => resolve(`ERROR: ${err.message}`));
-    });
+    const { stdout, stderr } = await execPromise(
+      `"${currentAdbExe}" -s ${deviceId} shell ${shellCommand}`
+    );
+    const output = stdout || stderr || "";
+    onLog(output);
+    return output;
   } catch (error: any) {
+    // exec rejects when exit code != 0, but stderr may contain useful output
+    if (error.stdout || error.stderr) {
+      const output = (error.stdout || "") + (error.stderr || "");
+      onLog(output);
+      return output;
+    }
     onLog(`CRITICAL ERROR: ${error.message}`);
     return "FAILED";
   }
@@ -157,6 +245,7 @@ export async function runAdbCommand(
 
 /**
  * execAdb — Hàm thực thi lệnh ADB chung với lớp an toàn evaluateCommand.
+ * Sử dụng CLI (child_process) thay vì adbkit để tránh ECONNRESET.
  */
 export async function execAdb(
   deviceId: string,
@@ -175,23 +264,64 @@ export async function execAdb(
     }
   }
 
-  return new Promise<string>((resolve, reject) => {
-    let data = "";
-    adbState.client
-      .shell(deviceId, cleanCmd)
-      .then((stream: any) => {
-        stream.on("data", (c: any) => {
-          data += c.toString();
-        });
-        stream.on("end", () => {
-          resolve(data);
-        });
-        stream.on("error", (err: any) => {
-          reject(err);
-        });
-      })
-      .catch((err: any) => {
-        reject(err);
-      });
-  });
+  const maxRetries = 2;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const { stdout } = await execPromise(
+        `"${currentAdbExe}" -s ${deviceId} shell ${cleanCmd}`
+      );
+      return stdout;
+    } catch (error: any) {
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000));
+      } else {
+        throw error;
+      }
+    }
+  }
+  return "";
+}
+
+/**
+ * Thực thi lệnh Fastboot cho thiết bị đang ở chế độ Bootloader/Fastboot.
+ */
+export async function execFastboot(
+  deviceId: string,
+  args: string[],
+): Promise<string> {
+  try {
+    const fastbootExe = path.join(
+      path.dirname(currentAdbExe),
+      process.platform === "win32" ? "fastboot.exe" : "fastboot"
+    );
+    if (!fs.existsSync(fastbootExe)) {
+      throw new Error("Không tìm thấy tệp thực thi fastboot");
+    }
+    const { stdout, stderr } = await execPromise(
+      `"${fastbootExe}" -s ${deviceId} ${args.join(" ")}`
+    );
+    return stdout || stderr || "OK";
+  } catch (error: any) {
+    throw new Error(error.stderr || error.message);
+  }
+}
+
+/**
+ * Gửi lệnh reboot qua Fastboot.
+ */
+export async function fastbootReboot(
+  deviceId: string,
+  target?: "bootloader" | "recovery",
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const args = ["reboot"];
+    if (target) {
+      args.push(target);
+    }
+    const output = await execFastboot(deviceId, args);
+    return { success: true, message: output.trim() || "OK" };
+  } catch (err: any) {
+    console.error(`[FASTBOOT] reboot failed:`, err);
+    return { success: false, message: err.message };
+  }
 }

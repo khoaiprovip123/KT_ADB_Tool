@@ -26,6 +26,12 @@ const api = {
   getDeviceInfo: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-info", deviceId),
   getDevices: () => ipcRenderer.invoke("adb:get-devices"),
+  fastbootReboot: (deviceId: string, target?: "bootloader" | "recovery") => {
+    if (!deviceId || typeof deviceId !== "string" || deviceId.includes(";") || deviceId.includes("|") || deviceId.includes("&")) {
+      return Promise.reject(new Error("Invalid device ID"));
+    }
+    return ipcRenderer.invoke("fastboot:reboot", { deviceId, target });
+  },
   onDeviceUpdate: (callback: (devices: any[]) => void) => {
     const listener = (_event: any, devices: any[]) => callback(devices);
     ipcRenderer.on("adb:device-update", listener);

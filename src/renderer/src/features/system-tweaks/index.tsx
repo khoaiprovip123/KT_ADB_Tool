@@ -191,6 +191,9 @@ export function SystemTweaks() {
               fixNotificationDelay={tweaks.fixNotificationDelay}
               freezeBackgroundApp={tweaks.freezeBackgroundApp}
               unfreezeBackgroundApp={tweaks.unfreezeBackgroundApp}
+              xiaomiNotificationFixed={tweaks.xiaomiNotificationFixed}
+              fixXiaomiNotificationDelay={tweaks.fixXiaomiNotificationDelay}
+              loadData={tweaks.loadData}
             />
           )}
         </div>

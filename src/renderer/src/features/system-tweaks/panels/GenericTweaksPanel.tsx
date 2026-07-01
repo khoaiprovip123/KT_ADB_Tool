@@ -15,6 +15,7 @@ import {
   Monitor,
   Layers,
   AlertCircle,
+  Bell,
 } from "lucide-react";
 import { TweakCategory } from "../types";
 
@@ -67,6 +68,9 @@ interface GenericTweaksPanelProps {
   fixNotificationDelay: (pkg: string) => Promise<void>;
   freezeBackgroundApp: (pkg: string) => Promise<void>;
   unfreezeBackgroundApp: (pkg: string) => Promise<void>;
+  xiaomiNotificationFixed: boolean;
+  fixXiaomiNotificationDelay: () => Promise<void>;
+  loadData: () => Promise<void>;
 }
 
 export function GenericTweaksPanel({
@@ -108,6 +112,9 @@ export function GenericTweaksPanel({
   fixNotificationDelay,
   freezeBackgroundApp,
   unfreezeBackgroundApp,
+  xiaomiNotificationFixed,
+  fixXiaomiNotificationDelay,
+  loadData,
 }: GenericTweaksPanelProps) {
   // Local inputs
   const [pkgNotifyInput, setPkgNotifyInput] = useState("");
@@ -466,6 +473,59 @@ export function GenericTweaksPanel({
               <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
                 💡 **Mẹo**: Lệnh này sẽ tự động loại bỏ ứng dụng khỏi chế độ ngủ tiết kiệm pin (Doze mode), cho phép chạy nền và nâng bucket ưu tiên lên hoạt động tích cực (standby-bucket active).
               </p>
+            </div>
+          </div>
+
+          {/* Part 2.5: Fix Notification Delay for Xiaomi (ALL ROMs) */}
+          <div className="bg-[#fcf8f2] p-6 rounded-3xl border border-amber-200/80 shadow-sm space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-amber-550 text-white rounded-2xl shadow-md shrink-0">
+                <Bell size={22} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    Sửa lỗi trễ thông báo Xiaomi (Mọi ROM & HyperOS)
+                  </h4>
+                  {xiaomiNotificationFixed ? (
+                    <span className="px-2.5 py-0.5 bg-green-500 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                      Đã tối ưu (Whitelist)
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                      Chưa tối ưu
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-450 font-semibold leading-relaxed">
+                  Bỏ qua tối ưu pin ở cấp hệ thống (Doze Mode & AppOps) đối với Google Play Services để đảm bảo kết nối FCM hoạt động theo thời gian thực trên mọi phiên bản HyperOS/MIUI (China, Global, EU).
+                </p>
+              </div>
+            </div>
+
+            <div className="pl-14 space-y-4">
+              <div className="flex gap-3">
+                <button
+                  onClick={fixXiaomiNotificationDelay}
+                  disabled={actionLoading === "fix_xiaomi_notify"}
+                  className="px-5 py-3 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-700 active:scale-95 transition-all shadow-md disabled:opacity-50 flex items-center gap-2"
+                >
+                  {actionLoading === "fix_xiaomi_notify" ? "Đang xử lý..." : "Áp dụng sửa lỗi trễ thông báo"}
+                </button>
+                <button
+                  onClick={loadData}
+                  disabled={actionLoading === "fix_xiaomi_notify"}
+                  className="px-5 py-3 bg-white border border-slate-200 text-slate-655 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                >
+                  Kiểm tra lại
+                </button>
+              </div>
+              <div className="p-4 bg-white/70 border border-amber-200/50 rounded-2xl text-[10px] text-slate-550 leading-relaxed font-semibold space-y-1">
+                <p className="text-slate-700 font-bold">⚠️ Hướng dẫn bổ sung:</p>
+                <p>1. Cấp quyền **Tự động khởi chạy nền** cho các ứng dụng bị ảnh hưởng (Cài đặt → Ứng dụng → Quyền ứng dụng → Tự động khởi chạy nền).</p>
+                <p>2. Với một số app như WhatsApp, Telegram, nên gỡ cài đặt rồi cài lại từ CH Play để thiết lập lại cơ chế thông báo.</p>
+                <p>3. Hao pin có thể tăng nhẹ khoảng 1-2% qua đêm do socket kết nối FCM với Google luôn duy trì trên Wifi khi tắt màn hình.</p>
+              </div>
             </div>
           </div>
 

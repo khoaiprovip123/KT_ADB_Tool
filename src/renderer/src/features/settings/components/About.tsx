@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 export default function About() {
-  const [appVersion, setAppVersion] = useState("2.3.2-PRO-MAX");
+  const [appVersion, setAppVersion] = useState("2.4.1");
 
   useEffect(() => {
     window.api.getAppVersion().then((ver) => {

@@ -70,6 +70,7 @@ export function useSystemTweaks() {
   const [bgLimit, setBgLimit] = useState<number>(-1);
   const [alwaysFinish, setAlwaysFinish] = useState<boolean>(false);
   const [phantomOptimizer, setPhantomOptimizer] = useState<boolean>(false);
+  const [xiaomiNotificationFixed, setXiaomiNotificationFixed] = useState(false);
 
   const { executeWithRetry } = useAdbWithRetry();
 
@@ -195,6 +196,22 @@ export function useSystemTweaks() {
         );
         if (phantomRes.success) {
           setPhantomOptimizer(phantomRes.output.trim() === "32");
+        }
+      } catch {
+        /* ignore */
+      }
+
+      try {
+        const whitelistRes = await window.api.runAdbCommand(
+          activeDevice,
+          "shell dumpsys deviceidle whitelist"
+        );
+        if (whitelistRes.success) {
+          const out = whitelistRes.output;
+          setXiaomiNotificationFixed(
+            out.includes("com.google.android.gms") &&
+            out.includes("com.google.android.gsf")
+          );
         }
       } catch {
         /* ignore */
@@ -779,6 +796,58 @@ export function useSystemTweaks() {
     }
   };
 
+  const fixXiaomiNotificationDelay = async () => {
+    if (!activeDevice) return;
+    setActionLoading("fix_xiaomi_notify");
+    addLog(`[ACTION] Bắt đầu sửa lỗi trễ thông báo Xiaomi (Google Play Services)`);
+    try {
+      const commands = [
+        "shell cmd appops set com.google.android.gms WAKE_LOCK allow",
+        "shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow",
+        "shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
+        "shell dumpsys deviceidle whitelist +com.google.android.gms",
+        "shell dumpsys deviceidle whitelist +com.google.android.gsf"
+      ];
+
+      for (const cmd of commands) {
+        addLog(`[EXEC] ${cmd}`);
+        const res = await executeWithRetry(
+          () => window.api.runAdbCommand(activeDevice, cmd),
+          { maxRetries: 2 }
+        );
+        addLog(`[RESULT] ${res.output.trim() || "Success"}`);
+      }
+
+      // Verify status
+      const whitelistRes = await window.api.runAdbCommand(
+        activeDevice,
+        "shell dumpsys deviceidle whitelist"
+      );
+      let verified = false;
+      if (whitelistRes.success) {
+        const out = whitelistRes.output;
+        verified =
+          out.includes("com.google.android.gms") &&
+          out.includes("com.google.android.gsf");
+      }
+
+      setXiaomiNotificationFixed(verified);
+      if (verified) {
+        toast.success("Sửa lỗi trễ thông báo Xiaomi thành công!");
+        addLog("[SUCCESS] Đã đưa Google Play Services & Services Framework vào danh sách trắng Doze & AppOps.");
+      } else {
+        toast.error("Thiết lập thành công nhưng xác minh whitelist thất bại. Vui lòng kiểm tra lại kết nối.");
+        addLog("[WARNING] Thiết lập hoàn tất nhưng không tìm thấy package trong dumpsys whitelist.");
+      }
+    } catch (error) {
+      const adbError = handleAdbError(error);
+      addLog(`[ERROR] Sửa lỗi trễ thông báo Xiaomi thất bại: ${adbError.message}`);
+      showErrorToast(adbError);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const freezeBackgroundApp = async (pkg: string) => {
     if (!activeDevice || !pkg) return;
     if (!validatePackageName(pkg)) {
@@ -1052,5 +1121,7 @@ export function useSystemTweaks() {
     toggleAlwaysFinish,
     togglePhantomOptimizer,
     filteredBloat,
+    xiaomiNotificationFixed,
+    fixXiaomiNotificationDelay,
   };
 }

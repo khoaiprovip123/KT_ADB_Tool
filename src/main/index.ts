@@ -20,8 +20,11 @@ function isIgnorableError(error: any): boolean {
 
 // Ngăn chặn popup lỗi JavaScript và hiển thị dialog cảnh báo lỗi hệ thống nghiêm trọng
 process.on("uncaughtException", (error) => {
+  if (isIgnorableError(error)) {
+    // console.warn("[ADB Connection Reset Ignored]:", error.message || error);
+    return;
+  }
   console.error("[Uncaught Exception Alert]:", error);
-  if (isIgnorableError(error)) return;
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng",
     `Ứng dụng gặp lỗi không mong muốn:\n${error.stack || error.message}`
@@ -29,8 +32,11 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason: any) => {
+  if (isIgnorableError(reason)) {
+    // console.warn("[ADB Connection Reset Rejection Ignored]:", reason?.message || reason);
+    return;
+  }
   console.error("[Unhandled Rejection Alert]:", reason);
-  if (isIgnorableError(reason)) return;
   const errMsg = reason instanceof Error ? reason.stack || reason.message : String(reason);
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng (Promise Rejection)",

@@ -142,19 +142,9 @@ export async function getDeviceInfo(deviceId: string) {
       "Unknown";
 
     // Lấy IP address chuẩn xác qua các nguồn mạng
-    const ipRaw = await new Promise<string>((resolve) => {
-      let data = "";
-      adbState.client
-        .shell(
-          deviceId,
-          "ip route show dev wlan0 2>/dev/null || ip route show dev wlan1 2>/dev/null || ip route 2>/dev/null",
-        )
-        .then((s: any) => {
-          s.on("data", (c: any) => (data += c));
-          s.on("end", () => resolve(data));
-        })
-        .catch(() => resolve(""));
-    });
+    const ipRaw = await safeShell(
+      "ip route show dev wlan0 2>/dev/null || ip route show dev wlan1 2>/dev/null || ip route 2>/dev/null",
+    );
 
     let ipAddr = "Not Connected";
     const wlan0Match =
@@ -169,20 +159,9 @@ export async function getDeviceInfo(deviceId: string) {
     } else if (wlan1Match) {
       ipAddr = wlan1Match[1];
     } else {
-      // Thử dùng ip address show wlan0 / wlan1
-      const ipAddrRaw = await new Promise<string>((resolve) => {
-        let data = "";
-        adbState.client
-          .shell(
-            deviceId,
-            "ip address show dev wlan0 2>/dev/null || ip address show dev wlan1 2>/dev/null",
-          )
-          .then((s: any) => {
-            s.on("data", (c: any) => (data += c));
-            s.on("end", () => resolve(data));
-          })
-          .catch(() => resolve(""));
-      });
+      const ipAddrRaw = await safeShell(
+        "ip address show dev wlan0 2>/dev/null || ip address show dev wlan1 2>/dev/null",
+      );
 
       const inetMatch = ipAddrRaw.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
       if (inetMatch) {

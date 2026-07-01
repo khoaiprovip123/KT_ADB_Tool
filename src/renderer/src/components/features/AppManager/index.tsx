@@ -66,7 +66,7 @@ function FilterBtn({
 
 
 export function AppManager() {
-  const { activeDevice } = useDeviceStore();
+  const { activeDevice, devices } = useDeviceStore();
   const [packages, setPackages] = useState<AppInfo[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -142,6 +142,9 @@ export function AppManager() {
     }
   }
 
+  const currentDevice = devices.find((d) => d.id === activeDevice);
+  const isBootloader = currentDevice?.type === "bootloader";
+
   if (!activeDevice) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-3xl m-8">
@@ -149,6 +152,19 @@ export function AppManager() {
         <h3 className="text-xl font-bold text-slate-700">Chưa có thiết bị</h3>
         <p className="text-slate-500 mt-2 text-center max-w-sm">
           Vui lòng kết nối thiết bị Android để quản lý ứng dụng.
+        </p>
+      </div>
+    );
+  }
+
+  if (isBootloader) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-900 border border-slate-800 rounded-3xl m-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
+        <Package className="w-16 h-16 text-cyan-400 mb-4 animate-pulse" />
+        <h3 className="text-xl font-bold text-cyan-400">Thiết bị đang ở chế độ Fastboot</h3>
+        <p className="text-slate-400 mt-2 text-center max-w-sm text-xs leading-relaxed font-semibold">
+          Quản lý ứng dụng yêu cầu thiết bị ở chế độ bình thường (ADB). Vui lòng chuyển qua tab Bảng điều khiển để khởi động lại thiết bị.
         </p>
       </div>
     );

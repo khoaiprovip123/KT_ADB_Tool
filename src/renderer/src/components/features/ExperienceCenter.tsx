@@ -302,7 +302,8 @@ export function ExperienceCenter() {
   const currentDevice = devices.find((device) => device.id === activeDevice);
   const isUnauthorized = currentDevice?.type === "unauthorized";
   const isOffline = currentDevice?.type === "offline";
-  const isDeviceReady = Boolean(activeDevice && !isUnauthorized && !isOffline);
+  const isBootloader = currentDevice?.type === "bootloader";
+  const isDeviceReady = Boolean(activeDevice && !isUnauthorized && !isOffline && !isBootloader);
 
   const runTrackedAction = useCallback(
     async (
@@ -634,7 +635,9 @@ export function ExperienceCenter() {
         ? "Thiết bị chưa cấp quyền ADB"
         : isOffline
           ? "Thiết bị đang offline"
-          : "Chưa chọn thiết bị";
+          : isBootloader
+            ? "Thiết bị đang ở chế độ Fastboot"
+            : "Chưa chọn thiết bị";
 
   const refreshAfterAction = useCallback(async () => {
     await loadWorkspace();

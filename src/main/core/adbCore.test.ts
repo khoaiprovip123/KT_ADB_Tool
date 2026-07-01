@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { Readable } from "stream";
+import { exec } from "child_process";
+import util from "util";
 
 vi.mock("adbkit", () => {
   return {
@@ -21,28 +22,33 @@ vi.mock("electron", () => {
   };
 });
 
-import { runAdbCommand, execAdb, adbState } from "./adbCore";
-
-function createMockStream(content: string, triggerError = false) {
-  const stream = new Readable({
-    read() {}
+vi.mock("child_process", () => {
+  const utilModule = require("util");
+  const execMock = vi.fn((_cmd, options, cb) => {
+    const callback = typeof options === "function" ? options : cb;
+    callback(null, "mock output", "");
   });
-  if (triggerError) {
-    process.nextTick(() => {
-      stream.emit("error", new Error("Stream read error"));
-    });
-  } else {
-    process.nextTick(() => {
-      stream.push(content);
-      stream.push(null);
-    });
-  }
-  return stream;
-}
+
+  (execMock as any)[utilModule.promisify.custom] = vi.fn(async () => {
+    return { stdout: "mock output", stderr: "" };
+  });
+
+  return {
+    exec: execMock,
+    spawn: vi.fn(),
+  };
+});
+
+import { runAdbCommand, execAdb } from "./adbCore";
 
 describe("adbCore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default implementation for the custom promisifier
+    vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+      stdout: "mock output",
+      stderr: "",
+    });
   });
 
   describe("runAdbCommand", () => {
@@ -51,35 +57,33 @@ describe("adbCore", () => {
       const result = await runAdbCommand("device-1", "rm -rf /data", onLog);
       expect(result).toContain("[BLOCKED BY SAFETY LAYER]");
       expect(onLog).toHaveBeenCalledWith(expect.stringContaining("[BLOCKED BY SAFETY LAYER]"));
-      expect(adbState.client.shell).not.toHaveBeenCalled();
+      expect((exec as any)[util.promisify.custom]).not.toHaveBeenCalled();
     });
 
     it("should clean command prefix and execute safe commands successfully", async () => {
       const onLog = vi.fn();
-      vi.mocked(adbState.client.shell).mockResolvedValue(createMockStream("mock output") as any);
+      vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+        stdout: "mock output",
+        stderr: "",
+      });
       
       const result = await runAdbCommand("device-1", "adb shell getprop ro.product.model", onLog);
       expect(result).toBe("mock output");
       expect(onLog).toHaveBeenCalledWith("mock output");
-      expect(adbState.client.shell).toHaveBeenCalledWith("device-1", "getprop ro.product.model");
+      expect((exec as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        expect.stringContaining("getprop ro.product.model")
+      );
     });
 
-    it("should return error message when stream emits error", async () => {
+    it("should return FAILED when command execution fails", async () => {
       const onLog = vi.fn();
-      vi.mocked(adbState.client.shell).mockResolvedValue(createMockStream("", true) as any);
-      
-      const result = await runAdbCommand("device-1", "getprop", onLog);
-      expect(result).toBe("ERROR: Stream read error");
-      expect(adbState.client.shell).toHaveBeenCalledWith("device-1", "getprop");
-    });
-
-    it("should handle exceptions thrown by adb client", async () => {
-      const onLog = vi.fn();
-      vi.mocked(adbState.client.shell).mockRejectedValue(new Error("ADB Connection lost") as any);
+      vi.mocked((exec as any)[util.promisify.custom]).mockRejectedValue(
+        new Error("Command execution failed")
+      );
       
       const result = await runAdbCommand("device-1", "getprop", onLog);
       expect(result).toBe("FAILED");
-      expect(onLog).toHaveBeenCalledWith("CRITICAL ERROR: ADB Connection lost");
+      expect(onLog).toHaveBeenCalledWith(expect.stringContaining("CRITICAL ERROR"));
     });
   });
 
@@ -87,19 +91,28 @@ describe("adbCore", () => {
     it("should block unsafe commands and return block message", async () => {
       const result = await execAdb("device-1", "rm -rf /");
       expect(result).toContain("[BLOCKED BY SAFETY LAYER]");
-      expect(adbState.client.shell).not.toHaveBeenCalled();
+      expect((exec as any)[util.promisify.custom]).not.toHaveBeenCalled();
     });
 
     it("should execute safe shell command and resolve with output", async () => {
-      vi.mocked(adbState.client.shell).mockResolvedValue(createMockStream("shell output") as any);
+      vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+        stdout: "shell output",
+        stderr: "",
+      });
+
       const result = await execAdb("device-1", "shell pm list packages");
       expect(result).toBe("shell output");
-      expect(adbState.client.shell).toHaveBeenCalledWith("device-1", "pm list packages");
+      expect((exec as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        expect.stringContaining("pm list packages")
+      );
     });
 
-    it("should reject when stream error occurs", async () => {
-      vi.mocked(adbState.client.shell).mockResolvedValue(createMockStream("", true) as any);
-      await expect(execAdb("device-1", "getprop")).rejects.toThrow("Stream read error");
+    it("should reject when command fails on all attempts", async () => {
+      vi.mocked((exec as any)[util.promisify.custom]).mockRejectedValue(
+        new Error("Command failed")
+      );
+
+      await expect(execAdb("device-1", "getprop")).rejects.toThrow("Command failed");
     });
   });
 });

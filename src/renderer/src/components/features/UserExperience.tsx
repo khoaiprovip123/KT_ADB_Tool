@@ -18,6 +18,7 @@ import {
   Bell,
   Zap,
   Check,
+  Cpu,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 
@@ -302,6 +303,7 @@ export function UserExperience() {
   const currentDevice = devices.find((d) => d.id === activeDevice);
   const isUnauthorized = currentDevice?.type === "unauthorized";
   const isOffline = currentDevice?.type === "offline";
+  const isBootloader = currentDevice?.type === "bootloader";
 
   const isXiaomiDevice =
     deviceProfile &&
@@ -674,6 +676,19 @@ export function UserExperience() {
           <p className="text-slate-500 max-w-sm text-sm font-medium">
             Vui lòng cắm cáp kết nối thiết bị Android, bật Gỡ lỗi USB (USB
             Debugging) để bắt đầu cá nhân hóa giao diện.
+          </p>
+        </div>
+      ) : isBootloader ? (
+        <div className="text-center p-12 bg-slate-900 rounded-[32px] border border-slate-800 shadow-2xl flex-1 flex flex-col items-center justify-center min-h-[450px] text-white relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
+          <div className="w-20 h-20 bg-cyan-950/50 rounded-[28px] mx-auto mb-6 flex items-center justify-center border border-cyan-800/50 shadow-lg shadow-cyan-500/10">
+            <Cpu className="text-cyan-400 w-10 h-10 animate-pulse" />
+          </div>
+          <h3 className="text-2xl font-black text-cyan-400 tracking-tight mb-2 uppercase">
+            Thiết bị ở chế độ Fastboot
+          </h3>
+          <p className="text-slate-400 max-w-md text-xs mb-8 leading-relaxed font-semibold">
+            Giao diện tùy biến trải nghiệm chỉ hỗ trợ khi thiết bị hoạt động ở chế độ bình thường (ADB). Vui lòng chuyển qua tab Bảng điều khiển để khởi động lại thiết bị.
           </p>
         </div>
       ) : isUnauthorized || isOffline ? (

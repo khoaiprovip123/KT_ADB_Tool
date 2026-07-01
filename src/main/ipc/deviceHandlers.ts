@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { getDevices, killAdbServer, initAdb } from "../core/adbCore";
+import { getDevices, killAdbServer, initAdb, fastbootReboot } from "../core/adbCore";
 import {
   runScrcpy,
   connectWifi,
@@ -128,6 +128,14 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
     async (_event, deviceId) => {
       if (!isValidDeviceId(deviceId)) return null;
       return await readDeviceConfigSnapshot(deviceId);
+    },
+  );
+
+  ipcMain.handle(
+    "fastboot:reboot",
+    async (_event, { deviceId, target }) => {
+      if (!isValidDeviceId(deviceId)) return { success: false, message: "Device ID không hợp lệ" };
+      return await fastbootReboot(deviceId, target);
     },
   );
 }

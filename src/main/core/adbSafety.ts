@@ -154,12 +154,14 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "am start",
     "am broadcast",
     "am force-stop",
+    "am set-standby-bucket ",
     "cmd activity",
     "cmd package list",
     "cmd notification",
     "cmd device_config",
     "cmd settings",
     "cmd power",
+    "cmd appops ",
     "svc power",
     "svc wifi",
     "svc data",
@@ -170,6 +172,7 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "content read",
     "appops ",
     "service call ",
+    "dumpsys ",
   ];
   if (SAFE_CMD_PREFIXES.some((p) => trimmed.startsWith(p))) {
     return { allowed: true, risk: "MEDIUM", mode: "RAW_SHELL" };
