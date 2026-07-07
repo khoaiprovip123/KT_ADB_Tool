@@ -35,6 +35,8 @@ import {
   Wand2,
   XCircle,
   Zap,
+  Globe,
+  Check,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
@@ -50,7 +52,8 @@ type SectionId =
   | "performance"
   | "privacy"
   | "display"
-  | "debloat";
+  | "debloat"
+  | "dns";
 
 type RiskLevel = "SAFE" | "MEDIUM" | "RISKY" | "DANGEROUS" | "KEEP";
 type ActionSource = "experience" | "system";
@@ -181,6 +184,12 @@ const sectionMeta: Array<{
     desc: "Gói cài sẵn",
     icon: <PackageCheck className="w-4 h-4" />,
   },
+  {
+    id: "dns",
+    label: "Cấu hình DNS",
+    desc: "Mã hóa DNS, chặn QC",
+    icon: <Globe className="w-4 h-4" />,
+  },
 ];
 
 const riskRank: Record<RiskLevel, number> = {
@@ -284,6 +293,11 @@ export function ExperienceCenter() {
     total: number;
   } | null>(null);
   const refreshToken = useRef(0);
+
+  // DNS States
+  const [dnsMode, setDnsMode] = useState<string>("off");
+  const [dnsSpecifier, setDnsSpecifier] = useState<string>("");
+  const [customDns, setCustomDns] = useState<string>("");
 
   // Đồng bộ giá trị DPI và Resolution tùy chỉnh khi thông tin thiết bị được tải thành công
   useEffect(() => {
@@ -401,6 +415,8 @@ export function ExperienceCenter() {
         dpiResult,
         resolutionResult,
         bloatResult,
+        dnsModeResult,
+        dnsSpecResult,
       ] = await Promise.allSettled([
         window.api.getDeviceProfile(activeDevice),
         window.api.getXiaomiCapabilities(activeDevice),
@@ -409,6 +425,8 @@ export function ExperienceCenter() {
         window.api.getDpi(activeDevice),
         window.api.getResolution(activeDevice),
         window.api.getBloatwareWithStatus(activeDevice),
+        window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_mode"),
+        window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_specifier"),
       ]);
 
       if (token !== refreshToken.current) return;
@@ -462,6 +480,29 @@ export function ExperienceCenter() {
           ? (bloatResult.value as BloatwareEntry[])
           : [],
       );
+
+      // Map DNS States
+      if (
+        dnsModeResult.status === "fulfilled" &&
+        dnsModeResult.value &&
+        dnsModeResult.value.success
+      ) {
+        const val = dnsModeResult.value.output.trim();
+        setDnsMode(val === "null" || val === "" ? "off" : val);
+      } else {
+        setDnsMode("off");
+      }
+
+      if (
+        dnsSpecResult.status === "fulfilled" &&
+        dnsSpecResult.value &&
+        dnsSpecResult.value.success
+      ) {
+        const val = dnsSpecResult.value.output.trim();
+        setDnsSpecifier(val === "null" ? "" : val);
+      } else {
+        setDnsSpecifier("");
+      }
     } catch (error: any) {
       toast.error(error?.message ?? "Không thể quét thiết bị.");
     } finally {
@@ -560,6 +601,7 @@ export function ExperienceCenter() {
       privacy: 0,
       display: 0,
       debloat: bloatware.filter((entry) => entry.status === "installed").length,
+      dns: 0,
     };
 
     unifiedActions.forEach((action) => {
@@ -818,6 +860,55 @@ export function ExperienceCenter() {
     });
   };
 
+  const handleApplyDns = (mode: string, specifier?: string) => {
+    if (!activeDevice) return;
+    const targetSpecifier = specifier || customDns;
+
+    if (mode === "hostname" && (!targetSpecifier || !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(targetSpecifier))) {
+      toast.error("Hostname DNS không hợp lệ (Ví dụ: dns.google)");
+      return;
+    }
+
+    void runTrackedAction({
+      key: "dns:change",
+      title: `Thay đổi DNS sang: ${mode === "hostname" ? targetSpecifier : mode === "opportunistic" ? "Tự động" : "Tắt"}`,
+      detail: "Cấu hình Private DNS",
+      source: "display",
+      risk: "SAFE",
+      confirm: false,
+      execute: async () => {
+        if (mode === "hostname") {
+          await window.api.runAdbCommand(
+            activeDevice,
+            "shell settings put global private_dns_mode hostname"
+          );
+          const res = await window.api.runAdbCommand(
+            activeDevice,
+            `shell settings put global private_dns_specifier ${targetSpecifier}`
+          );
+          return { success: res.success, output: res.output };
+        } else if (mode === "opportunistic") {
+          const res = await window.api.runAdbCommand(
+            activeDevice,
+            "shell settings put global private_dns_mode opportunistic"
+          );
+          return { success: res.success, output: res.output };
+        } else {
+          const res = await window.api.runAdbCommand(
+            activeDevice,
+            "shell settings put global private_dns_mode off"
+          );
+          return { success: res.success, output: res.output };
+        }
+      },
+      onSuccess: async () => {
+        setDnsMode(mode);
+        if (mode === "hostname") setDnsSpecifier(targetSpecifier);
+        await loadWorkspace();
+      },
+    });
+  };
+
   const handleApplyResolution = () => {
     if (!activeDevice) return;
     const validation = validateResolution(customWidth, customHeight);
@@ -982,145 +1073,126 @@ export function ExperienceCenter() {
   };
 
   return (
-    <div className="experience-center h-full min-h-0 overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_26%),linear-gradient(135deg,#eef5fb_0%,#f8fafc_45%,#eef2f7_100%)] p-3 text-slate-800">
-      <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[248px_minmax(0,1fr)] 2xl:grid-cols-[256px_minmax(0,1fr)]">
-        <aside
-          className={`${panelClass} flex min-h-0 flex-col rounded-2xl p-3`}
+    <div className="experience-center h-full w-full min-w-0 min-h-0 overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_26%),linear-gradient(135deg,#eef5fb_0%,#f8fafc_45%,#eef2f7_100%)] p-3 text-slate-800">
+      <div className="flex flex-col h-full w-full min-w-0 min-h-0 gap-3">
+        <header
+          className={`${panelClass} flex flex-col gap-3 rounded-2xl p-3 shrink-0`}
         >
-          <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex items-center justify-between gap-4 border-b border-slate-100/80 pb-2">
+            {/* Device Info & Brand in 1 Place */}
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
+                <Smartphone className="h-5 w-5" />
+                <span
+                  className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white ${
+                    isDeviceReady ? "bg-emerald-500" : "bg-rose-500"
+                  }`}
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">UX & Tinh chỉnh</span>
+                  <span className="text-slate-250">|</span>
+                  <h3 className="text-sm font-black text-slate-955 leading-none">
+                    {activeDeviceName}
+                  </h3>
+                  {deviceProfile?.sdk && (
+                    <span className="rounded-full border border-slate-200 bg-white px-1.5 py-0.2 text-[8px] font-black uppercase text-slate-500">
+                      API {deviceProfile.sdk}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 truncate">
+                  {profileLine}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-slate-900">
-                UX & Tinh chỉnh
-              </p>
-              <p className="truncate text-[11px] font-semibold text-slate-500">
-                ADB Core
-              </p>
+
+            {/* Metrics & Actions on the Right (Vùng khoanh đỏ) - Compact version to prevent layout overflow */}
+            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[65%]">
+              {/* Score pill */}
+              <div className="flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/60 px-2 text-[10px] font-black text-emerald-700">
+                <Activity className="h-3 w-3" />
+                <span>Score {metrics.score}%</span>
+              </div>
+
+              {/* Status metrics */}
+              <div className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] font-bold text-slate-700">
+                <BadgeCheck className="h-3 w-3 text-emerald-600" />
+                <span>Đã bật: <strong className="font-black">{metrics.enabled}/{metrics.total}</strong></span>
+              </div>
+              <div className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] font-bold text-slate-700">
+                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                <span>Rủi ro: <strong className="font-black">{metrics.riskyActions}</strong></span>
+              </div>
+
+              {/* Action buttons */}
+              <button
+                onClick={() => void loadWorkspace()}
+                disabled={!isDeviceReady || loading}
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`}
+                />
+                Quét lại
+              </button>
+              <button
+                onClick={handleSafeOptimize}
+                disabled={
+                  !isDeviceReady || loading || metrics.safePending === 0
+                }
+                className="inline-flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2 text-[10px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+              >
+                <Zap className="h-2.5 w-2.5 text-cyan-300" />
+                Tối ưu SAFE
+              </button>
             </div>
           </div>
 
-          <nav className="space-y-1.5">
-            {sectionMeta.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all ${
-                  activeSection === section.id
-                    ? "border-blue-500/20 bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                    : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-white/80 hover:text-slate-900"
-                }`}
-              >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+          <div className="flex items-center gap-2">
+            {/* Navigation tabs */}
+            <nav className="flex items-center gap-0.5 rounded-lg bg-slate-100/80 p-0.5 min-w-0 overflow-x-auto scrollbar-none flex-1">
+              {sectionMeta.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`group flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all shrink-0 ${
                     activeSection === section.id
-                      ? "bg-white/15 text-cyan-200"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600"
+                      ? "bg-white text-blue-600 shadow-sm border border-slate-200/30"
+                      : "text-slate-655 hover:text-slate-900 hover:bg-white/40"
                   }`}
                 >
-                  {section.icon}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-black">
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded ${
+                      activeSection === section.id
+                        ? "bg-blue-50 text-blue-600"
+                        : "bg-slate-200/60 text-slate-500 group-hover:bg-slate-200"
+                    }`}
+                  >
+                    {React.cloneElement(section.icon as React.ReactElement, { className: "w-2.5 h-2.5" })}
+                  </span>
+                  <span className="font-extrabold truncate">
                     {section.label}
                   </span>
                   <span
-                    className={`block truncate text-[10px] font-semibold ${
+                    className={`rounded-full px-1 text-[8.5px] font-black min-w-[14px] h-3.5 flex items-center justify-center ${
                       activeSection === section.id
-                        ? "text-blue-100"
-                        : "text-slate-400"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-200 text-slate-500"
                     }`}
                   >
-                    {section.desc}
+                    {sectionCounts[section.id]}
                   </span>
-                </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                    activeSection === section.id
-                      ? "bg-white/15 text-white"
-                      : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {sectionCounts[section.id]}
-                </span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="mt-auto space-y-2 pt-4">
-            <MetricTile
-              icon={<BadgeCheck className="h-4 w-4" />}
-              label="Đã bật"
-              value={`${metrics.enabled}/${metrics.total}`}
-              tone="emerald"
-            />
-            <MetricTile
-              icon={<AlertTriangle className="h-4 w-4" />}
-              label="Rủi ro"
-              value={String(metrics.riskyActions)}
-              tone="amber"
-            />
+                </button>
+              ))}
+            </nav>
           </div>
-        </aside>
+        </header>
 
-        <main className="flex min-h-0 flex-col gap-3 overflow-hidden">
-          <section className={`${panelClass} shrink-0 rounded-2xl px-5 py-4`}>
-            <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
-              <div className="flex min-w-0 items-center gap-4">
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-slate-900 text-cyan-300 shadow-lg shadow-slate-900/10">
-                  <Smartphone className="h-6 w-6" />
-                  <span
-                    className={`absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                      isDeviceReady ? "bg-emerald-500" : "bg-rose-500"
-                    }`}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-lg font-black tracking-tight text-slate-950">
-                      {activeDeviceName}
-                    </h3>
-                    {deviceProfile?.sdk && (
-                      <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                        API {deviceProfile.sdk}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
-                    {profileLine}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <ScorePill score={metrics.score} />
-                <button
-                  onClick={() => void loadWorkspace()}
-                  disabled={!isDeviceReady || loading}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                  />
-                  Quét lại
-                </button>
-                <button
-                  onClick={handleSafeOptimize}
-                  disabled={
-                    !isDeviceReady || loading || metrics.safePending === 0
-                  }
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-3 text-xs font-black text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
-                >
-                  <Zap className="h-4 w-4 text-cyan-300" />
-                  Tối ưu SAFE
-                </button>
-              </div>
-            </div>
-          </section>
-
+        <main className="flex min-h-0 flex-col gap-3 overflow-hidden w-full max-w-full">
           <section
-            className={`${panelClass} flex min-h-0 flex-1 flex-col rounded-2xl`}
+            className={`${panelClass} flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden w-full max-w-full`}
           >
             <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
@@ -1131,22 +1203,26 @@ export function ExperienceCenter() {
                 <p className="mt-0.5 text-xs font-semibold text-slate-500">
                   {activeSection === "debloat"
                     ? `${filteredBloatware.length} package đang hiển thị`
-                    : `${visibleActions.length} thao tác trong nhóm`}
+                    : activeSection === "dns"
+                      ? "Cấu hình máy chủ DNS mã hóa và chặn quảng cáo"
+                      : `${visibleActions.length} thao tác trong nhóm`}
                 </p>
               </div>
 
-              {activeSection === "debloat" ? (
-                <SearchBox
-                  value={bloatSearch}
-                  onChange={setBloatSearch}
-                  placeholder="Tìm package, tên app, nhóm..."
-                />
-              ) : (
-                <SearchBox
-                  value={query}
-                  onChange={setQuery}
-                  placeholder="Tìm tweak, trạng thái, giá trị..."
-                />
+              {activeSection !== "dns" && (
+                activeSection === "debloat" ? (
+                  <SearchBox
+                    value={bloatSearch}
+                    onChange={setBloatSearch}
+                    placeholder="Tìm package, tên app, nhóm..."
+                  />
+                ) : (
+                  <SearchBox
+                    value={query}
+                    onChange={setQuery}
+                    placeholder="Tìm tweak, trạng thái, giá trị..."
+                  />
+                )
               )}
             </div>
 
@@ -1190,26 +1266,39 @@ export function ExperienceCenter() {
                     />
                   )}
 
-                  {loading ? (
-                    <LoadingRows />
-                  ) : visibleActions.length === 0 ? (
-                    <EmptyState
-                      icon={<ListChecks className="h-7 w-7" />}
-                      title="Không có thao tác phù hợp"
-                      message="Hãy đổi nhóm hoặc làm mới trạng thái thiết bị."
+                  {activeSection === "dns" && (
+                    <DnsControlPanel
+                      dnsMode={dnsMode}
+                      dnsSpecifier={dnsSpecifier}
+                      customDns={customDns}
+                      setCustomDns={setCustomDns}
+                      onApplyDns={handleApplyDns}
+                      loading={loading}
                     />
-                  ) : (
-                    <div className="space-y-2.5">
-                      {visibleActions.map((action) => (
-                        <ActionRow
-                          key={action.id}
-                          action={action}
-                          busy={busyKey === `${action.source}:${action.id}`}
-                          onToggle={handleToggleAction}
-                          onRollback={handleRollbackExperience}
-                        />
-                      ))}
-                    </div>
+                  )}
+
+                  {activeSection !== "dns" && (
+                    loading ? (
+                      <LoadingRows />
+                    ) : visibleActions.length === 0 ? (
+                      <EmptyState
+                        icon={<ListChecks className="h-7 w-7" />}
+                        title="Không có thao tác phù hợp"
+                        message="Hãy đổi nhóm hoặc làm mới trạng thái thiết bị."
+                      />
+                    ) : (
+                      <div className="space-y-2.5">
+                        {visibleActions.map((action) => (
+                          <ActionRow
+                            key={action.id}
+                            action={action}
+                            busy={busyKey === `${action.source}:${action.id}`}
+                            onToggle={handleToggleAction}
+                            onRollback={handleRollbackExperience}
+                          />
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
               )}
@@ -1228,46 +1317,7 @@ export function ExperienceCenter() {
   );
 }
 
-function MetricTile({
-  icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  tone: "emerald" | "amber";
-}) {
-  const toneClass =
-    tone === "emerald"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : "bg-amber-50 text-amber-700 border-amber-100";
-  return (
-    <div
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${toneClass}`}
-    >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[10px] font-black uppercase tracking-wide opacity-70">
-          {label}
-        </span>
-        <span className="block text-sm font-black">{value}</span>
-      </span>
-    </div>
-  );
-}
 
-function ScorePill({ score }: { score: number }) {
-  return (
-    <div className="flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-emerald-700">
-      <Activity className="h-4 w-4" />
-      <span className="text-xs font-black">Score {score}%</span>
-    </div>
-  );
-}
 
 function SearchBox({
   value,
@@ -1525,7 +1575,7 @@ function ActionRow({
 
   return (
     <div
-      className={`group rounded-2xl border px-4 py-3 transition ${
+      className={`group rounded-2xl border px-4 py-3 transition w-full max-w-full overflow-hidden ${
         isUnsupported
           ? "border-slate-200/60 bg-slate-50/60 opacity-70"
           : isOn
@@ -1807,7 +1857,7 @@ function BloatwareRow({
     busyKey === `debloat:uninstall:${entry.package}`;
 
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-slate-200/70 bg-white/75 px-4 py-3">
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-slate-200/70 bg-white/75 px-4 py-3 w-full max-w-full overflow-hidden">
       <button
         onClick={onToggle}
         disabled={entry.risk === "KEEP"}
@@ -1923,6 +1973,166 @@ function ConfirmDialog({
           >
             {state.confirmLabel}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface DnsControlPanelProps {
+  dnsMode: string;
+  dnsSpecifier: string;
+  customDns: string;
+  setCustomDns: (val: string) => void;
+  onApplyDns: (mode: string, specifier?: string) => void;
+  loading: boolean;
+}
+
+function DnsControlPanel({
+  dnsMode,
+  dnsSpecifier,
+  customDns,
+  setCustomDns,
+  onApplyDns,
+  loading,
+}: DnsControlPanelProps) {
+  const presets = [
+    { name: "Cloudflare", hostname: "one.one.one.one", desc: "Tốc độ & Bảo mật" },
+    { name: "Google DNS", hostname: "dns.google", desc: "Ổn định & Phổ biến" },
+    { name: "AdGuard DNS", hostname: "dns.adguard-dns.com", desc: "Chặn quảng cáo" },
+    { name: "NextDNS", hostname: "dns.nextdns.io", desc: "Tùy biến bộ lọc" },
+    { name: "Quad9 DNS", hostname: "dns.quad9.net", desc: "Bảo mật mã độc" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Banner Trạng thái Hiện tại */}
+      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50/50 p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+            <Globe className="h-5 w-5 animate-pulse" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-500/80">
+              Trạng thái Private DNS
+            </span>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+              <span className="text-sm font-black text-slate-900">
+                {dnsMode === "hostname" ? "Đang bật DNS riêng tư" : dnsMode === "opportunistic" ? "Chế độ Tự động" : "Đang Tắt"}
+              </span>
+              {dnsMode === "hostname" && dnsSpecifier && (
+                <span className="rounded-lg border border-blue-200/60 bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-blue-700 shadow-sm">
+                  {dnsSpecifier}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Chọn nhanh máy chủ DNS (Chiếm 2 cột trên lg) */}
+        <div className="lg:col-span-2 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+          <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-4">
+            Chọn nhanh Máy chủ DNS (DoT)
+          </h5>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {presets.map((preset) => {
+              const isCurrent = dnsMode === "hostname" && dnsSpecifier === preset.hostname;
+              return (
+                <button
+                  key={preset.hostname}
+                  disabled={loading}
+                  onClick={() => onApplyDns("hostname", preset.hostname)}
+                  className={`group relative flex items-center justify-between rounded-xl border p-3.5 text-left transition-all ${
+                    isCurrent
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm"
+                      : "border-slate-100 bg-slate-50/50 hover:border-blue-500/30 hover:bg-blue-50/20 text-slate-700"
+                  }`}
+                >
+                  <div className="min-w-0 pr-4">
+                    <span className="block text-xs font-black">{preset.name}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 font-mono mt-0.5 truncate">
+                      {preset.hostname}
+                    </span>
+                    <span className="block text-[9px] font-medium text-slate-500 mt-1">
+                      {preset.desc}
+                    </span>
+                  </div>
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all ${
+                      isCurrent
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-200/50 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600"
+                    }`}
+                  >
+                    {isCurrent ? <Check className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Nhập thủ công & Chế độ hệ thống */}
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3">
+              Nhập DNS thủ công
+            </h5>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  Hostname (DoT DNS)
+                </label>
+                <input
+                  type="text"
+                  disabled={loading}
+                  value={customDns}
+                  onChange={(e) => setCustomDns(e.target.value)}
+                  placeholder="Ví dụ: dns.google"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 font-mono text-xs font-semibold text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-none"
+                />
+              </div>
+              <button
+                disabled={loading || !customDns}
+                onClick={() => onApplyDns("hostname")}
+                className="w-full h-10 rounded-xl bg-slate-900 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md shadow-slate-950/10"
+              >
+                Áp dụng DNS riêng tư
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3">
+              Chế độ hệ thống
+            </h5>
+            <div className="grid gap-2">
+              <button
+                disabled={loading}
+                onClick={() => onApplyDns("opportunistic")}
+                className={`w-full h-10 rounded-xl border text-xs font-black transition ${
+                  dnsMode === "opportunistic"
+                    ? "border-emerald-500/20 bg-emerald-50 text-emerald-800"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                }`}
+              >
+                Tự động (Opportunistic)
+              </button>
+              <button
+                disabled={loading}
+                onClick={() => onApplyDns("off")}
+                className={`w-full h-10 rounded-xl border text-xs font-black transition ${
+                  dnsMode === "off"
+                    ? "border-slate-300 bg-slate-100 text-slate-800"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                }`}
+              >
+                Tắt Private DNS
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

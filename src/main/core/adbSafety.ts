@@ -271,6 +271,21 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     return { allowed: true, risk: "RISKY", mode: "FILE_OP" };
   }
 
+  // 6. Cho phép setprop cấu hình locale/ngôn ngữ/quốc gia
+  if (
+    trimmed.startsWith("setprop persist.sys.locale ") ||
+    trimmed.startsWith("setprop persist.sys.language ") ||
+    trimmed.startsWith("setprop persist.sys.country ")
+  ) {
+    const parts = trimmed.split(/\s+/);
+    if (parts.length === 3) {
+      const val = parts[2];
+      if (/^[a-zA-Z0-9_-]+$/.test(val)) {
+        return { allowed: true, risk: "MEDIUM", mode: "RAW_SHELL" };
+      }
+    }
+  }
+
   // Mặc định KHÔNG cho phép — chỉ các lệnh đã được whitelist ở trên mới chạy.
   // Nếu cần mở rộng, hãy thêm pattern cụ thể phía trên thay vì mở default.
   return {

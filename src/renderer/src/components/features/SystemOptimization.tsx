@@ -62,12 +62,14 @@ export function SystemOptimization() {
   const [optCleanArt, setOptCleanArt] = useState<boolean>(true);
 
   // Column 3: Tối ưu Biên dịch & Hệ thống
+  const [optCompileEverything, setOptCompileEverything] = useState<boolean>(false);
   const [optCompileAll, setOptCompileAll] = useState<boolean>(true);
   const [optCompileDaily, setOptCompileDaily] = useState<boolean>(true);
   const [optCompileBoot, setOptCompileBoot] = useState<boolean>(false);
   const [optCompileOta, setOptCompileOta] = useState<boolean>(false);
   const [optCompileGoogle, setOptCompileGoogle] = useState<boolean>(false);
   const [optSmoothSystemUI, setOptSmoothSystemUI] = useState<boolean>(false);
+  const [optViLocale, setOptViLocale] = useState<boolean>(false);
   const [optAutoReboot, setOptAutoReboot] = useState<boolean>(false);
 
   const downloadModalLogs = (format: "txt" | "json") => {
@@ -113,12 +115,19 @@ export function SystemOptimization() {
   const runOptimizationBatch = async () => {
     if (!activeDevice) return;
 
-    const confirmOpt = window.confirm(
-      "⚡ CẢNH BÁO TỐI ƯU HÓA HỆ THỐNG:\n\n" +
-        "Quy trình này sẽ áp dụng các tinh chỉnh hệ thống sâu và biên dịch tối ưu hóa ứng dụng bằng ART Compiler (speed/speed-profile).\n" +
-        "Các tác vụ biên dịch có thể mất vài phút tùy số lượng ứng dụng trên thiết bị.\n\n" +
-        "Bạn có chắc chắn muốn tiến hành tối ưu hóa?",
-    );
+    let warningMsg = "⚡ CẢNH BÁO TỐI ƯU HÓA HỆ THỐNG:\n\n" +
+      "Quy trình này sẽ áp dụng các tinh chỉnh hệ thống sâu và biên dịch tối ưu hóa ứng dụng bằng ART Compiler (speed/speed-profile).\n" +
+      "Các tác vụ biên dịch có thể mất vài phút tùy số lượng ứng dụng trên thiết bị.\n\n";
+
+    if (optCompileEverything) {
+      warningMsg += "⚠️ ĐẶC BIỆT CẢNH BÁO:\n" +
+        "Bạn đã chọn 'Biên dịch AOT toàn bộ (Everything)'. Tác vụ này sẽ vắt kiệt 100% CPU, làm máy RẤT NÓNG và hao pin. Quá trình chạy mất từ 15 - 40 phút.\n" +
+        "Khuyên dùng: cắm sạc và dùng quạt tản nhiệt/sò lạnh cho điện thoại khi chạy.\n\n";
+    }
+
+    warningMsg += "Bạn có chắc chắn muốn tiến hành tối ưu hóa?";
+
+    const confirmOpt = window.confirm(warningMsg);
     if (!confirmOpt) return;
 
     setActionLoading("optimization_batch");
@@ -149,12 +158,14 @@ export function SystemOptimization() {
     if (optClearAllCache) totalSteps++;
     if (optOverclock) totalSteps++;
     if (optCleanArt) totalSteps++;
+    if (optCompileEverything) totalSteps++;
     if (optCompileAll) totalSteps++;
     if (optCompileDaily) totalSteps++;
     if (optCompileBoot) totalSteps++;
     if (optCompileOta) totalSteps++;
     if (optCompileGoogle) totalSteps++;
     if (optSmoothSystemUI) totalSteps++;
+    if (optViLocale) totalSteps++;
     if (optAutoReboot) totalSteps++;
 
     if (totalSteps === 0) {
@@ -275,6 +286,13 @@ export function SystemOptimization() {
         );
       }
 
+      if (optCompileEverything) {
+        await runStep(
+          "Ép biên dịch AOT toàn bộ ứng dụng (everything -f -a)",
+          `cmd package compile -m everything -f -a`,
+        );
+      }
+
       if (optCompileAll) {
         await runStep(
           "Biên dịch tối ưu hóa tất cả ứng dụng (speed)",
@@ -315,6 +333,25 @@ export function SystemOptimization() {
           "Tăng độ ưu tiên rendering SystemUI",
           `service call activity 134 i32 1`,
         );
+      }
+
+      if (optViLocale) {
+        await runStep(
+          "Cấu hình Việt hóa hệ thống (Rom China)",
+          `settings put system system_locales vi-VN`
+        );
+        try {
+          await Promise.all([
+            window.api.runAdbCommand(activeDevice!, "settings put secure system_locales vi-VN"),
+            window.api.runAdbCommand(activeDevice!, "settings put global system_locales vi-VN"),
+            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.locale vi-VN"),
+            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.language vi"),
+            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.country VN"),
+          ]);
+          await window.api.runAdbCommand(activeDevice!, "am broadcast -a android.intent.action.LOCALE_CHANGED");
+        } catch (e) {
+          console.error("Lỗi bổ trợ locale:", e);
+        }
       }
 
       // Tổng kết
@@ -693,6 +730,27 @@ export function SystemOptimization() {
               Biên dịch & Hệ thống
             </h5>
             <div className="flex flex-col divide-y divide-slate-100">
+              {/* Ép Biên dịch AOT toàn bộ (Everything) */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-rose-600 truncate leading-relaxed flex items-center gap-1">
+                    Biên dịch AOT toàn bộ (Everything)
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                  </span>
+                  <span className="text-[10px] text-slate-400 leading-normal">
+                    Ép Android "nấu chín" toàn bộ app (Nóng máy, tốn 15-40 phút)
+                  </span>
+                </div>
+                <button
+                  onClick={() => setOptCompileEverything(!optCompileEverything)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optCompileEverything ? "bg-rose-500" : "bg-slate-200"}`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optCompileEverything ? "translate-x-4" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+
               {/* Biên dịch tối ưu hóa tất cả ứng dụng */}
               <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
                 <div className="flex flex-col min-w-0 pr-2">
@@ -809,6 +867,26 @@ export function SystemOptimization() {
                 >
                   <div
                     className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optSmoothSystemUI ? "translate-x-4" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Việt hóa hệ thống Rom China */}
+              <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">
+                    Việt hóa hệ thống (Rom China)
+                  </span>
+                  <span className="text-[10px] text-slate-400 leading-normal">
+                    Ép hệ thống chuyển sang Tiếng Việt (vi-VN) qua settings locale giống SetEdit
+                  </span>
+                </div>
+                <button
+                  onClick={() => setOptViLocale(!optViLocale)}
+                  className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optViLocale ? "bg-indigo-600" : "bg-slate-200"}`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${optViLocale ? "translate-x-4" : "translate-x-0"}`}
                   />
                 </button>
               </div>

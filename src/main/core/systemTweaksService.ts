@@ -424,8 +424,8 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     description: "Bỏ qua tối ưu pin Doze Mode/AppOps đối với Google Play Services để thông báo đẩy (FCM) đến tức thì khi tắt màn hình.",
     category: "performance",
     risk: "SAFE",
-    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
-    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
+    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell dumpsys deviceidle whitelist +com.google.android.gms.persistent ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
+    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell dumpsys deviceidle whitelist -com.google.android.gms.persistent ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
     readCmd: "shell dumpsys deviceidle whitelist",
     enabledValue: "whitelist",
     defaultEnabled: false,
@@ -445,7 +445,8 @@ export async function getTweakStatus(
     if (tweak.id === "xiaomi_notification_fix") {
       return (
         output.includes("com.google.android.gms") &&
-        output.includes("com.google.android.gsf")
+        output.includes("com.google.android.gsf") &&
+        output.includes("com.google.android.gms.persistent")
       );
     }
     return output === tweak.enabledValue;

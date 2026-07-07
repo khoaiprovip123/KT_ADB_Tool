@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { adbState } from "./adbCore";
+import { adbState, execAdb } from "./adbCore";
 import { shellQuote, validateRemotePath } from "./adbSafety";
 
 const NON_MODIFIABLE_REMOTE_ROOTS = [
@@ -21,10 +21,87 @@ function assertSafeRemotePath(remotePath: string, allowRoot = true) {
   }
 }
 
+export async function listDirectoryShell(deviceId: string, remotePath: string) {
+  try {
+    const output = await execAdb(deviceId, `ls -al ${shellQuote(remotePath)}`);
+    const lines = output.split(/\r?\n/);
+    const result: any[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("total ")) continue;
+
+      // Định dạng drwxrwxrwx 4 owner group size date time name
+      const match = trimmed.match(/^([d\-])\S*\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(.+?)\s+(.+)$/);
+      if (match) {
+        const isDir = match[1] === "d";
+        const size = parseInt(match[2], 10);
+        const mtimeStr = match[3];
+        const name = match[4];
+
+        if (name === "." || name === "..") continue;
+
+        let mtimeMs = Date.now();
+        try {
+          const parsedDate = new Date(mtimeStr);
+          if (!isNaN(parsedDate.getTime())) {
+            mtimeMs = parsedDate.getTime();
+          }
+        } catch {
+          // Bỏ qua
+        }
+
+        result.push({
+          name,
+          size,
+          mtime: new Date(mtimeMs),
+          mode: isDir ? 0o040000 : 0o100000,
+          isDir,
+          isFile: !isDir,
+        });
+      } else {
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 7) {
+          const perm = parts[0];
+          const isDir = perm.startsWith("d");
+          const size = parseInt(parts[4]) || 0;
+          const name = parts.slice(8).join(" ");
+          if (name === "." || name === "..") continue;
+          result.push({
+            name,
+            size,
+            mtime: new Date(),
+            mode: isDir ? 0o040000 : 0o100000,
+            isDir,
+            isFile: !isDir,
+          });
+        }
+      }
+    }
+
+    return result.sort((a, b) => {
+      if (a.isDir && !b.isDir) return -1;
+      if (!a.isDir && b.isDir) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  } catch (err: any) {
+    console.error(`Failed to list directory via shell ${remotePath}:`, err);
+    throw err;
+  }
+}
+
 export async function listDirectory(deviceId: string, remotePath: string) {
   try {
     if (!deviceId) throw new Error("Device ID is required");
     assertSafeRemotePath(remotePath);
+
+    const isAndroidStorageSilo =
+      remotePath.includes("/Android/data") ||
+      remotePath.includes("/Android/obb");
+
+    if (isAndroidStorageSilo) {
+      return await listDirectoryShell(deviceId, remotePath);
+    }
 
     const files = await Promise.race([
       adbState.client.readdir(deviceId, remotePath),
@@ -48,8 +125,13 @@ export async function listDirectory(deviceId: string, remotePath: string) {
         return a.name.localeCompare(b.name);
       });
   } catch (err: any) {
-    console.error(`Failed to list directory ${remotePath}:`, err);
-    throw err;
+    console.warn(`Failed to list directory ${remotePath} via sync API, fallback to shell:`, err.message || err);
+    try {
+      return await listDirectoryShell(deviceId, remotePath);
+    } catch (fallbackErr) {
+      console.error(`Fallback listDirectoryShell failed for ${remotePath}:`, fallbackErr);
+      throw err;
+    }
   }
 }
 

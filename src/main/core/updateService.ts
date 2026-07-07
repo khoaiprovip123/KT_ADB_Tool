@@ -32,8 +32,8 @@ function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export async function checkForUpdates(): Promise<UpdateInfo> {
+  const currentVersion = app.getVersion();
   try {
-    const currentVersion = app.getVersion();
     const url = `https://api.github.com/repos/${REPO}/releases/latest`;
     const response = await axios.get(url, {
       headers: { "Accept": "application/vnd.github+json" },
@@ -62,6 +62,14 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
     };
   } catch (error: any) {
     console.error("Check for updates failed:", error);
+    if (error.response?.status === 404) {
+      return {
+        available: false,
+        version: currentVersion,
+        changelog: "Chưa có bản phát hành (release) nào trên GitHub hoặc repo ở chế độ riêng tư.",
+        downloadUrl: null,
+      };
+    }
     throw new Error(`Kiểm tra cập nhật thất bại: ${error.message}`);
   }
 }
