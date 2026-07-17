@@ -3,7 +3,7 @@ import { Sparkles, Package, Loader2, ArrowUpCircle } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.4.1");
+  const [currentVersion, setCurrentVersion] = useState("v2.4.3");
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -228,6 +228,82 @@ export default function Updates() {
         </h3>
 
         <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-slate-200/60">
+          {/* Version 2.4.3 */}
+          <div className="relative pl-14 group">
+            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-blue-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-blue-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="p-6 rounded-[2rem] bg-blue-50/10 border border-blue-100 shadow-lg shadow-blue-900/5 group-hover:border-blue-300 transition-colors relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="font-black text-slate-800 text-xl tracking-tighter">
+                  v2.4.3 <span className="ml-2 text-blue-600">⚡</span>
+                </div>
+                <time className="text-xs text-blue-500 font-black uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
+                  17/07/2026
+                </time>
+              </div>
+              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  <span>
+                    **Tính năng tìm kiếm (Search)**: Thêm ô tìm kiếm trực tiếp vào thanh công cụ của trình Quản lý File (FileManager).
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  <span>
+                    **Tối ưu tốc độ lấy dữ liệu RAM**: Chuyển từ lệnh dumpsys meminfo sang đọc trực tiếp /proc/meminfo giúp giảm triệt để tình trạng ứng dụng bị treo 3 giây khi kết nối thiết bị.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  <span>
+                    **Kiểm thử tự động (Unit Test)**: Đạt 8 bài test passed (bao gồm cả test case bắt lỗi parse RAM).
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Version 2.4.2 */}
+          <div className="relative pl-14 group">
+            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="font-black text-slate-800 text-xl tracking-tighter">
+                  v2.4.2 <span className="ml-2 text-indigo-600">⚡</span>
+                </div>
+                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
+                  07/07/2026
+                </time>
+              </div>
+              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Cấu hình DNS mã hóa (DoT)**: Tích hợp cấu hình máy chủ DNS Private (Google, Cloudflare, AdGuard chặn quảng cáo, NextDNS, Quad9) hoặc tùy chỉnh qua ADB.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Tái cấu trúc Header & Tab**: Gộp thông tin thiết bị và các nút điều khiển vào Header Single-row; tinh giản tab menu ngang.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  <span>
+                    **Sửa lỗi hiển thị & Biên dịch**: Khắc phục triệt để lỗi toggle switch bị cắt ở mép phải card và dọn dẹp import thừa vượt qua typecheck.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
           {/* Version 2.4.1 */}
           <div className="relative pl-14 group">
             <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">

@@ -21,6 +21,7 @@ import {
   FileCode,
   Monitor,
   Smartphone,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDeviceStore } from "../../store/deviceStore";
@@ -38,7 +39,7 @@ export function FileManager() {
     name: string;
     data: string;
   } | null>(null);
-  const [searchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<string[]>(["HOME"]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -465,6 +466,24 @@ export function FileManager() {
               {currentPath === "/" && <span className="px-2">Gốc (Root)</span>}
             </div>
           </div>
+
+          {currentPath !== "HOME" && (
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl focus-within:ring-2 focus-within:ring-blue-500/10 focus-within:border-blue-500 transition-all w-48 shrink-0">
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-xs w-full text-slate-600 font-medium placeholder-slate-400"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600 shrink-0">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 shrink-0">
             <button

@@ -507,17 +507,22 @@ export async function getDeviceInfo(deviceId: string) {
       }
     }
 
-    // Lấy thông số RAM
-    const ramRaw = await safeShell("dumpsys meminfo");
+    // Lấy thông số RAM qua /proc/meminfo (nhanh hơn dumpsys meminfo)
+    const memInfoRaw = await safeShell("cat /proc/meminfo");
+    const memTotalMatch = memInfoRaw.match(/MemTotal:\s+(\d+)\s+kB/);
+    const memAvailableMatch = memInfoRaw.match(/MemAvailable:\s+(\d+)\s+kB/);
+    const memFreeMatch = memInfoRaw.match(/MemFree:\s+(\d+)\s+kB/);
 
-    const totalRamMatch = ramRaw.match(/Total RAM: ([\d,]+)K/);
-    const freeRamMatch = ramRaw.match(/Free RAM: ([\d,]+)K/);
-    const totalRam = totalRamMatch
-      ? parseInt(totalRamMatch[1].replace(/,/g, "")) / 1024
+    const totalRam = memTotalMatch
+      ? parseInt(memTotalMatch[1], 10) / 1024
       : 0;
-    const freeRam = freeRamMatch
-      ? parseInt(freeRamMatch[1].replace(/,/g, "")) / 1024
-      : 0;
+    
+    // Ưu tiên MemAvailable vì phản ánh đúng lượng RAM thực tế hệ thống có thể cấp phát
+    const freeRam = memAvailableMatch
+      ? parseInt(memAvailableMatch[1], 10) / 1024
+      : memFreeMatch
+        ? parseInt(memFreeMatch[1], 10) / 1024
+        : 0;
 
     return {
       model: model,

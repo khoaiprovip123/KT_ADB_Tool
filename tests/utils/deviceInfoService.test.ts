@@ -39,4 +39,29 @@ describe("deviceInfoService - getDeviceInfo", () => {
     expect(info?.codename).toBe("lisa (Mi 11 LE)");
     expect(info?.model).toBe("Mi 11 LE");
   });
+
+  it("should parse RAM information from /proc/meminfo correctly", async () => {
+    vi.mocked(adbState.client.shell).mockImplementation((_deviceId, cmd) => {
+      if (cmd === "getprop") {
+        return Promise.resolve(
+          createMockStream(
+            `[ro.product.brand]: [Xiaomi]\n[ro.build.product]: [lisa]\n[ro.product.model]: [2109119DG]\n`,
+          ),
+        ) as any;
+      }
+      if (cmd === "cat /proc/meminfo") {
+        return Promise.resolve(
+          createMockStream(
+            `MemTotal:        3934336 kB\nMemFree:          123456 kB\nMemAvailable:    1900000 kB\n`,
+          ),
+        ) as any;
+      }
+      return Promise.resolve(createMockStream("")) as any;
+    });
+
+    const info = await getDeviceInfo("test-device");
+    expect(info).not.toBeNull();
+    expect(info?.ramTotal).toBe(3842); // 3934336 / 1024 = 3842.125 -> round to 3842
+    expect(info?.ramFree).toBe(1855); // 1900000 / 1024 = 1855.46 -> round to 1855
+  });
 });

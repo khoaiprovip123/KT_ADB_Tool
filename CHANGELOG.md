@@ -1,5 +1,17 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.4.3] - 2026-07-17
+
+### Thêm mới (Added)
+- **Tính năng tìm kiếm (Search)**:
+  - Thêm ô tìm kiếm trực tiếp vào thanh công cụ của trình Quản lý File (FileManager).
+
+### Cải tiến & Tối ưu hóa (Improved & Optimized)
+- **Tối ưu tốc độ lấy dữ liệu RAM**:
+  - Chuyển từ lệnh `dumpsys meminfo` sang đọc trực tiếp `/proc/meminfo` qua ADB shell để lấy dung lượng RAM, giúp giảm triệt để tình trạng ứng dụng bị treo/lag khoảng 3 giây khi kết nối thiết bị. Tốc độ lấy thông tin giờ đây gần như tức thời.
+- **Kiểm thử tự động (Unit Test)**:
+  - Thêm bộ Unit Test bằng Vitest cho các dịch vụ `deviceInfoService` và `fileService`, đạt 8 bài test passed (bao gồm cả test case bắt lỗi parse RAM).
+
 ## [2.4.2] - 2026-07-07
 
 ### Thêm mới (Added)
