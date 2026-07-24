@@ -1,5 +1,19 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.4.4] - 2026-07-24
+
+### Cải tiến & Tối ưu hóa (Improved & Optimized)
+- **Tương thích Android 16+ (HyperOS)**:
+  - Tự động chuyển hướng (Auto-fallback) từ `pm disable-user` sang `pm uninstall -k --user 0` khi bị chặn bởi `SecurityException` trên Android 14+/16.
+  - Tối ưu hóa lệnh ART Compiler: Tự động fallback từ `cleanup-dex-files` sang `cmd package compile -r bg-dexopt --all` trên các hệ điều hành mới.
+  - Chuẩn hóa thông báo lỗi khi gỡ/tắt ứng dụng: Hiển thị thông báo thân thiện `"Hiện tại không tìm thấy ứng dụng <package> trong hệ thống của bạn, vui lòng kiểm tra lại."` thay vì ném ra Java Stack Trace.
+
+### Sửa lỗi (Fixed)
+- **Sửa lỗi không nhập được chữ vào ô Tìm kiếm**:
+  - Khắc phục sự kiện `keydown` phím tắt toàn cục trong `AppManager` tự động gọi `e.preventDefault()`, giúp gõ và chọn văn bản trong ô tìm kiếm hoạt động bình thường.
+- **Sửa lỗi trạng thái Tweak "Sửa lỗi trễ thông báo Xiaomi"**:
+  - Sửa hàm kiểm tra trạng thái `getTweakStatus` để cập nhật chính xác nút gạt ON/OFF của tính năng Sửa lỗi trễ thông báo Xiaomi khi áp dụng thành công.
+
 ## [2.4.3] - 2026-07-17
 
 ### Thêm mới (Added)

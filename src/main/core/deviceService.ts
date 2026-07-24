@@ -48,6 +48,10 @@ export async function runScrcpy(
     scrcpyProcess.stderr.on("data", (data) =>
       onLog(`[Scrcpy Warning] ${data}`),
     );
+    scrcpyProcess.on("error", (err) => {
+      activeScrcpyProcesses.delete(deviceId);
+      onLog(`[Scrcpy Error] ${err.message}`);
+    });
     scrcpyProcess.on("close", (code) => {
       activeScrcpyProcesses.delete(deviceId);
       onLog(`[Scrcpy] Exited with code ${code}`);
@@ -58,6 +62,17 @@ export async function runScrcpy(
     onLog(`CRITICAL ERROR (Scrcpy): ${error.message}`);
     return "FAILED";
   }
+}
+
+export function cleanupAllProcesses() {
+  for (const proc of activeScrcpyProcesses.values()) {
+    try {
+      proc.kill();
+    } catch {
+      /* ignore */
+    }
+  }
+  activeScrcpyProcesses.clear();
 }
 
 // Bật tính năng kết nối không dây
@@ -77,6 +92,7 @@ export async function connectWifi(
     onLog("Đang chuyển đổi sang chế độ Wireless (TCPIP 5555)...");
     await new Promise<void>((resolve, reject) => {
       const tcpip = spawn(adbExe, ["-s", deviceId, "tcpip", "5555"]);
+      tcpip.on("error", (err) => reject(err));
       tcpip.on("close", (code) => {
         if (code === 0) resolve();
         else reject(new Error("TCP IP switch failed"));
@@ -89,6 +105,7 @@ export async function connectWifi(
     await new Promise<void>((resolve, reject) => {
       const connect = spawn(adbExe, ["connect", `${ip}:5555`]);
       connect.stdout.on("data", (d) => onLog(d.toString()));
+      connect.on("error", (err) => reject(err));
       connect.on("close", (code) => {
         if (code === 0) resolve();
         else reject(new Error("Connect failed"));
@@ -118,7 +135,7 @@ export async function connectIp(ip: string, onLog: (log: string) => void) {
       const connect = spawn(adbExe, ["connect", targetIp]);
 
       const timeout = setTimeout(() => {
-        connect.kill();
+        try { connect.kill(); } catch { /* ignore */ }
         reject(
           new Error(
             "Timeout: Thiết bị không phản hồi sau 10s. Vui lòng kiểm tra lại mạng hoặc IP.",
@@ -128,6 +145,10 @@ export async function connectIp(ip: string, onLog: (log: string) => void) {
 
       connect.stdout.on("data", (d) => onLog(d.toString()));
       connect.stderr.on("data", (d) => onLog(d.toString()));
+      connect.on("error", (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
       connect.on("close", (code) => {
         clearTimeout(timeout);
         if (code === 0) resolve();
@@ -165,7 +186,7 @@ export async function pairDevice(
       const pair = spawn(adbExe, ["pair", ipPort, code]);
 
       const timeout = setTimeout(() => {
-        pair.kill();
+        try { pair.kill(); } catch { /* ignore */ }
         reject(
           new Error(
             "Timeout: Thiết bị không phản hồi sau 10s. Vui lòng kiểm tra lại mạng, IP hoặc Port.",
@@ -183,6 +204,10 @@ export async function pairDevice(
         const text = d.toString();
         output += text;
         onLog(text);
+      });
+      pair.on("error", (err) => {
+        clearTimeout(timeout);
+        reject(err);
       });
 
       pair.on("close", (exitCode) => {

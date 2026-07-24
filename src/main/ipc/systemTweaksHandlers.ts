@@ -30,16 +30,16 @@ export function registerSystemTweaksHandlers(
   mainWindow: Electron.BrowserWindow,
 ) {
   // ── Bloatware DB ───────────────────────────────────────────────────────────
-  ipcMain.handle("adb:get-bloatware-db", () => {
-    return getBloatwareDb();
+  ipcMain.handle("adb:get-bloatware-db", (_event, brand?: string) => {
+    return getBloatwareDb(brand);
   });
 
   ipcMain.handle(
     "adb:get-bloatware-with-status",
-    async (_event, deviceId: string) => {
+    async (_event, deviceId: string, brand?: string) => {
       try {
         assertValidDeviceId(deviceId);
-        return getBloatwareWithStatus(deviceId);
+        return getBloatwareWithStatus(deviceId, brand);
       } catch (err) {
         console.warn("[SECURITY] adb:get-bloatware-with-status rejected:", err);
         return [];

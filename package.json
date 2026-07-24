@@ -1,6 +1,6 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "KT ADB Tool Pro - Giải pháp tối ưu hóa và quản lý Android chuyên nghiệp toàn diện",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
@@ -33,6 +33,7 @@
     "electron-store": "^8.1.0",
     "framer-motion": "^11.1.7",
     "lucide-react": "^0.378.0",
+    "qrcode.react": "^4.2.0",
     "react-virtualized-auto-sizer": "^2.0.3",
     "react-window": "^1.8.10",
     "tailwind-merge": "^2.3.0",

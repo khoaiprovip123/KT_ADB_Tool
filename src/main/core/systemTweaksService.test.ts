@@ -61,7 +61,7 @@ describe("systemTweaksService", () => {
       vi.mocked(execAdb).mockResolvedValue("Unknown package: com.example.bloatware");
       const res = await debloatPackage("dev-1", "com.example.bloatware", "uninstall");
       expect(res.success).toBe(true);
-      expect(res.message).toContain("Unknown package");
+      expect(res.message).toContain("Hiện tại không tìm thấy ứng dụng");
     });
 
     it("should handle restore action", async () => {

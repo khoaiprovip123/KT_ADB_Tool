@@ -98,6 +98,19 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
     });
   });
 
+  ipcMain.handle("adb:get-local-ip", async () => {
+    const os = await import("os");
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const net of interfaces[name] || []) {
+        if (net.family === "IPv4" && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+    return "192.168.1.X";
+  });
+
   // Device Profile & Capability Detection
   ipcMain.handle("adb:get-device-profile", async (_event, deviceId) => {
     if (!isValidDeviceId(deviceId)) return null;

@@ -67,7 +67,12 @@ export function registerAppHandlers(mainWindow: Electron.BrowserWindow) {
   ipcMain.handle("dialog:open-apk", async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ["openFile"],
-      filters: [{ name: "Android Packages", extensions: ["apk"] }],
+      filters: [
+        {
+          name: "Android Packages & Bundles",
+          extensions: ["apk", "xapk", "apks", "zip"],
+        },
+      ],
     });
     return result.filePaths[0];
   });

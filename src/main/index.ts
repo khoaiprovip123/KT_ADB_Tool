@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipc";
+import { cleanupAllProcesses } from "./core/deviceService";
 
 function isIgnorableError(error: any): boolean {
   if (!error) return false;
@@ -14,7 +15,16 @@ function isIgnorableError(error: any): boolean {
     msg.includes("epipe") ||
     msg.includes("broken pipe") ||
     code === "econnrefused" ||
-    msg.includes("econnrefused")
+    msg.includes("econnrefused") ||
+    code === "etimedout" ||
+    msg.includes("etimedout") ||
+    code === "ebadf" ||
+    msg.includes("device offline") ||
+    msg.includes("device not found") ||
+    msg.includes("premature close") ||
+    msg.includes("socket closed") ||
+    msg.includes("stream destroyed") ||
+    msg.includes("spawn")
   );
 }
 
@@ -128,7 +138,12 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  cleanupAllProcesses();
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  cleanupAllProcesses();
 });

@@ -46,7 +46,14 @@ export function validateLocalPath(p: unknown): p is string {
 }
 
 export function validateApkPath(p: unknown): p is string {
-  return validateLocalPath(p) && (p as string).toLowerCase().endsWith(".apk");
+  if (!validateLocalPath(p)) return false;
+  const lower = (p as string).toLowerCase();
+  return (
+    lower.endsWith(".apk") ||
+    lower.endsWith(".xapk") ||
+    lower.endsWith(".apks") ||
+    lower.endsWith(".zip")
+  );
 }
 
 export function validateAppAction(a: unknown): a is AppAction {

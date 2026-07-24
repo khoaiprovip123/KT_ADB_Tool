@@ -11,6 +11,7 @@ import {
   Zap,
   Sparkles,
   Sliders,
+  QrCode,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -100,6 +101,11 @@ function App() {
   return (
     <div className="flex h-screen w-full bg-[#f4f7fb] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
       <ToastProvider />
+      <ConnectionManagerModal
+        isOpen={isConnManagerOpen}
+        onClose={() => setIsConnManagerOpen(false)}
+        initialTab="pair"
+      />
       {/* SIDEBAR */}
       <aside
         className={`${isSidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out flex flex-col justify-between bg-white/80 backdrop-blur-xl border-r border-glass-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative`}
@@ -214,6 +220,15 @@ function App() {
           </h2>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsConnManagerOpen(true)}
+              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-full text-sm font-bold transition-all shadow-sm flex items-center gap-2"
+              title="Mở Quản lý kết nối & Quét mã QR Wireless ADB"
+            >
+              <QrCode className="w-4 h-4 text-indigo-600" />
+              <span>Quét mã QR</span>
+            </button>
+
             <div className="relative">
               <button
                 onClick={() => setIsCcOpen(!isCcOpen)}
@@ -261,10 +276,6 @@ function App() {
                   </>
                 )}
               </button>
-              <ConnectionManagerModal
-                isOpen={isConnManagerOpen}
-                onClose={() => setIsConnManagerOpen(false)}
-              />
             </div>
           </div>
         </header>

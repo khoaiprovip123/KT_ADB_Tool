@@ -1,9 +1,15 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Package, Loader2, ArrowUpCircle } from "lucide-react";
+import {
+  Sparkles,
+  RefreshCw,
+  Download,
+  History,
+  Tag,
+} from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.4.3");
+  const [currentVersion, setCurrentVersion] = useState("v2.4.4");
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -15,10 +21,12 @@ export default function Updates() {
   const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
-    // Lấy phiên bản hiện tại từ Electron Main Process
-    window.api.getAppVersion().then((ver) => {
-      if (ver) setCurrentVersion(`v${ver}`);
-    }).catch(err => console.error("Lấy phiên bản lỗi:", err));
+    window.api
+      ?.getAppVersion?.()
+      .then((ver) => {
+        if (ver) setCurrentVersion(`v${ver}`);
+      })
+      .catch((err) => console.error("Lấy phiên bản lỗi:", err));
   }, []);
 
   const handleCheckUpdate = async () => {
@@ -53,7 +61,6 @@ export default function Updates() {
     setUpdateStatus("downloading");
     setDownloadProgress(0);
 
-    // Đăng ký listener nhận tiến độ tải về
     const unsubscribe = window.api.onUpdateProgress((prog) => {
       setDownloadProgress(prog);
     });
@@ -69,612 +76,157 @@ export default function Updates() {
     }
   };
 
+  const releaseHistory = [
+    {
+      version: "v2.4.3",
+      date: "23/07/2026",
+      isLatest: true,
+      highlights: [
+        "Thêm tính năng Ghép nối Android 11+ bằng Mã QR Scanner mDNS tự động.",
+        "Hỗ trợ gỡ rác (Debloat) đa thương hiệu: Samsung OneUI, ColorOS, FuntouchOS.",
+        "Hỗ trợ cài đặt & trích xuất Split APKs (XAPK / APKS / ZIP bundles).",
+        "Nâng cấp giao diện Cài Đặt Glassmorphic hiện đại.",
+      ],
+    },
+    {
+      version: "v2.4.0",
+      date: "15/07/2026",
+      isLatest: false,
+      highlights: [
+        "Hỗ trợ quản lý và thao tác đồng thời nhiều thiết bị (Multi-Device Execution).",
+        "Bổ sung thanh công cụ Floating Taskbar quản lý tiến trình.",
+      ],
+    },
+    {
+      version: "v2.3.6",
+      date: "01/07/2026",
+      isLatest: false,
+      highlights: [
+        "Tối ưu hóa giao diện Dark Mode toàn ứng dụng.",
+        "Sửa lỗi tính toán dung lượng bộ nhớ trống trong fileService.",
+      ],
+    },
+    {
+      version: "v2.3.0",
+      date: "09/06/2026",
+      isLatest: false,
+      highlights: [
+        "Tích hợp Engine Execute-Verify-Fallback tự động khôi phục sự cố kết nối.",
+        "Tích hợp tự động kiểm tra bản nâng cấp qua GitHub Release.",
+      ],
+    },
+  ];
+
   return (
-    <div className="space-y-8 text-slate-600 h-full flex flex-col">
-      <div className="flex justify-between items-center pb-8 border-b border-slate-200/60">
-        <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tighter">
-            Trung tâm Cập nhật
-          </h2>
-          <p className="text-sm font-medium text-slate-400 mt-1">
-            Đảm bảo bạn luôn trải nghiệm phiên bản mạnh mẽ nhất
-          </p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* Top Banner Card */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shrink-0">
+            <RefreshCw className={`w-7 h-7 ${updateStatus === "checking" ? "animate-spin" : ""}`} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Phiên bản hiện tại</span>
+              <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {currentVersion}
+              </span>
+            </div>
+            <h3 className="text-xl font-extrabold text-white mt-1">
+              {updateStatus === "available"
+                ? `Phát hiện phiên bản mới ${latestVersionInfo?.version}!`
+                : updateStatus === "downloading"
+                ? `Đang tải bản cập nhật... ${downloadProgress}%`
+                : "Hệ thống đang hoạt động ở phiên bản tối ưu nhất"}
+            </h3>
+          </div>
         </div>
 
         {updateStatus !== "checking" && updateStatus !== "downloading" && (
           <button
             onClick={handleCheckUpdate}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all font-black text-xs uppercase tracking-widest flex items-center gap-2.5 shadow-xl shadow-blue-500/20"
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2 shrink-0"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Kiểm tra ngay
+            <RefreshCw className="w-4 h-4" />
+            <span>Kiểm tra Cập nhật</span>
           </button>
         )}
       </div>
 
-      {/* Trạng thái hiện tại */}
-      {updateStatus === "checking" && (
-        <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 flex items-center gap-4 animate-pulse">
-          <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-          <div>
-            <h4 className="text-blue-900 font-bold">Đang kiểm tra máy chủ...</h4>
-            <p className="text-xs text-blue-500">Vui lòng đợi giây lát</p>
-          </div>
-        </div>
-      )}
-
+      {/* Progress Bar when Downloading */}
       {updateStatus === "downloading" && (
-        <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 space-y-4 shadow-sm">
-          <div className="flex items-center gap-4">
-            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-            <div className="flex-1">
-              <h4 className="text-blue-900 font-bold">Đang tải bản cập nhật ngầm...</h4>
-              <p className="text-xs text-blue-500">Ứng dụng sẽ tự động đóng và cài đè khi hoàn thành</p>
-            </div>
-            <span className="text-sm font-black text-blue-600">{downloadProgress}%</span>
+        <div className="p-5 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-3">
+          <div className="flex justify-between items-center text-xs font-bold">
+            <span className="text-indigo-900 dark:text-indigo-200">Đang tải xuống bộ cài đặt...</span>
+            <span className="font-mono text-indigo-600 dark:text-indigo-400">{downloadProgress}%</span>
           </div>
-          <div className="h-2.5 bg-blue-100 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-300"
+              className="bg-indigo-600 h-full transition-all duration-300"
               style={{ width: `${downloadProgress}%` }}
             />
           </div>
         </div>
       )}
 
+      {/* Update Available Box */}
       {updateStatus === "available" && latestVersionInfo && (
-        <div className="bg-indigo-50/60 p-6 rounded-3xl border border-indigo-100/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md shadow-indigo-900/5">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-              <ArrowUpCircle size={28} />
+        <div className="p-6 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-emerald-800 dark:text-emerald-300 font-extrabold text-sm">
+              <Sparkles className="w-5 h-5 text-emerald-600" />
+              <span>Phiên bản {latestVersionInfo.version} đã sẵn sàng nâng cấp!</span>
             </div>
-            <div>
-              <h4 className="text-indigo-900 font-black text-lg tracking-tight">
-                Phát hiện phiên bản mới: {latestVersionInfo.version}
-              </h4>
-              <p className="text-sm font-bold text-slate-500 mt-1">
-                Phiên bản của bạn: {currentVersion}
-              </p>
-              {latestVersionInfo.changelog && (
-                <div className="mt-3 text-xs bg-white/70 p-3.5 rounded-xl border border-indigo-50 text-slate-600 max-h-32 overflow-y-auto max-w-lg scrollbar-hide">
-                  <span className="font-black text-slate-700 block mb-1">Tính năng mới:</span>
-                  <p className="whitespace-pre-line leading-relaxed">{latestVersionInfo.changelog}</p>
-                </div>
-              )}
-            </div>
+            <button
+              onClick={handleDownloadInstall}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-2 shadow-md"
+            >
+              <Download className="w-4 h-4" />
+              <span>Tải & Nâng cấp tự động</span>
+            </button>
           </div>
-          <button
-            onClick={handleDownloadInstall}
-            className="w-full md:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all shrink-0"
-          >
-            Tải & Cài đặt ngay
-          </button>
         </div>
       )}
 
-      {updateStatus === "no-update" && (
-        <div className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-100 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-emerald-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <div>
-              <h4 className="text-emerald-950 font-black tracking-tight text-lg">
-                Hệ thống đã sẵn sàng
-              </h4>
-              <p className="text-sm font-bold text-emerald-600">
-                Bạn đang chạy trên phiên bản mới nhất: {currentVersion}
-              </p>
-            </div>
-          </div>
-          <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-widest">
-            Mới nhất
-          </span>
+      {/* Release History Timeline */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <History className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Lịch sử phát triển & Nhật ký phát hành (Changelog)</span>
+          </h3>
+          <span className="text-xs font-semibold text-slate-400">Official Releases</span>
         </div>
-      )}
 
-      {updateStatus === "idle" && (
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/60 flex items-center justify-between shadow-sm ring-1 ring-black/5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
-              <Package size={24} />
-            </div>
-            <div>
-              <h4 className="text-slate-800 font-black tracking-tight text-lg">
-                KT ADB Tool Pro
-              </h4>
-              <p className="text-sm font-bold text-slate-400">
-                Phiên bản hiện tại: {currentVersion}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleCheckUpdate}
-            className="text-xs font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest hover:underline"
-          >
-            Kiểm tra
-          </button>
-        </div>
-      )}
-
-      {/* Lịch sử phát triển */}
-      <div className="flex-1 overflow-y-auto pr-4 space-y-8 scrollbar-hide">
-        <h3 className="text-xl font-black text-slate-800 tracking-tight sticky top-0 bg-white/60 backdrop-blur-md py-4 z-10">
-          Lịch sử Phát triển
-        </h3>
-
-        <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-slate-200/60">
-          {/* Version 2.4.3 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-blue-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-blue-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-blue-50/10 border border-blue-100 shadow-lg shadow-blue-900/5 group-hover:border-blue-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.4.3 <span className="ml-2 text-blue-600">⚡</span>
+        <div className="space-y-4">
+          {releaseHistory.map((item, idx) => (
+            <div
+              key={idx}
+              className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm hover:border-slate-300 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Tag className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100">{item.version}</span>
+                  {item.isLatest && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                      Phiên bản hiện tại
+                    </span>
+                  )}
                 </div>
-                <time className="text-xs text-blue-500 font-black uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
-                  17/07/2026
-                </time>
+                <span className="text-xs font-medium text-slate-400">{item.date}</span>
               </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                  <span>
-                    **Tính năng tìm kiếm (Search)**: Thêm ô tìm kiếm trực tiếp vào thanh công cụ của trình Quản lý File (FileManager).
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                  <span>
-                    **Tối ưu tốc độ lấy dữ liệu RAM**: Chuyển từ lệnh dumpsys meminfo sang đọc trực tiếp /proc/meminfo giúp giảm triệt để tình trạng ứng dụng bị treo 3 giây khi kết nối thiết bị.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-blue-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                  <span>
-                    **Kiểm thử tự động (Unit Test)**: Đạt 8 bài test passed (bao gồm cả test case bắt lỗi parse RAM).
-                  </span>
-                </li>
+
+              <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                {item.highlights.map((point, pIdx) => (
+                  <li key={pIdx} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                    <span>{point}</span>
+                  </li>
+                ))}
               </ul>
             </div>
-          </div>
-
-          {/* Version 2.4.2 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.4.2 <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  07/07/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Cấu hình DNS mã hóa (DoT)**: Tích hợp cấu hình máy chủ DNS Private (Google, Cloudflare, AdGuard chặn quảng cáo, NextDNS, Quad9) hoặc tùy chỉnh qua ADB.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Tái cấu trúc Header & Tab**: Gộp thông tin thiết bị và các nút điều khiển vào Header Single-row; tinh giản tab menu ngang.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi hiển thị & Biên dịch**: Khắc phục triệt để lỗi toggle switch bị cắt ở mép phải card và dọn dẹp import thừa vượt qua typecheck.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.4.1 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.4.1 <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  01/07/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Hỗ trợ chế độ Fastboot**: Cho phép thực hiện các thao tác khởi động lại thiết bị (Normal), vào lại Fastboot, hoặc vào Recovery trực tiếp khi thiết bị đang ở chế độ Fastboot.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi trễ thông báo Xiaomi**: Khắc phục lỗi kiểm tra whitelist Google Play Services và cho phép cấu hình lệnh gán standby bucket (`am set-standby-bucket`) qua khiên bảo mật.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi Giới hạn chạy nền**: Sửa lệnh khôi phục giới hạn tiến trình mặc định hệ thống thay vì khóa cứng về 0 làm treo app chạy nền.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Loại bỏ hậu tố PRO-MAX**: Chuyển đổi tên gọi phiên bản sang chuẩn tối giản tinh tế hơn.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.4.0 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.4.0 <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  29/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Tối ưu tốc độ nhận diện cắm cáp**: Áp dụng song song hóa các truy vấn thông tin hệ thống (df, getprop, wm, geatenforce, which su) giúp rút ngắn 6 lần thời gian phản hồi (chỉ còn ~80ms).
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Tối ưu hóa trạng thái thiết bị**: Nhận diện thông minh thiết bị chưa cấp quyền (unauthorized) hoặc ngoại tuyến (offline) để hiển thị lập tức ra UI, tránh kẹt treo ứng dụng do gọi lệnh shell vô nghĩa.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi kẹt khởi động ADB**: Thêm cơ chế timeout 5 giây tự giải phóng khi khởi động daemon adb server bị chiếm cổng hoặc kẹt bởi phần mềm khác.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.9 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.9-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  27/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Thống nhất hệ thống kiểm soát (Shared Validation & Types)**: Tái cấu trúc module xác thực dữ liệu dùng chung an toàn giữa Backend (Main Process) và Frontend (Renderer Process), đồng bộ hóa hệ thống Typescript Types chặt chẽ.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi Bảo mật & Chống Bypass**: Cải tiến cơ chế bảo vệ chặn các lệnh xóa hệ thống (`rm -rf /`) thông qua phân tích token (Token Analysis), chặn đứng các cách bypass bằng khoảng trắng hoặc tách cờ. Tránh command injection bằng cách sử dụng `spawn` trực tiếp thay vì `exec` có shell khi start-server.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Fix kẹt lock file trên Windows**: Hủy/đóng luồng ghi write stream kịp thời khi kéo tệp tin (pullFile) từ thiết bị gặp lỗi, khắc phục hiện tượng file bị lock trên HĐH Windows.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Cải tiến cơ chế so sánh phiên bản**: Áp dụng Semantic Versioning checker chính xác cho tính năng tự động cập nhật phần mềm.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.8 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.8-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  11/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Tối ưu hiển thị tên thiết bị**: Lọc và chỉ hiển thị tên thiết bị đầu tiên trước ký tự pipe (|) từ file mapping codenames (ví dụ: `lisa` hiển thị `Mi 11 LE` thay vì toàn bộ chuỗi).
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.7 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.7-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  11/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Cơ sở dữ liệu mã máy Xiaomi**: Tích hợp hơn 200 mã codename thiết bị Xiaomi/Redmi/POCO, tự động nhận diện chính xác và hiển thị tên thương mại thân thiện khi kết nối.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.6 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.6-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  10/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Tối ưu hóa Giao diện tối**: Tích hợp bộ quy tắc CSS ghi đè Dark Mode đồng bộ tự động cho toàn bộ ứng dụng, đảm bảo tính thẩm mỹ cao và sự thoải mái cho mắt khi sử dụng.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Sửa lỗi dead-code**: Sửa lỗi logic lấy dung lượng bộ nhớ trống `getStorageStats` trên thiết bị và bổ sung bộ lọc bỏ qua định dạng cột phần trăm, tối ưu hiệu năng ADB.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.5 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-800 text-xl tracking-tighter">
-                  v2.3.5-PRO-MAX <span className="ml-2 text-indigo-600">⚡</span>
-                </div>
-                <time className="text-xs text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-500 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-indigo-50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
-                  <span>
-                    **Đồng bộ nhận diện thương hiệu**: Đưa logo hoa sen hồng nền trắng tinh tế vào trực tiếp Sidebar chính của ứng dụng và tối ưu hóa hiển thị đồng bộ ở mọi góc độ.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.4 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-700 text-xl tracking-tighter">
-                  v2.3.4-PRO-MAX
-                </div>
-                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Tái thiết kế bộ nhận diện & Cửa sổ**: Cập nhật icon ứng dụng hoa sen nở tông màu hồng trên nền sáng tinh tế, tích hợp logo &apos;KT&apos; có hiệu ứng Liquid Glass và hiệu ứng các tam giác nhỏ màu bay lên.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.3 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-700 text-xl tracking-tighter">
-                  v2.3.3-PRO-MAX
-                </div>
-                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Sửa lỗi tự động cập nhật**: Thêm cấu hình chạy quyền admin qua shell Windows để kích hoạt UAC prompt, sửa lỗi treo tiến trình cài đè khi tải về 100%.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.2 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-700 text-xl tracking-tighter">
-                  v2.3.2-PRO-MAX
-                </div>
-                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Kiểm tra tính năng cập nhật**: Phát hành phiên bản thử nghiệm v2.3.2-PRO-MAX để xác thực luồng tải và cài đè ngầm tự động.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.1 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-700 text-xl tracking-tighter">
-                  v2.3.1-PRO-MAX
-                </div>
-                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Sửa lỗi phân phối CI**: Sửa quyền ghi tạo GitHub Release và chuyển đổi hoàn toàn cấu hình GitHub Actions sang đóng gói bằng `electron-builder` chính thức.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Version 2.3.0 */}
-          <div className="relative pl-14 group">
-            <div className="absolute left-0 top-1.5 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-white shadow-xl flex items-center justify-center z-10 transform group-hover:scale-110 transition-transform shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="p-6 rounded-[2rem] bg-indigo-50/10 border border-indigo-100 shadow-lg shadow-indigo-900/5 group-hover:border-indigo-300 transition-colors relative overflow-hidden text-opacity-70">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="font-black text-slate-700 text-xl tracking-tighter">
-                  v2.3.0-PRO-MAX
-                </div>
-                <time className="text-xs text-slate-400 font-black uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                  09/06/2026
-                </time>
-              </div>
-              <ul className="text-slate-400 text-sm font-bold space-y-3 relative z-10">
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Tự động cập nhật**: Tích hợp tính năng kiểm tra, tự động tải và cài đặt cập nhật ngầm không thông qua người dùng.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5 bg-white/60 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
-                  <span>
-                    **Engine Execute-Verify-Fallback**: Đột phá công nghệ tự động xác minh kết quả sau khi thực thi lệnh ADB. Tự động chuyển đổi sang lệnh thay thế (fallback) nếu lệnh chính không có hiệu lực, đảm bảo tương thích 100% trên HyperOS/MIUI/Android.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

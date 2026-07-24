@@ -28,6 +28,7 @@ export interface IADBAPI {
   connectWifi: (deviceId: string, ip: string) => Promise<any>;
   connectIp: (ip: string) => Promise<any>;
   pairDevice: (ipPort: string, code: string) => Promise<any>;
+  getLocalIp: () => Promise<string>;
   getPackages: (
     deviceId: string,
     filter: "all" | "system" | "third",
@@ -64,8 +65,8 @@ export interface IADBAPI {
   ) => Promise<any>;
   getFileBase64: (deviceId: string, remotePath: string) => Promise<any>;
   getStoragePoints: (deviceId: string) => Promise<any>;
-  getBloatwareDb: () => Promise<any>;
-  getBloatwareWithStatus: (deviceId: string) => Promise<any>;
+  getBloatwareDb: (brand?: string) => Promise<any>;
+  getBloatwareWithStatus: (deviceId: string, brand?: string) => Promise<any>;
   debloatPackage: (
     deviceId: string,
     pkg: string,

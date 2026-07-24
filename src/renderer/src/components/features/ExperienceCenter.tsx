@@ -276,6 +276,7 @@ export function ExperienceCenter() {
   const [systemTweaks, setSystemTweaks] = useState<SystemTweak[]>([]);
   const [systemStatus, setSystemStatus] = useState<Record<string, boolean>>({});
   const [bloatware, setBloatware] = useState<BloatwareEntry[]>([]);
+  const [debloatBrand, setDebloatBrand] = useState<string>("auto");
   const [selectedBloat, setSelectedBloat] = useState<Set<string>>(new Set());
   const [bloatSearch, setBloatSearch] = useState("");
   const [deviceDpi, setDeviceDpi] = useState<number | null>(null);
@@ -424,7 +425,7 @@ export function ExperienceCenter() {
         window.api.getTweaksStatus(activeDevice),
         window.api.getDpi(activeDevice),
         window.api.getResolution(activeDevice),
-        window.api.getBloatwareWithStatus(activeDevice),
+        window.api.getBloatwareWithStatus(activeDevice, debloatBrand),
         window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_mode"),
         window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_specifier"),
       ]);
@@ -1242,6 +1243,8 @@ export function ExperienceCenter() {
                   onToggle={toggleBloatSelection}
                   onAction={handleBloatAction}
                   onBatchAction={handleBatchBloatAction}
+                  brand={debloatBrand}
+                  onSelectBrand={setDebloatBrand}
                 />
               ) : (
                 <div className="space-y-4">
@@ -1755,6 +1758,8 @@ function DebloatWorkspace({
   onToggle,
   onAction,
   onBatchAction,
+  brand,
+  onSelectBrand,
 }: {
   entries: BloatwareEntry[];
   selected: Set<string>;
@@ -1763,11 +1768,39 @@ function DebloatWorkspace({
   onToggle: (entry: BloatwareEntry) => void;
   onAction: (entry: BloatwareEntry, action: DebloatAction) => void;
   onBatchAction: (action: DebloatAction) => void;
+  brand: string;
+  onSelectBrand: (brand: string) => void;
 }) {
   const selectedCount = selected.size;
 
+  const brands = [
+    { id: "auto", label: "Tự động" },
+    { id: "xiaomi", label: "Xiaomi (MIUI/HyperOS)" },
+    { id: "samsung", label: "Samsung (OneUI)" },
+    { id: "coloros", label: "Oppo / Realme (ColorOS)" },
+    { id: "funtouch", label: "Vivo (FuntouchOS)" },
+  ];
+
   return (
     <div className="space-y-3">
+      {/* Brand preset selector bar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/70 border border-slate-200/70 p-2 text-xs font-bold">
+        <span className="text-slate-500 px-2 uppercase tracking-wider text-[11px]">Preset Hãng:</span>
+        {brands.map((b) => (
+          <button
+            key={b.id}
+            onClick={() => onSelectBrand(b.id)}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              brand === b.id
+                ? "bg-slate-900 text-white shadow-sm font-black"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
       <div
         className={`${mutedPanelClass} flex flex-col gap-3 rounded-2xl p-3 lg:flex-row lg:items-center lg:justify-between`}
       >

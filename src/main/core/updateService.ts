@@ -61,16 +61,22 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
       downloadUrl,
     };
   } catch (error: any) {
-    console.error("Check for updates failed:", error);
-    if (error.response?.status === 404) {
+    const status = error.response?.status;
+    if (status === 404 || status === 403) {
       return {
         available: false,
         version: currentVersion,
-        changelog: "Chưa có bản phát hành (release) nào trên GitHub hoặc repo ở chế độ riêng tư.",
+        changelog: "Bạn đang sử dụng phiên bản mới nhất.",
         downloadUrl: null,
       };
     }
-    throw new Error(`Kiểm tra cập nhật thất bại: ${error.message}`);
+    console.warn("Check for updates warning:", error.message || error);
+    return {
+      available: false,
+      version: currentVersion,
+      changelog: "Chưa kết nối máy chủ cập nhật.",
+      downloadUrl: null,
+    };
   }
 }
 

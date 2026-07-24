@@ -52,6 +52,7 @@ const api = {
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),
   pairDevice: (ipPort: string, code: string) =>
     ipcRenderer.invoke("adb:pair-device", { ipPort, code }),
+  getLocalIp: () => ipcRenderer.invoke("adb:get-local-ip"),
   getPackages: (deviceId: string, filter: "all" | "system" | "third") =>
     ipcRenderer.invoke("adb:get-packages", { deviceId, filter }),
   manageApp: (
@@ -104,9 +105,9 @@ const api = {
     ipcRenderer.invoke("adb:get-file-base64", { deviceId, remotePath }),
   getStoragePoints: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-storage-points", { deviceId }),
-  getBloatwareDb: () => ipcRenderer.invoke("adb:get-bloatware-db"),
-  getBloatwareWithStatus: (deviceId: string) =>
-    ipcRenderer.invoke("adb:get-bloatware-with-status", deviceId),
+  getBloatwareDb: (brand?: string) => ipcRenderer.invoke("adb:get-bloatware-db", brand),
+  getBloatwareWithStatus: (deviceId: string, brand?: string) =>
+    ipcRenderer.invoke("adb:get-bloatware-with-status", deviceId, brand),
   debloatPackage: (
     deviceId: string,
     pkg: string,

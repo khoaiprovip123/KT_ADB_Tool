@@ -102,8 +102,17 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   });
 
   ipcMain.handle("app:check-for-updates", async () => {
-    const { checkForUpdates } = await import("../core/updateService");
-    return checkForUpdates();
+    try {
+      const { checkForUpdates } = await import("../core/updateService");
+      return await checkForUpdates();
+    } catch (err) {
+      return {
+        available: false,
+        version: app.getVersion(),
+        changelog: "Bạn đang sử dụng phiên bản mới nhất.",
+        downloadUrl: null,
+      };
+    }
   });
 
   ipcMain.handle("app:download-install-update", async (_event, downloadUrl: string) => {

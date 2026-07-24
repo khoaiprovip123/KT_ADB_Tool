@@ -1,0 +1,58 @@
+[
+  {
+    "package": "com.samsung.android.bixby.agent",
+    "name": "Bixby Voice Agent",
+    "description": "Trợ lý ảo Bixby Voice của Samsung.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.app.routines",
+    "name": "Bixby Routines",
+    "description": "Tự động hóa tác vụ Bixby Routines.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.sec.android.app.sbrowser",
+    "name": "Samsung Internet Browser",
+    "description": "Trình duyệt web mặc định của Samsung.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.messaging",
+    "name": "Samsung Messages",
+    "description": "Ứng dụng tin nhắn SMS của Samsung.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.game.gamehome",
+    "name": "Samsung Gaming Hub",
+    "description": "Ứng dụng Gaming Hub / Game Launcher.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.app.spay",
+    "name": "Samsung Pay",
+    "description": "Dịch vụ thanh toán Samsung Pay.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.arzone",
+    "name": "AR Zone",
+    "description": "Tính năng thực tế ảo AR Emoji, AR Doodle.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.samsung.android.spaymini",
+    "name": "Samsung Pay Mini",
+    "description": "Phiên bản rút gọn của Samsung Pay.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  }
+]

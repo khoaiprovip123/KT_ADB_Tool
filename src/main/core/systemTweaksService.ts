@@ -44,11 +44,24 @@ export interface SystemTweak {
 
 // ─── BLOATWARE DATABASE ───────────────────────────────────────────────────────
 
-export function getBloatwareDb(): BloatwareEntry[] {
+export function getBloatwareDb(brand?: string): BloatwareEntry[] {
+  let jsonFileName = "xiaomi_bloatware_removal.json";
+  const lowerBrand = (brand || "").toLowerCase();
+
+  if (lowerBrand.includes("samsung")) {
+    jsonFileName = "samsung_bloatware.json";
+  } else if (lowerBrand.includes("oppo") || lowerBrand.includes("realme") || lowerBrand.includes("coloros")) {
+    jsonFileName = "coloros_bloatware.json";
+  } else if (lowerBrand.includes("vivo") || lowerBrand.includes("funtouch") || lowerBrand.includes("origin")) {
+    jsonFileName = "funtouch_bloatware.json";
+  }
+
   const candidates = [
-    path.join(app.getAppPath(), "xiaomi_bloatware_removal.json"),
-    path.join(app.getAppPath(), "..", "xiaomi_bloatware_removal.json"),
-    path.join(process.resourcesPath ?? "", "xiaomi_bloatware_removal.json"),
+    path.join(app.getAppPath(), jsonFileName),
+    path.join(app.getAppPath(), "..", jsonFileName),
+    path.join(app.getAppPath(), "src/main/core/data", jsonFileName),
+    path.join(process.resourcesPath ?? "", jsonFileName),
+    path.join(__dirname, "data", jsonFileName),
     path.join(__dirname, "../../xiaomi_bloatware_removal.json"),
     path.join(__dirname, "../../../xiaomi_bloatware_removal.json"),
   ];
@@ -62,7 +75,7 @@ export function getBloatwareDb(): BloatwareEntry[] {
 
         const mapped: BloatwareEntry[] = packages.map((e: any) => {
           let riskVal: RiskLevel = "SAFE";
-          if (e.classification === "RISKY") riskVal = "RISKY";
+          if (e.classification === "RISKY" || e.recommendation === "Khuyên dùng") riskVal = "RISKY";
           if (e.classification === "KEEP") riskVal = "KEEP";
           return {
             package: e.package,
@@ -70,7 +83,7 @@ export function getBloatwareDb(): BloatwareEntry[] {
             description: e.side_effects || e.description || "",
             risk: riskVal,
             category: e.group || e.category || "Bloatware",
-            preferDisable: e.method === "disable" || e.preferDisable,
+            preferDisable: e.method === "disable" || e.preferDisable || e.safeToRemove,
           };
         });
 
@@ -108,8 +121,9 @@ export async function getPackageStatus(
 
 export async function getBloatwareWithStatus(
   deviceId: string,
+  brand?: string,
 ): Promise<BloatwareWithStatus[]> {
-  const db = getBloatwareDb();
+  const db = getBloatwareDb(brand);
 
   const [allRaw, disabledRaw] = await Promise.all([
     execAdb(deviceId, "shell pm list packages"),
@@ -195,7 +209,7 @@ export async function debloatPackage(
       return { success: false, message: output.trim() };
     }
 
-    // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException, tự động chạy uninstall --user 0
+    // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException (Android 14+ / HyperOS), tự động chạy pm uninstall --user 0
     if (
       (action === "uninstall" || action === "disable") &&
       (output.includes("SecurityException") || output.includes("Cannot disable"))
@@ -204,18 +218,23 @@ export async function debloatPackage(
       output = await execAdb(deviceId, fallbackCmd);
     }
 
-    let success =
+    const outLower = output.toLowerCase();
+    const isUnknown =
+      outLower.includes("unknown package") ||
+      outLower.includes("not installed") ||
+      outLower.includes("failure [not installed");
+
+    if (isUnknown) {
+      return {
+        success: true,
+        message: `Hiện tại không tìm thấy ứng dụng ${packageName} trong hệ thống của bạn, vui lòng kiểm tra lại.`,
+      };
+    }
+
+    const success =
       output.includes("Success") ||
       output.includes("success") ||
       action === "restore";
-
-    // Nếu ứng dụng không tồn tại hoặc đã gỡ từ trước, coi như thành công
-    if (!success && (
-      output.includes("Unknown package") ||
-      output.includes("not installed")
-    )) {
-      success = true;
-    }
 
     return { success, message: output.trim() };
   } catch (err: any) {
@@ -424,8 +443,8 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     description: "Bỏ qua tối ưu pin Doze Mode/AppOps đối với Google Play Services để thông báo đẩy (FCM) đến tức thì khi tắt màn hình.",
     category: "performance",
     risk: "SAFE",
-    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell dumpsys deviceidle whitelist +com.google.android.gms.persistent ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
-    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell dumpsys deviceidle whitelist -com.google.android.gms.persistent ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
+    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
+    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
     readCmd: "shell dumpsys deviceidle whitelist",
     enabledValue: "whitelist",
     defaultEnabled: false,
@@ -444,9 +463,8 @@ export async function getTweakStatus(
     }
     if (tweak.id === "xiaomi_notification_fix") {
       return (
-        output.includes("com.google.android.gms") &&
-        output.includes("com.google.android.gsf") &&
-        output.includes("com.google.android.gms.persistent")
+        output.includes("com.google.android.gms") ||
+        output.includes("com.google.android.gsf")
       );
     }
     return output === tweak.enabledValue;

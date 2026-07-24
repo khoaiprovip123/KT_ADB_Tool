@@ -1,0 +1,30 @@
+[
+  {
+    "package": "com.vivo.browser",
+    "name": "Vivo Browser",
+    "description": "Trình duyệt mặc định Vivo.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.vivo.vappstore",
+    "name": "V-Appstore",
+    "description": "Cửa hàng ứng dụng Vivo App Store.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.vivo.easyshare",
+    "name": "EasyShare",
+    "description": "Ứng dụng truyền file EasyShare của Vivo.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.vivo.gamecube",
+    "name": "Ultra Game Mode",
+    "description": "Chế độ game Vivo Game Cube.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  }
+]

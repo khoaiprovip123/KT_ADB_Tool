@@ -280,10 +280,32 @@ export function SystemOptimization() {
       }
 
       if (optCleanArt) {
-        await runStep(
-          "Dọn dẹp file rác ART Compiler",
-          `cmd package cleanup-dex-files`,
-        );
+        logAndPush("[EXEC] Dọn dẹp file rác ART Compiler");
+        logAndPush("  → cmd package cleanup-dex-files");
+        try {
+          const res = await window.api.runAdbCommand(
+            activeDevice!,
+            "cmd package cleanup-dex-files",
+          );
+          if (!res.success || res.output?.includes("Unknown command")) {
+            logAndPush("  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt --all");
+            const fbRes = await window.api.runAdbCommand(
+              activeDevice!,
+              "cmd package compile -r bg-dexopt --all",
+            );
+            logAndPush(
+              `  ✓ OK${fbRes.output ? ": " + fbRes.output.trim().slice(0, 80) : ""}`,
+            );
+          } else {
+            logAndPush(
+              `  ✓ OK${res.output ? ": " + res.output.trim().slice(0, 80) : ""}`,
+            );
+          }
+        } catch (e: any) {
+          logAndPush(`  ❌ [ERROR] ${e.message}`);
+          failedSteps++;
+        }
+        stepDone();
       }
 
       if (optCompileEverything) {

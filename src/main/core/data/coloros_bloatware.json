@@ -1,0 +1,37 @@
+[
+  {
+    "package": "com.heytap.browser",
+    "name": "HeyTap Browser",
+    "description": "Trình duyệt web mặc định của Oppo/Realme.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.heytap.speechassist",
+    "name": "Breeno Speech Assist",
+    "description": "Trợ lý giọng nói Breeno/HeyTap.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.coloros.gamespace",
+    "name": "ColorOS Game Space",
+    "description": "Không gian trò chơi ColorOS/RealmeUI.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.heytap.themestore",
+    "name": "HeyTap Theme Store",
+    "description": "Cửa hàng chủ đề ColorOS.",
+    "recommendation": "Tùy chọn",
+    "safeToRemove": true
+  },
+  {
+    "package": "com.coloros.video",
+    "name": "ColorOS Video Player",
+    "description": "Trình phát video mặc định.",
+    "recommendation": "Khuyên bỏ",
+    "safeToRemove": true
+  }
+]
