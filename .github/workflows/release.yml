@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows Executable
-        run: npm run build:win
+        run: npm run build && npx electron-builder --win --publish never
 
       - name: Publish Public GitHub Release
         uses: softprops/action-gh-release@v2

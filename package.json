@@ -70,8 +70,7 @@
       {
         "provider": "github",
         "owner": "khoaiprovip123",
-        "repo": "KT_ADB_Tool",
-        "draft": false
+        "repo": "KT_ADB_Tool"
       }
     ],
     "productName": "KT ADB Tool Pro",
