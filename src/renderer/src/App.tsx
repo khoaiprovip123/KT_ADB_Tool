@@ -12,6 +12,7 @@ import {
   Sparkles,
   Sliders,
   QrCode,
+  Eraser,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -22,6 +23,7 @@ const AppManager = React.lazy(() => import("./components/features/AppManager").t
 const FileManager = React.lazy(() => import("./components/features/FileManager").then(m => ({ default: m.FileManager })));
 const SystemOptimization = React.lazy(() => import("./components/features/SystemOptimization").then(m => ({ default: m.SystemOptimization })));
 const ExperienceCenter = React.lazy(() => import("./components/features/ExperienceCenter").then(m => ({ default: m.ExperienceCenter })));
+const QuickCleanerTab = React.lazy(() => import("./features/quick-cleaner/QuickCleanerTab").then(m => ({ default: m.QuickCleanerTab })));
 const AdvancedAdb = React.lazy(() => import("./features/advanced-adb"));
 const Settings = React.lazy(() => import("./features/settings/Settings"));
 
@@ -171,6 +173,13 @@ function App() {
               onClick={() => setActiveTab("optimize")}
             />
             <NavItem
+              icon={<Eraser />}
+              label="Dọn dẹp nhanh"
+              active={activeTab === "cleaner"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("cleaner")}
+            />
+            <NavItem
               icon={<Sparkles />}
               label="UX & Tinh chỉnh"
               active={activeTab === "experience"}
@@ -210,13 +219,15 @@ function App() {
                   ? "Quản lý tệp tin"
                   : activeTab === "optimize"
                     ? "Tối ưu hệ thống"
-                    : activeTab === "experience"
-                      ? "Trung tâm trải nghiệm"
-                      : activeTab === "advanced"
-                        ? "Nâng cao ADB"
-                        : activeTab === "settings"
-                          ? "Cài đặt"
-                          : activeTab}
+                    : activeTab === "cleaner"
+                      ? "Dọn dẹp nhanh & RAM"
+                      : activeTab === "experience"
+                        ? "Trung tâm trải nghiệm"
+                        : activeTab === "advanced"
+                          ? "Nâng cao ADB"
+                          : activeTab === "settings"
+                            ? "Cài đặt"
+                            : activeTab}
           </h2>
 
           <div className="flex items-center gap-4">
@@ -292,6 +303,7 @@ function App() {
               {activeTab === "files" && <FileManager />}
               {activeTab === "experience" && <ExperienceCenter />}
               {activeTab === "optimize" && <SystemOptimization />}
+              {activeTab === "cleaner" && <QuickCleanerTab />}
               {activeTab === "advanced" && <AdvancedAdb />}
               {activeTab === "settings" && <Settings />}
             </React.Suspense>
@@ -300,6 +312,7 @@ function App() {
               activeTab !== "files" &&
               activeTab !== "experience" &&
               activeTab !== "optimize" &&
+              activeTab !== "cleaner" &&
               activeTab !== "advanced" &&
               activeTab !== "settings" && (
                 <div className="flex items-center justify-center h-full text-slate-400">

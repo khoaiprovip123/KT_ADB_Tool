@@ -55,25 +55,25 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   },
   {
     id: "force_high_refresh_rate",
-    title: "Ép tần số quét tối đa (120Hz)",
+    title: "Ép tần số quét màn hình",
     description:
-      "Ép màn hình chạy ở tần số quét cao nhất liên tục (120Hz), loại bỏ tự động tụt Hz.",
+      "Ép màn hình duy trì tần số quét tối đa (60Hz / 90Hz / 120Hz / 144Hz), loại bỏ tự động tụt Hz.",
     category: "display",
     risk: "MEDIUM",
     detectStrategy: {
       settingsKeys: [{ namespace: "system", key: "peak_refresh_rate" }],
     },
     readCommand: { namespace: "system", key: "peak_refresh_rate" },
-    enableCommand: "settings put system peak_refresh_rate 120 && settings put system min_refresh_rate 120",
+    enableCommand: "settings put system peak_refresh_rate 90 && settings put system min_refresh_rate 90",
     disableCommand: "settings put system peak_refresh_rate 60 && settings put system min_refresh_rate 60",
     fallbackEnableCommands: [
-      "settings put system screen_refresh_rate 120 && settings put system user_refresh_rate 120",
+      "settings put system screen_refresh_rate 90 && settings put system user_refresh_rate 90",
     ],
     fallbackDisableCommands: [
       "settings put system screen_refresh_rate 60 && settings put system user_refresh_rate 60",
     ],
     defaultValue: "60",
-    activeValues: ["120", "90", "144"],
+    activeValues: ["120", "90", "144", "165"],
   },
   {
     id: "reading_mode",

@@ -157,6 +157,13 @@ export interface IADBAPI {
   }>;
   downloadAndInstallUpdate: (downloadUrl: string) => Promise<void>;
   onUpdateProgress: (cb: (progress: number) => void) => () => void;
+
+  // Quick Cleaner API
+  cleanerScan: (deviceId: string) => Promise<any>;
+  cleanerExecute: (deviceId: string, options: any, whitelist: string[]) => Promise<any>;
+  onCleanerProgress: (cb: (data: any) => void) => () => void;
+  getCleanerWhitelist: () => Promise<string[]>;
+  saveCleanerWhitelist: (whitelist: string[]) => Promise<boolean>;
 }
 
 declare global {

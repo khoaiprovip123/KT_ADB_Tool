@@ -240,6 +240,19 @@ const api = {
     ipcRenderer.on("app:update-progress", listener);
     return () => ipcRenderer.removeListener("app:update-progress", listener);
   },
+
+  // Quick Cleaner API
+  cleanerScan: (deviceId: string) => ipcRenderer.invoke("cleaner:scan", deviceId),
+  cleanerExecute: (deviceId: string, options: any, whitelist: string[]) =>
+    ipcRenderer.invoke("cleaner:execute", { deviceId, options, whitelist }),
+  onCleanerProgress: (cb: (data: any) => void) => {
+    const listener = (_e: any, data: any) => cb(data);
+    ipcRenderer.on("cleaner:progress", listener);
+    return () => ipcRenderer.removeListener("cleaner:progress", listener);
+  },
+  getCleanerWhitelist: () => ipcRenderer.invoke("cleaner:get-whitelist"),
+  saveCleanerWhitelist: (whitelist: string[]) =>
+    ipcRenderer.invoke("cleaner:save-whitelist", whitelist),
 };
 
 if (process.contextIsolated) {

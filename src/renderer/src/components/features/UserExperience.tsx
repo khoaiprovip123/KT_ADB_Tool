@@ -64,13 +64,13 @@ const FULL_XIAOMI_CAPABILITIES: XiaomiExperienceItem[] = [
   },
   {
     id: "force_high_refresh_rate",
-    title: "Ép tần số quét tối đa (120Hz)",
+    title: "Ép tần số quét màn hình",
     description:
-      "Ép màn hình chạy ở tần số quét cao nhất liên tục (120Hz), loại bỏ tự động tụt Hz.",
+      "Ép màn hình duy trì tần số quét tối đa (60Hz / 90Hz / 120Hz / 144Hz), loại bỏ tự động tụt Hz.",
     category: "display",
     risk: "MEDIUM",
     defaultValue: "60",
-    activeValues: ["120", "90", "144"],
+    activeValues: ["120", "90", "144", "165"],
   },
   {
     id: "reading_mode",
@@ -465,10 +465,15 @@ export function UserExperience() {
 
     // Yêu cầu xác nhận nếu có rủi ro cao
     if (capItem.item.risk !== "SAFE") {
+      const displayTitle =
+        capItem.item.id === "force_high_refresh_rate"
+          ? `Ép tần số quét màn hình${capItem.currentValue && capItem.currentValue !== "null" ? ` (${capItem.currentValue}Hz)` : ""}`
+          : capItem.item.title;
+
       setConfirmModal({
         isOpen: true,
-        title: capItem.item.title,
-        message: `Tính năng này có mức độ rủi ro ${capItem.item.risk}. Việc kích hoạt hoặc thay đổi các cài đặt sâu của hệ thống có thể ảnh hưởng đến hiệu năng hoặc trải nghiệm chung. Bạn có chắc chắn muốn tiếp tục?`,
+        title: `${nextEnable ? "Bật" : "Tắt"} ${displayTitle}`,
+        message: `Tùy chọn này có thể thay đổi hành vi sâu của ROM hoặc launcher.`,
         risk: capItem.item.risk,
         onConfirm: () => {
           setConfirmModal(null);
@@ -515,6 +520,21 @@ export function UserExperience() {
         executeRollback();
       },
     });
+  };
+
+  const handleSetSpecificRefreshRate = async (hz: string) => {
+    if (!activeDevice) return;
+    setProcessingId("force_high_refresh_rate");
+    try {
+      const cmd = `settings put system peak_refresh_rate ${hz} && settings put system min_refresh_rate ${hz} && settings put system user_refresh_rate ${hz}`;
+      await window.api.runAdbCommand(activeDevice, cmd);
+      showToast(`Đã thiết lập tần số quét màn hình: ${hz}Hz`, "success");
+      await loadCapabilities();
+    } catch (err: any) {
+      showToast(`Lỗi đặt Hz: ${err.message}`, "error");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const handleQuickOptimize = async () => {
@@ -981,11 +1001,39 @@ export function UserExperience() {
                         <h4
                           className={`font-black text-sm leading-snug group-hover:text-indigo-650 transition-colors ${isLocked ? "text-slate-400" : "text-slate-800"}`}
                         >
-                          {item.title}
+                          {item.id === "force_high_refresh_rate" && currentValue && currentValue !== "null"
+                            ? `Ép tần số quét màn hình (${currentValue}Hz)`
+                            : item.title}
                         </h4>
                         <p className="text-[11px] text-slate-500 leading-relaxed mt-2 line-clamp-2">
                           {item.description}
                         </p>
+
+                        {/* Thanh chọn Hz tùy chỉnh dành riêng cho Ép tần số quét màn hình */}
+                        {item.id === "force_high_refresh_rate" && !isLocked && (
+                          <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] font-bold text-slate-400">Chọn Hz:</span>
+                            {["60", "90", "120", "144"].map((hz) => {
+                              const isSelected = currentValue === hz;
+                              return (
+                                <button
+                                  key={hz}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetSpecificRefreshRate(hz);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
+                                    isSelected
+                                      ? "bg-emerald-600 text-white shadow-sm"
+                                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-600"
+                                  }`}
+                                >
+                                  {hz}Hz
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       {/* Action buttons (Always spaced and structured) */}

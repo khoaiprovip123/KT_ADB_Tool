@@ -1,6 +1,28 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
-## [2.4.4] - 2026-07-24
+## [2.5.0] - 2026-07-28
+
+### Thêm mới (Added)
+- **Menu Dọn Dẹp Nhanh & Tối Ưu RAM (Quick Cleaner)**:
+  - Thêm phân khu chức năng dọn dẹp rác hệ thống, bộ nhớ tạm, giải phóng RAM tương thích Android 11 đến 16-17.
+  - **Hỗ trợ 2 Chế độ dọn dẹp**:
+    - *Thao Tác Nhanh (1-Click Clean)*: Quét và giải phóng toàn bộ logcat, temp files, trim caches, đóng app ngầm và nén bộ nhớ RAM chỉ với 1 cú nhấp chuột.
+    - *Tùy Chỉnh (Custom Clean)*: Tự chọn từng mục dọn dẹp theo nhu cầu.
+  - **Dọn dẹp chuyên sâu Telegram, Nekogram & MXH**: Xóa file đệm hình ảnh, video, sticker tạm của Telegram, Nekogram, Zalo, Messenger, TikTok, Facebook, Instagram.
+  - **Popup Tiến trình Realtime (Cleaning Progress Modal)**: Hiển thị % tiến trình, icon tác vụ, log terminal ADB realtime và thống kê dung lượng RAM/Storage đã giải phóng.
+  - **Giao diện Whitelist nâng cấp**: Cho phép tự động quét danh sách app cài trên thiết bị, tìm kiếm tên gói realtime và chọn ứng dụng bảo vệ bằng checkbox.
+
+### Cải tiến & Tối ưu hóa (Improved & Optimized)
+- **Triệt hạ app ngầm mạnh mẽ (Fast App Killer)**:
+  - Nâng cấp sử dụng kịch bản đa tầng `am force-stop --user 0`, `am kill --user 0` và `pkill -9 -f` cho toàn bộ ứng dụng cài thêm, đảm bảo giải phóng triệt để RAM bị chiếm dụng.
+  - Tích hợp lệnh nén bộ nhớ runtime ART `am compact full` giải phóng RAM ngầm tối đa trên Android 10+.
+- **Nâng cấp Tùy chọn Tần Số Quét Màn Hình (Refresh Rate)**:
+  - Tự động nhận diện và hiển thị động tần số quét màn hình thực tế (60Hz / 90Hz / 120Hz / 144Hz) của thiết bị.
+  - Thêm dải nút chọn Hz tùy chỉnh linh hoạt (`60Hz | 90Hz | 120Hz | 144Hz`) thay cho giá trị cố định 120Hz cũ.
+  - Đồng bộ tiêu đề và Popup xác nhận cảnh báo an toàn theo số Hz thực tế.
+- **Tối ưu giao diện cuộn (Scrollable Layout)**:
+  - Thêm `overflow-y-auto` giúp cuộn mượt các thẻ card phân khu dọn dẹp tùy chỉnh không bị tràn màn hình.
+
 
 ### Cải tiến & Tối ưu hóa (Improved & Optimized)
 - **Tương thích Android 16+ (HyperOS)**:

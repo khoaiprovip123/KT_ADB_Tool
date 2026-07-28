@@ -6,6 +6,7 @@ import { registerFileHandlers } from "./fileHandlers";
 import { registerSystemTweaksHandlers } from "./systemTweaksHandlers";
 import { registerXiaomiExperienceHandlers } from "./xiaomiExperienceHandlers";
 import { registerAdvancedAdbHandlers } from "./advancedAdbHandlers";
+import { registerQuickCleanerHandlers } from "./quickCleanerHandlers";
 import { store } from "../store";
 import { assertValidDeviceId, assertValidShellCommand } from "./validate";
 
@@ -58,6 +59,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   registerSystemTweaksHandlers(mainWindow);
   registerXiaomiExperienceHandlers(mainWindow);
   registerAdvancedAdbHandlers();
+  registerQuickCleanerHandlers(mainWindow);
 
   // ── Store Handlers (whitelist key hợp lệ để tránh ghi đè nguy hiểm) ───────
   const ALLOWED_STORE_KEYS = new Set([
@@ -66,6 +68,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     "autoBackupApk",
     "downloadPath",
     "adbPath",
+    "cleanerWhitelist",
   ]);
 
   ipcMain.handle("store:get", (_event, key: string) => {
