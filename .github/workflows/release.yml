@@ -3,10 +3,10 @@ name: Release App
 on:
   push:
     tags:
-      - 'v*' # Chạy tự động khi push tag mới bắt đầu bằng v, ví dụ: v2.4.0-PRO-MAX
+      - 'v*' # Chạy tự động khi push tag mới bắt đầu bằng v
 
 permissions:
-  contents: write # Cần quyền write để tạo Release và upload Assets
+  contents: write # Quyền tạo Release và upload Assets
 
 jobs:
   release:
@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,10 +27,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Build
-        run: npm run build
+      - name: Build Windows Executable
+        run: npm run build:win
 
-      - name: Build & Publish Windows Installer
+      - name: Publish Public GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
