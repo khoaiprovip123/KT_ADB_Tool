@@ -2,6 +2,44 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useDeviceStore } from "../../../store/deviceStore";
 import { AdvancedCommandDefinition, CommandHistoryItem, ToastMessage } from "../types";
 
+function extractValidDeviceIp(text: string): string | null {
+  if (!text) return null;
+  const matches = Array.from(
+    text.matchAll(
+      /(?:inet\s+|src\s+|addr:)?\b((?:192\.168|10\.|172\.(?:1[6-9]|2[0-9]|3[01]))\.\d+\.\d+)\b/g,
+    ),
+  );
+  for (const m of matches) {
+    const ip = m[1];
+    if (
+      ip &&
+      ip !== "127.0.0.1" &&
+      !ip.startsWith("0.") &&
+      !ip.startsWith("169.254")
+    ) {
+      return ip;
+    }
+  }
+
+  const allIps = Array.from(
+    text.matchAll(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g),
+  );
+  for (const m of allIps) {
+    const ip = m[1];
+    if (
+      ip &&
+      ip !== "127.0.0.1" &&
+      !ip.startsWith("0.") &&
+      !ip.startsWith("127.") &&
+      !ip.startsWith("169.254") &&
+      !ip.startsWith("255.")
+    ) {
+      return ip;
+    }
+  }
+  return null;
+}
+
 export function useAdvancedAdb() {
   const { activeDevice, devices } = useDeviceStore();
 
@@ -78,7 +116,7 @@ export function useAdvancedAdb() {
     charging: true,
   });
   const [hudNetwork, setHudNetwork] = useState({
-    ip: "192.168.1.15",
+    ip: "...",
     signal: "Tuyệt vời",
     type: "WIFI",
   });
@@ -278,13 +316,40 @@ export function useAdvancedAdb() {
         setHudBattery({ level, temp, charging });
       }
 
-      const ipRes = await window.api.executeRawShell(activeDevice, "ip route get 1.1.1.1 || ip address show wlan0");
-      if (ipRes.success && ipRes.output) {
-        const ipMatch = ipRes.output.match(/src\s+([0-9.]+)/) || ipRes.output.match(/inet\s+([0-9.]+)/);
-        if (ipMatch && ipMatch[1]) {
-          setHudNetwork((prev) => ({ ...prev, ip: ipMatch[1] }));
+      let detectedIp = "";
+      const storeDeviceInfo = useDeviceStore.getState().deviceInfo;
+      if (
+        storeDeviceInfo?.ipAddr &&
+        storeDeviceInfo.ipAddr !== "Not Connected" &&
+        storeDeviceInfo.ipAddr !== "Unknown"
+      ) {
+        detectedIp = storeDeviceInfo.ipAddr;
+      }
+
+      if (!detectedIp) {
+        const deviceIpMatch = activeDevice.match(/^(\d+\.\d+\.\d+\.\d+)/);
+        if (deviceIpMatch) {
+          detectedIp = deviceIpMatch[1];
         }
       }
+
+      if (!detectedIp) {
+        const ipRes = await window.api.executeRawShell(
+          activeDevice,
+          "ip addr show dev wlan0 2>/dev/null || ip addr show dev wlan1 2>/dev/null || ifconfig wlan0 2>/dev/null || ifconfig wlan1 2>/dev/null || ip route show 2>/dev/null || ip addr show 2>/dev/null",
+        );
+        if (ipRes.success && ipRes.output) {
+          const extracted = extractValidDeviceIp(ipRes.output);
+          if (extracted) {
+            detectedIp = extracted;
+          }
+        }
+      }
+
+      setHudNetwork((prev) => ({
+        ...prev,
+        ip: detectedIp || "N/A",
+      }));
     } catch (e) {
       console.error("Lỗi load HUD:", e);
     }

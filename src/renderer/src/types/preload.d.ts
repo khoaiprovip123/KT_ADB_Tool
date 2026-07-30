@@ -10,6 +10,9 @@ import type {
 } from "@shared/types";
 
 export interface IADBAPI {
+  minimizeWindow: () => Promise<void>;
+  maximizeWindow: () => Promise<void>;
+  closeWindow: () => Promise<void>;
   initAdb: () => Promise<boolean>;
   fixConnection: () => Promise<any>;
   getDeviceInfo: (deviceId: string) => Promise<DeviceInfo>;
@@ -157,6 +160,12 @@ export interface IADBAPI {
   }>;
   downloadAndInstallUpdate: (downloadUrl: string) => Promise<void>;
   onUpdateProgress: (cb: (progress: number) => void) => () => void;
+  onUpdateAvailable: (cb: (info: {
+    available: boolean;
+    version: string;
+    changelog: string;
+    downloadUrl: string | null;
+  }) => void) => () => void;
 
   // Quick Cleaner API
   cleanerScan: (deviceId: string) => Promise<any>;

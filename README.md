@@ -44,6 +44,7 @@ npm install
 npm run dev          # Chế độ phát triển
 npm run typecheck    # Kiểm tra TypeScript
 npm test             # Unit tests
+npm run security:scan # Quét bảo mật mã nguồn bằng OpenAI Codex Security
 npm run build        # Build (cần typecheck pass)
 npm run build:unpack # Build + thư mục cài đặt (test nhanh)
 npm run build:win    # Tạo installer Windows (.exe)

@@ -88,7 +88,7 @@ export function AppRow({
               </div>
             )}
             <div
-              className={`text-sm font-bold truncate ${isSelected ? "text-blue-900" : isDisabled ? "text-slate-400 line-through font-medium" : "text-slate-700"}`}
+              className={`text-sm font-bold truncate ${isSelected ? "text-blue-900" : isDisabled ? "text-blue-600/90 font-bold" : "text-slate-700"}`}
             >
               {pkg}
             </div>
@@ -97,73 +97,73 @@ export function AppRow({
 
         <div className="w-1/4 flex items-center justify-center gap-2">
           {isSystem ? (
-            <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-tight border border-red-100/50">
+            <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-tight border border-red-100/50 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900/40">
               System
             </span>
           ) : (
-            <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tight border border-blue-100/50">
+            <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tight border border-blue-100/50 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900/40">
               User
             </span>
           )}
           {isDisabled ? (
-            <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-tight border border-slate-200/50">
+            <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tight border border-blue-200/60 shadow-xs dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-800/50">
               Disabled
             </span>
           ) : (
-            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-tight border border-emerald-100/50">
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-tight border border-emerald-100/50 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900/40">
               Running
             </span>
           )}
         </div>
 
-        <div className="w-1/4 flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-1/4 flex items-center justify-end gap-1.5 opacity-100 transition-opacity">
           <ActionBtn
             icon={<Play />}
-            tooltip="Stop"
+            tooltip="Dừng ứng dụng (Stop)"
             onClick={() => onAction(app, "stop")}
             loading={actionLoading === `stop-${pkg}`}
-            color="hover:bg-amber-100 text-slate-400"
+            color="hover:bg-amber-100 text-slate-400 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 dark:hover:bg-amber-950/40"
           />
           <ActionBtn
             icon={<RefreshCcw />}
-            tooltip="Clear"
+            tooltip="Xóa dữ liệu (Clear)"
             onClick={() => onAction(app, "clear")}
             loading={actionLoading === `clear-${pkg}`}
-            color="hover:bg-blue-100 text-slate-400"
+            color="hover:bg-blue-100 text-slate-400 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-blue-950/40"
           />
           <ActionBtn
             icon={<Download />}
-            tooltip="Backup"
+            tooltip="Trích xuất APK (Backup)"
             onClick={() => onExtract(pkg)}
             loading={actionLoading === `extract-${pkg}`}
-            color="hover:bg-emerald-100 text-slate-400"
+            color="hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/40"
           />
           {isDisabled ? (
             <ActionBtn
               icon={<Undo2 />}
-              tooltip="Restore"
+              tooltip="Khôi phục (Restore)"
               onClick={() => onAction(app, "restore")}
               loading={actionLoading === `restore-${pkg}`}
-              color="hover:bg-emerald-100 text-slate-400"
+              color="hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/40"
             />
           ) : (
             <ActionBtn
               icon={<PowerOff />}
-              tooltip="Disable"
+              tooltip="Vô hiệu hóa (Disable)"
               onClick={() => onAction(app, "disable")}
               loading={actionLoading === `disable-${pkg}`}
               disabled={isBlacklisted}
-              color="hover:bg-orange-100 text-slate-400"
+              color="hover:bg-orange-100 text-slate-400 hover:text-orange-600 dark:text-slate-400 dark:hover:text-orange-400 dark:hover:bg-orange-950/40"
             />
           )}
           {!isDisabled && (
             <ActionBtn
               icon={<Trash2 />}
-              tooltip="Uninstall"
+              tooltip="Gỡ cài đặt (Uninstall)"
               onClick={() => onAction(app, "uninstall")}
               loading={actionLoading === `uninstall-${pkg}`}
               disabled={isBlacklisted}
-              color="hover:bg-red-100 text-slate-400"
+              color="hover:bg-red-100 text-slate-400 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 dark:hover:bg-red-950/40"
             />
           )}
         </div>

@@ -7,7 +7,8 @@
 export const DEVICE_ID_REGEX = /^[a-zA-Z0-9_.:-]+$/;
 export const PACKAGE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$/;
 export const SETTINGS_KEY_REGEX = /^[a-zA-Z0-9_.-]+$/;
-export const REMOTE_PATH_DANGEROUS_CHARS = /[\0"';&|`$\n\r\\*?\[\]{}<>]/;
+export const REMOTE_PATH_DANGEROUS_CHARS =
+  /[\0"';&|`$\n\r\\*?\u005b\u005d{}<>]/;
 export const LOCAL_PATH_DANGEROUS_CHARS = /[\0;&|`$\n\r]/;
 
 const REMOTE_PATH_ROOTS = ["/sdcard", "/storage", "/data/local/tmp"];

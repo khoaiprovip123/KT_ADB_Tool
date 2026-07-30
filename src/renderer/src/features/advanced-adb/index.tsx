@@ -20,7 +20,7 @@ export function AdvancedAdb() {
   const tweaks = useAdvancedAdb();
 
   return (
-    <div className="absolute inset-4 lg:inset-6 flex flex-col overflow-hidden bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
+    <div className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 dark:border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800 dark:text-slate-100">
       <style
         dangerouslySetInnerHTML={{
           __html: `

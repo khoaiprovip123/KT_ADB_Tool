@@ -412,10 +412,10 @@ export function SystemOptimization() {
 
   if (!activeDevice) {
     return (
-      <div className="absolute inset-4 lg:inset-6 flex flex-col items-center justify-center p-8 bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-[32px] border border-slate-200/80 dark:border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800 dark:text-slate-100 w-full h-full">
         <SlidersHorizontal className="w-16 h-16 text-slate-300 mb-4 animate-bounce" />
-        <h3 className="text-xl font-bold text-slate-700">Chưa có thiết bị</h3>
-        <p className="text-slate-500 mt-2 text-center max-w-sm">
+        <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">Chưa có thiết bị</h3>
+        <p className="text-slate-500 dark:text-slate-400 mt-2 text-center max-w-sm">
           Vui lòng kết nối thiết bị Android để thực hiện quy trình tối ưu.
         </p>
       </div>
@@ -427,7 +427,7 @@ export function SystemOptimization() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -15 }}
-      className="absolute inset-4 lg:inset-6 flex flex-col overflow-hidden bg-[#f8fafc]/90 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800"
+      className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-[32px] p-5 lg:p-6 border border-slate-200/80 dark:border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800 dark:text-slate-100"
     >
       {/* Header */}
       <div className="flex justify-between items-center pb-4 border-b border-slate-200/60 shrink-0">
@@ -760,7 +760,7 @@ export function SystemOptimization() {
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Ép Android "nấu chín" toàn bộ app (Nóng máy, tốn 15-40 phút)
+                    Ép Android &quot;nấu chín&quot; toàn bộ app (Nóng máy, tốn 15-40 phút)
                   </span>
                 </div>
                 <button

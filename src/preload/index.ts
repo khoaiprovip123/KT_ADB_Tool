@@ -21,6 +21,9 @@ const validateCommand = (deviceId: string, command: string): boolean => {
 
 // Custom APIs for renderer
 const api = {
+  minimizeWindow: () => ipcRenderer.invoke("win:minimize"),
+  maximizeWindow: () => ipcRenderer.invoke("win:maximize"),
+  closeWindow: () => ipcRenderer.invoke("win:close"),
   initAdb: () => ipcRenderer.invoke("adb:init"),
   fixConnection: () => ipcRenderer.invoke("adb:fix-connection"),
   getDeviceInfo: (deviceId: string) =>
@@ -239,6 +242,11 @@ const api = {
     const listener = (_e: any, progress: number) => cb(progress);
     ipcRenderer.on("app:update-progress", listener);
     return () => ipcRenderer.removeListener("app:update-progress", listener);
+  },
+  onUpdateAvailable: (cb: (info: any) => void) => {
+    const listener = (_e: any, info: any) => cb(info);
+    ipcRenderer.on("app:update-available", listener);
+    return () => ipcRenderer.removeListener("app:update-available", listener);
   },
 
   // Quick Cleaner API

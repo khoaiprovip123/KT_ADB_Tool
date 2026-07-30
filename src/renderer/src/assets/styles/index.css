@@ -4,16 +4,21 @@
 
 @layer base {
   :root {
-    --background: #f4f7fb;
+    --background: transparent;
     --foreground: #0f172a;
   }
 }
 
-body {
+html,
+body,
+#root {
   margin: 0;
+  height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--background);
+  background: transparent !important;
+  background-color: transparent !important;
   color: var(--foreground);
+  overflow: hidden;
 }
 
 /* Custom Scrollbar */
@@ -32,91 +37,186 @@ body {
   background: rgba(148, 163, 184, 0.5);
 }
 
-/* Dark Mode Overrides */
+/* Frosted ice backdrop inspired by the compact control-panel reference */
+body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.98), transparent 34%),
+    linear-gradient(145deg, rgba(218, 237, 248, 0.98), rgba(239, 246, 250, 0.98)) !important;
+  backdrop-filter: blur(28px) saturate(120%) !important;
+}
+
+#root {
+  box-sizing: border-box;
+  padding: 10px;
+}
+
+.app-shell {
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 24px;
+  background:
+    linear-gradient(150deg, rgba(247, 252, 255, 0.94), rgba(231, 241, 248, 0.91));
+  box-shadow:
+    0 18px 48px rgba(52, 84, 110, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(186, 216, 234, 0.2);
+  backdrop-filter: blur(30px) saturate(125%);
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(247, 252, 255, 0.88), rgba(233, 243, 249, 0.82));
+  border-color: rgba(183, 211, 227, 0.58);
+  box-shadow:
+    8px 0 30px rgba(82, 111, 132, 0.06),
+    inset -1px 0 0 rgba(255, 255, 255, 0.72);
+}
+
+.app-main {
+  background:
+    radial-gradient(circle at 68% 0%, rgba(255, 255, 255, 0.62), transparent 38%),
+    linear-gradient(155deg, rgba(238, 247, 252, 0.74), rgba(247, 250, 252, 0.82));
+}
+
+.app-header {
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.88), rgba(235, 244, 249, 0.82));
+  border-color: rgba(181, 209, 226, 0.54);
+  box-shadow:
+    0 10px 28px rgba(69, 101, 125, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.68);
+}
+
+/* Translucent Desktop Wallpaper Glassmorphism in Dark Mode */
 html.dark {
-  --background: #0b0f19;
+  --background: transparent;
   --foreground: #f8fafc;
+  color-scheme: dark;
 }
 
 html.dark body {
-  background-color: #0b0f19;
-  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.95) !important;
+  background-color: rgba(2, 6, 23, 0.95) !important;
+  backdrop-filter: blur(24px) !important;
+  color: #f8fafc !important;
 }
 
-/* Sidebar and Header translucency/blur */
+html.dark .app-shell {
+  background:
+    linear-gradient(150deg, rgba(15, 30, 48, 0.96), rgba(8, 19, 34, 0.94));
+  border-color: rgba(148, 190, 218, 0.2);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html.dark .app-sidebar,
+html.dark .app-header {
+  background:
+    linear-gradient(180deg, rgba(20, 38, 58, 0.9), rgba(10, 24, 41, 0.88)) !important;
+  border-color: rgba(148, 190, 218, 0.16) !important;
+}
+
+html.dark .app-main {
+  background:
+    radial-gradient(circle at 70% 0%, rgba(43, 76, 105, 0.22), transparent 40%),
+    linear-gradient(155deg, rgba(13, 29, 47, 0.92), rgba(7, 17, 31, 0.95));
+}
+
+/* Transparent Root Viewports */
+html.dark main,
+html.dark #root,
+html.dark .bg-\[\#f4f7fb\] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Glassmorphism Sidebar & Header - 35% Opacity Dark Glass */
 html.dark aside,
-html.dark header,
+html.dark header {
+  background-color: rgba(15, 23, 42, 0.35) !important;
+  backdrop-filter: blur(20px) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+/* Glassmorphism Cards & Panels - 30% Opacity Dark Glass */
 html.dark .bg-white,
 html.dark .bg-white\/80,
-html.dark .bg-white\/50,
-html.dark .bg-white\/60,
-html.dark .bg-white\/95 {
-  background-color: rgba(17, 24, 39, 0.75) !important;
-  color: #e2e8f0 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Settings, updates, list items, logs, modals, inputs */
+html.dark .bg-white\/90,
+html.dark .bg-white\/70,
 html.dark .bg-slate-50,
-html.dark .bg-slate-50\/50,
-html.dark .bg-slate-50\/80,
-html.dark .bg-slate-100,
-html.dark .bg-slate-100\/50,
-html.dark .bg-slate-100\/80 {
-  background-color: rgba(31, 41, 55, 0.6) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
-  color: #f3f4f6 !important;
+html.dark .bg-slate-100 {
+  background-color: rgba(15, 23, 42, 0.3) !important;
+  backdrop-filter: blur(16px) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2) !important;
 }
 
+/* Inner Sub-cards & List Item Rows - 25% Opacity */
+html.dark .bg-slate-800,
+html.dark .bg-slate-900,
+html.dark .bg-slate-950 {
+  background-color: rgba(15, 23, 42, 0.25) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Glassmorphism Input & Interactive controls */
 html.dark input,
 html.dark select,
 html.dark textarea {
-  background-color: #1f2937 !important;
-  color: #f9fafb !important;
-  border-color: #374151 !important;
+  background-color: rgba(30, 41, 59, 0.35) !important;
+  backdrop-filter: blur(12px) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 html.dark input::placeholder,
 html.dark select::placeholder,
 html.dark textarea::placeholder {
-  color: #6b7280 !important;
+  color: #94a3b8 !important;
 }
 
-/* Text color adaptations */
+/* High Contrast White Text */
+html.dark .text-slate-900,
 html.dark .text-slate-800,
 html.dark .text-slate-700,
 html.dark .text-slate-600 {
-  color: #e5e7eb !important;
+  color: #f1f5f9 !important;
 }
 
 html.dark .text-slate-500,
 html.dark .text-slate-400 {
-  color: #9ca3af !important;
+  color: #cbd5e1 !important;
 }
 
-/* Border adaptations */
+/* Glassmorphism Border Adaptations */
 html.dark .border-slate-100,
 html.dark .border-slate-200,
 html.dark .border-slate-200\/60,
+html.dark .border-slate-200\/80,
 html.dark .border-slate-300,
+html.dark .border-slate-700,
+html.dark .border-slate-800,
 html.dark .border-white,
 html.dark .border-white\/40,
 html.dark .border-glass-border {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* Custom button states */
+/* Hover States for Glassmorphic Cards & Buttons */
 html.dark .hover\:bg-slate-50:hover,
 html.dark .hover\:bg-slate-100:hover,
-html.dark .hover\:bg-slate-100\/80:hover {
-  background-color: rgba(55, 65, 81, 0.8) !important;
+html.dark .hover\:bg-slate-150:hover {
+  background-color: rgba(30, 41, 59, 0.5) !important;
 }
 
-/* Text highlights and badges */
+/* Badges & Accent colors */
+html.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.25) !important;
+  color: #60a5fa !important;
+}
+
 html.dark .text-blue-600 {
   color: #60a5fa !important;
 }
-html.dark .bg-blue-50 {
-  background-color: rgba(59, 130, 246, 0.15) !important;
-}
-

@@ -36,7 +36,10 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
   try {
     const url = `https://api.github.com/repos/${REPO}/releases/latest`;
     const response = await axios.get(url, {
-      headers: { "Accept": "application/vnd.github+json" },
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": `KT_ADB_Tool/${currentVersion}`,
+      },
       timeout: 10000,
     });
 
@@ -48,7 +51,13 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
 
     let downloadUrl: string | null = null;
     if (release.assets && Array.isArray(release.assets)) {
-      const exeAsset = release.assets.find((asset: any) => asset.name.endsWith(".exe"));
+      const exeAsset =
+        release.assets.find(
+          (asset: any) =>
+            asset.name.endsWith(".exe") &&
+            !asset.name.includes("blockmap"),
+        ) ||
+        release.assets.find((asset: any) => asset.name.endsWith(".exe"));
       if (exeAsset) {
         downloadUrl = exeAsset.browser_download_url;
       }
@@ -87,21 +96,50 @@ export async function downloadAndInstallUpdate(
   const tempDir = os.tmpdir();
   const destPath = path.join(tempDir, "KT_ADB_Tool_Setup.exe");
 
-  const writer = fs.createWriteStream(destPath);
+  // Xóa file cũ nếu đã tồn tại
+  if (fs.existsSync(destPath)) {
+    try {
+      fs.unlinkSync(destPath);
+    } catch (e) {      console.warn("Không thể xóa file setup cũ:", e);
+    }
+  }
+
   const response = await axios({
     url: downloadUrl,
     method: "GET",
     responseType: "stream",
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    timeout: 300000, // 5 phút timeout cho file lớn
+    headers: {
+      "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
+      "Accept": "application/octet-stream",
+    },
   });
 
-  const contentLength = response.headers["content-length"];
-  const totalLength = parseInt(typeof contentLength === "string" ? contentLength : "0", 10);
+  const contentLength =
+    response.headers["content-length"] ||
+    response.headers["x-decompressed-content-length"];
+  const totalLength = parseInt(
+    typeof contentLength === "string" ? contentLength : "0",
+    10,
+  );
   let downloadedLength = 0;
+
+  const writer = fs.createWriteStream(destPath);
+
   return new Promise((resolve, reject) => {
     response.data.on("data", (chunk: Buffer) => {
       downloadedLength += chunk.length;
       if (totalLength > 0) {
-        onProgress(Math.round((downloadedLength / totalLength) * 100));
+        const pct = Math.min(
+          99,
+          Math.round((downloadedLength / totalLength) * 100),
+        );
+        onProgress(pct);
+      } else {
+        // Nếu không có header content-length, giả lập tiến trình tăng dần
+        onProgress(Math.min(95, Math.floor(downloadedLength / 1024 / 1024)));
       }
     });
 
@@ -114,26 +152,40 @@ export async function downloadAndInstallUpdate(
     response.data.pipe(writer);
 
     writer.on("finish", () => {
-      // Chạy trình cài đặt NSIS với shell: false để tránh Command Injection
-      const child = spawn(destPath, ["/S"], {
-        detached: true,
-        stdio: "ignore",
-        shell: false,
+      writer.close(async () => {
+        onProgress(100);
+        try {
+          // Thử khởi chạy bộ cài đặt NSIS với công tắc /S (Silent)
+          const child = spawn(destPath, ["/S"], {
+            detached: true,
+            stdio: "ignore",
+            shell: false,
+          });
+
+          child.on("error", async () => {
+            // Nếu /S thất bại, mở file cài đặt dạng GUI trực tiếp bằng shell
+            const { shell } = await import("electron");
+            await shell.openPath(destPath);
+          });
+
+          child.unref();
+
+          // Thoát ứng dụng lập tức để giải phóng file lock hoàn toàn cho bộ cài
+          setTimeout(() => {
+            app.exit(0);
+          }, 1000);
+
+          resolve();
+        } catch (err: any) {
+          console.error("Lỗi khi mở bộ cài:", err);
+          const { shell } = await import("electron");
+          shell.openPath(destPath);
+          setTimeout(() => {
+            app.exit(0);
+          }, 1000);
+          resolve();
+        }
       });
-
-      child.on("error", (spawnErr) => {
-        console.error("Lỗi kích hoạt bộ cài:", spawnErr);
-        reject(new Error(`Không thể khởi chạy bộ cài đặt: ${spawnErr.message}`));
-      });
-
-      child.unref();
-
-      // Thoát ứng dụng hiện tại sau khi kích hoạt bộ cài để giải phóng file lock
-      setTimeout(() => {
-        app.quit();
-      }, 800);
-
-      resolve();
     });
 
     writer.on("error", (err) => {

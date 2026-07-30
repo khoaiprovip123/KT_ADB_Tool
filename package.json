@@ -1,6 +1,6 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "KT ADB Tool Pro - Giải pháp tối ưu hóa và quản lý Android chuyên nghiệp toàn diện",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
@@ -12,6 +12,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
+    "security:scan": "codex-security scan .",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
@@ -43,6 +44,7 @@
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@electron-toolkit/eslint-config-ts": "^2.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@openai/codex-security": "^1.0.0",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",

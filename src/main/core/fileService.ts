@@ -32,7 +32,7 @@ export async function listDirectoryShell(deviceId: string, remotePath: string) {
       if (!trimmed || trimmed.startsWith("total ")) continue;
 
       // Định dạng drwxrwxrwx 4 owner group size date time name
-      const match = trimmed.match(/^([d\-])\S*\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(.+?)\s+(.+)$/);
+      const match = trimmed.match(/^([d-])\S*\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(.+?)\s+(.+)$/);
       if (match) {
         const isDir = match[1] === "d";
         const size = parseInt(match[2], 10);

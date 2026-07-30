@@ -8,8 +8,72 @@ import {
 } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 
+interface ReleaseItem {
+  version: string;
+  date: string;
+  highlights: string[];
+}
+
+const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
+  {
+    version: "v2.5.0",
+    date: "28/07/2026",
+    highlights: [
+      "Nâng cấp hệ thống Cập nhật tự động (Auto-Update) với giao diện Glassmorphism hiện đại.",
+      "Tự động nhận diện & đồng bộ IP LAN chính xác cho kết nối Wireless ADB & USB ADB.",
+      "Tùy chỉnh giao diện Quản lý ứng dụng: Nút thao tác luôn luôn hiển thị & nhãn Disabled nổi bật.",
+    ],
+  },
+  {
+    version: "v2.4.4",
+    date: "25/07/2026",
+    highlights: [
+      "Cải tiến công cụ Quét dọn nhanh (Quick Cleaner) tối ưu bộ nhớ đệm & file rác hệ thống.",
+      "Bổ sung danh sách loại trừ (Whitelist) bảo vệ ứng dụng hệ thống quan trọng.",
+      "Sửa các lỗi nhỏ và tối ưu hóa thời gian phản hồi lệnh ADB.",
+    ],
+  },
+  {
+    version: "v2.4.3",
+    date: "23/07/2026",
+    highlights: [
+      "Thêm tính năng Ghép nối Android 11+ bằng Mã QR Scanner mDNS tự động.",
+      "Hỗ trợ gỡ rác (Debloat) đa thương hiệu: Samsung OneUI, ColorOS, FuntouchOS.",
+      "Hỗ trợ cài đặt & trích xuất Split APKs (XAPK / APKS / ZIP bundles).",
+      "Nâng cấp giao diện Cài Đặt Glassmorphic hiện đại.",
+    ],
+  },
+  {
+    version: "v2.4.0",
+    date: "15/07/2026",
+    highlights: [
+      "Hỗ trợ quản lý và thao tác đồng thời nhiều thiết bị (Multi-Device Execution).",
+      "Bổ sung thanh công cụ Floating Taskbar quản lý tiến trình.",
+    ],
+  },
+  {
+    version: "v2.3.6",
+    date: "01/07/2026",
+    highlights: [
+      "Tối ưu hóa giao diện Dark Mode toàn ứng dụng.",
+      "Sửa lỗi tính toán dung lượng bộ nhớ trống trong fileService.",
+    ],
+  },
+  {
+    version: "v2.3.0",
+    date: "09/06/2026",
+    highlights: [
+      "Tích hợp Engine Execute-Verify-Fallback tự động khôi phục sự cố kết nối.",
+      "Tích hợp tự động kiểm tra bản nâng cấp qua GitHub Release.",
+    ],
+  },
+];
+
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.4.4");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.0");
+  const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
+    DEFAULT_RELEASE_HISTORY,
+  );
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "checking" | "available" | "no-update" | "downloading" | "error"
   >("idle");
@@ -24,9 +88,56 @@ export default function Updates() {
     window.api
       ?.getAppVersion?.()
       .then((ver) => {
-        if (ver) setCurrentVersion(`v${ver}`);
+        if (ver) {
+          const v = ver.startsWith("v") ? ver : `v${ver}`;
+          setCurrentVersion(v);
+        }
       })
       .catch((err) => console.error("Lấy phiên bản lỗi:", err));
+
+    // Lấy lịch sử Releases từ GitHub API để hiển thị động
+    fetch("https://api.github.com/repos/khoaiprovip123/KT_ADB_Tool/releases", {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const fetched: ReleaseItem[] = data.map((rel: any) => {
+            const rawBody = rel.body || "";
+            const lines = rawBody
+              .split("\n")
+              .map((l: string) => l.replace(/^[\s*-]+/, "").trim())
+              .filter((l: string) => l.length > 0);
+            const dateObj = new Date(rel.published_at || rel.created_at);
+            const dateStr = !isNaN(dateObj.getTime())
+              ? dateObj.toLocaleDateString("vi-VN")
+              : "";
+            return {
+              version: rel.tag_name.startsWith("v")
+                ? rel.tag_name
+                : `v${rel.tag_name}`,
+              date: dateStr,
+              highlights:
+                lines.length > 0 ? lines : [rel.name || "Bản cập nhật mới"],
+            };
+          });
+
+          const mergedMap = new Map<string, ReleaseItem>();
+          fetched.forEach((item) => mergedMap.set(item.version, item));
+          DEFAULT_RELEASE_HISTORY.forEach((item) => {
+            if (!mergedMap.has(item.version)) {
+              mergedMap.set(item.version, item);
+            }
+          });
+          const mergedList = Array.from(mergedMap.values()).sort((a, b) =>
+            a.version < b.version ? 1 : -1,
+          );
+          setReleaseHistory(mergedList);
+        }
+      })
+      .catch((err) =>
+        console.warn("Lấy lịch sử release GitHub thất bại:", err),
+      );
   }, []);
 
   const handleCheckUpdate = async () => {
@@ -76,46 +187,7 @@ export default function Updates() {
     }
   };
 
-  const releaseHistory = [
-    {
-      version: "v2.4.3",
-      date: "23/07/2026",
-      isLatest: true,
-      highlights: [
-        "Thêm tính năng Ghép nối Android 11+ bằng Mã QR Scanner mDNS tự động.",
-        "Hỗ trợ gỡ rác (Debloat) đa thương hiệu: Samsung OneUI, ColorOS, FuntouchOS.",
-        "Hỗ trợ cài đặt & trích xuất Split APKs (XAPK / APKS / ZIP bundles).",
-        "Nâng cấp giao diện Cài Đặt Glassmorphic hiện đại.",
-      ],
-    },
-    {
-      version: "v2.4.0",
-      date: "15/07/2026",
-      isLatest: false,
-      highlights: [
-        "Hỗ trợ quản lý và thao tác đồng thời nhiều thiết bị (Multi-Device Execution).",
-        "Bổ sung thanh công cụ Floating Taskbar quản lý tiến trình.",
-      ],
-    },
-    {
-      version: "v2.3.6",
-      date: "01/07/2026",
-      isLatest: false,
-      highlights: [
-        "Tối ưu hóa giao diện Dark Mode toàn ứng dụng.",
-        "Sửa lỗi tính toán dung lượng bộ nhớ trống trong fileService.",
-      ],
-    },
-    {
-      version: "v2.3.0",
-      date: "09/06/2026",
-      isLatest: false,
-      highlights: [
-        "Tích hợp Engine Execute-Verify-Fallback tự động khôi phục sự cố kết nối.",
-        "Tích hợp tự động kiểm tra bản nâng cấp qua GitHub Release.",
-      ],
-    },
-  ];
+
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -208,7 +280,9 @@ export default function Updates() {
                 <div className="flex items-center gap-2.5">
                   <Tag className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100">{item.version}</span>
-                  {item.isLatest && (
+                  {(item.version === currentVersion ||
+                    item.version.replace(/^v/, "") ===
+                      currentVersion.replace(/^v/, "")) && (
                     <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
                       Phiên bản hiện tại
                     </span>

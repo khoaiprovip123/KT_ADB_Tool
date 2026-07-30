@@ -11,6 +11,23 @@ import { store } from "../store";
 import { assertValidDeviceId, assertValidShellCommand } from "./validate";
 
 export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
+  // ── Window Controls ──────────────────────────────────────────────────────
+  ipcMain.handle("win:minimize", () => {
+    if (!mainWindow.isDestroyed()) mainWindow.minimize();
+  });
+  ipcMain.handle("win:maximize", () => {
+    if (!mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow.maximize();
+      }
+    }
+  });
+  ipcMain.handle("win:close", () => {
+    if (!mainWindow.isDestroyed()) mainWindow.close();
+  });
+
   // ── Core ADB ──────────────────────────────────────────────────────────────
   ipcMain.handle("adb:init", async () => {
     const success = await initAdb((msg) => {

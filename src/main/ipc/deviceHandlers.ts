@@ -49,7 +49,13 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
       return null;
     }
     try {
-      return await getDeviceInfo(deviceId);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout getting device info")), 6000),
+      );
+      return (await Promise.race([
+        getDeviceInfo(deviceId),
+        timeoutPromise,
+      ])) as any;
     } catch (err) {
       console.error("adb:get-info error:", err);
       return null;

@@ -18,7 +18,9 @@ import { adbState } from "./adbCore";
 
 function createMockStream(content: string) {
   const stream = new Readable({
-    read() {}
+    read() {
+      return undefined;
+    },
   });
   process.nextTick(() => {
     stream.push(content);

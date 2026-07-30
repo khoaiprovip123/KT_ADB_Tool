@@ -13,6 +13,9 @@ import {
   Sliders,
   QrCode,
   Eraser,
+  Minus,
+  Square,
+  X,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -35,6 +38,7 @@ const TabLoading = () => (
 );
 import { ControlCenterModal } from "./components/layout/ControlCenterModal";
 import { ConnectionManagerModal } from "./components/layout/ConnectionManagerModal";
+import { UpdateModal } from "./components/layout/UpdateModal";
 
 import { ToastProvider } from "./components/layout/ToastProvider";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
@@ -101,7 +105,7 @@ function App() {
   }, [settings.theme]);
 
   return (
-    <div className="flex h-screen w-full bg-[#f4f7fb] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
+    <div className="app-shell flex h-full w-full text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
       <ToastProvider />
       <ConnectionManagerModal
         isOpen={isConnManagerOpen}
@@ -110,12 +114,12 @@ function App() {
       />
       {/* SIDEBAR */}
       <aside
-        className={`${isSidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out flex flex-col justify-between bg-white/80 backdrop-blur-xl border-r border-glass-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative`}
+        className={`app-sidebar ${isSidebarOpen ? "w-64" : "w-20"} shrink-0 transition-all duration-300 ease-in-out flex flex-col justify-between backdrop-blur-xl border-r z-10 relative`}
       >
         {/* Toggle Button */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute -right-3 top-9 bg-white border border-slate-200 shadow-sm rounded-full p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors z-20"
+          className="absolute -right-3 top-7 w-6 h-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors z-20"
         >
           {isSidebarOpen ? (
             <ChevronLeft className="w-4 h-4" />
@@ -208,9 +212,12 @@ function App() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col relative z-0">
-        <header className="h-20 bg-white/50 backdrop-blur-md border-b border-white/40 px-8 flex items-center justify-between sticky top-0 z-20">
-          <h2 className="text-xl font-semibold capitalize text-slate-800">
+      <main className="app-main flex-1 flex flex-col relative z-0 text-slate-800 dark:text-slate-100 overflow-hidden">
+        <header
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          className="app-header h-20 backdrop-blur-xl border-b px-8 flex items-center justify-between sticky top-0 z-20 select-none"
+        >
+          <h2 className="text-xl font-semibold capitalize text-slate-800 dark:text-slate-100">
             {activeTab === "dashboard"
               ? "Tổng quan"
               : activeTab === "system"
@@ -230,20 +237,11 @@ function App() {
                             : activeTab}
           </h2>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsConnManagerOpen(true)}
-              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-full text-sm font-bold transition-all shadow-sm flex items-center gap-2"
-              title="Mở Quản lý kết nối & Quét mã QR Wireless ADB"
-            >
-              <QrCode className="w-4 h-4 text-indigo-600" />
-              <span>Quét mã QR</span>
-            </button>
-
+          <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties} className="flex items-center gap-4">
             <div className="relative">
               <button
                 onClick={() => setIsCcOpen(!isCcOpen)}
-                className="px-4 py-2 bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-sm font-bold hover:bg-slate-200 transition-colors shadow-sm flex items-center gap-2"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-full text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm flex items-center gap-2"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 <span>Điều khiển</span>
@@ -256,7 +254,7 @@ function App() {
 
             <button
               onClick={() => setIsLogOpen(!isLogOpen)}
-              className="px-4 py-2 bg-slate-800 text-white rounded-full text-sm font-medium hover:bg-slate-700 transition-colors shadow-lg flex items-center gap-2"
+              className="px-4 py-2 bg-slate-800 dark:bg-indigo-600 text-white rounded-full text-sm font-medium hover:bg-slate-700 dark:hover:bg-indigo-700 transition-colors shadow-lg flex items-center gap-2"
             >
               <Terminal className="w-4 h-4" />
               <span>Nhật ký</span>
@@ -264,12 +262,15 @@ function App() {
             <div className="relative">
               <button
                 onClick={() => setIsConnManagerOpen(true)}
-                className="flex items-center gap-3 bg-white hover:bg-slate-50 px-4 py-2 rounded-full shadow-sm border border-slate-200 transition-colors"
+                className="flex items-center gap-2.5 bg-indigo-50/90 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 px-4 py-2 rounded-full shadow-sm border border-indigo-200/80 dark:border-indigo-800/80 transition-colors"
+                title="Mở Quản lý kết nối & Quét mã QR Wireless ADB"
               >
+                <QrCode className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                <span className="h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
                 {activeDevice ? (
                   <>
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-sm font-medium text-slate-700">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                       {devices.find((d) => d.id === activeDevice)?.model ||
                         devices.find((d) => d.id === activeDevice)?.id ||
                         "Connected"}
@@ -281,20 +282,51 @@ function App() {
                 ) : (
                   <>
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-sm font-medium text-slate-500">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
                       Chưa kết nối
                     </span>
                   </>
                 )}
               </button>
             </div>
+
+            <div
+              className="ml-1 flex items-center gap-2 rounded-full border border-white/70 bg-white/45 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-slate-700/70 dark:bg-slate-900/45"
+              aria-label="Điều khiển cửa sổ"
+            >
+              <button
+                type="button"
+                onClick={() => void window.api.closeWindow()}
+                className="group flex h-[18px] w-[18px] items-center justify-center rounded-full border border-red-500/30 bg-[#ff5f57] text-red-950 shadow-sm transition-transform hover:scale-110"
+                title="Đóng ứng dụng"
+                aria-label="Đóng ứng dụng"
+              >
+                <X className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-70" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void window.api.minimizeWindow()}
+                className="group flex h-[18px] w-[18px] items-center justify-center rounded-full border border-amber-500/30 bg-[#febc2e] text-amber-950 shadow-sm transition-transform hover:scale-110"
+                title="Thu nhỏ"
+                aria-label="Thu nhỏ cửa sổ"
+              >
+                <Minus className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-70" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void window.api.maximizeWindow()}
+                className="group flex h-[18px] w-[18px] items-center justify-center rounded-full border border-emerald-600/30 bg-[#28c840] text-emerald-950 shadow-sm transition-transform hover:scale-110"
+                title="Phóng to hoặc khôi phục"
+                aria-label="Phóng to hoặc khôi phục cửa sổ"
+              >
+                <Square className="h-2 w-2 opacity-0 transition-opacity group-hover:opacity-70" />
+              </button>
+            </div>
           </div>
         </header>
 
         <div
-          className={`flex-1 overflow-hidden relative ${
-            activeTab === "experience" ? "p-4" : "p-8"
-          }`}
+          className="flex-1 overflow-hidden relative p-4 lg:p-6 flex flex-col h-full"
         >
           <ErrorBoundary>
             <React.Suspense fallback={<TabLoading />}>
@@ -324,6 +356,7 @@ function App() {
 
         <LogTerminal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
         {activeTab === "dashboard" && <FloatingQuickBoot />}
+        <UpdateModal />
       </main>
     </div>
   );
@@ -347,8 +380,8 @@ function NavItem({
       onClick={onClick}
       className={`w-full flex items-center ${isExpanded ? "gap-3 px-4" : "justify-center px-0"} py-3 rounded-xl transition-all duration-300 font-medium ${
         active
-          ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-          : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-800"
+          ? "bg-white/90 text-blue-600 border border-white/90 shadow-[0_6px_18px_rgba(59,130,246,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] dark:bg-blue-600/80 dark:text-white dark:border-blue-400/20"
+          : "text-slate-500 border border-transparent hover:bg-white/55 hover:border-white/70 hover:text-slate-800 dark:hover:bg-slate-800/55 dark:hover:text-slate-100"
       }`}
       title={!isExpanded ? label : undefined}
     >

@@ -2,6 +2,44 @@ import { adbState } from "./adbCore";
 import batteryProfiles from "./data/battery_profiles.json";
 import xiaomiCodenames from "./data/xiaomi_codenames.json";
 
+function extractValidDeviceIp(text: string): string | null {
+  if (!text) return null;
+  const matches = Array.from(
+    text.matchAll(
+      /(?:inet\s+|src\s+|addr:)?\b((?:192\.168|10\.|172\.(?:1[6-9]|2[0-9]|3[01]))\.\d+\.\d+)\b/g,
+    ),
+  );
+  for (const m of matches) {
+    const ip = m[1];
+    if (
+      ip &&
+      ip !== "127.0.0.1" &&
+      !ip.startsWith("0.") &&
+      !ip.startsWith("169.254")
+    ) {
+      return ip;
+    }
+  }
+
+  const allIps = Array.from(
+    text.matchAll(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g),
+  );
+  for (const m of allIps) {
+    const ip = m[1];
+    if (
+      ip &&
+      ip !== "127.0.0.1" &&
+      !ip.startsWith("0.") &&
+      !ip.startsWith("127.") &&
+      !ip.startsWith("169.254") &&
+      !ip.startsWith("255.")
+    ) {
+      return ip;
+    }
+  }
+  return null;
+}
+
 export async function getDeviceInfo(deviceId: string) {
   try {
     // 1. Kiểm tra trạng thái thiết bị trong danh sách
@@ -142,36 +180,24 @@ export async function getDeviceInfo(deviceId: string) {
       "Unknown";
 
     // Lấy IP address chuẩn xác qua các nguồn mạng
-    const ipRaw = await safeShell(
-      "ip route show dev wlan0 2>/dev/null || ip route show dev wlan1 2>/dev/null || ip route 2>/dev/null",
-    );
-
     let ipAddr = "Not Connected";
-    const wlan0Match =
-      ipRaw.match(/wlan0.*src\s+(\d+\.\d+\.\d+\.\d+)/) ||
-      ipRaw.match(/src\s+(\d+\.\d+\.\d+\.\d+).*wlan0/);
-    const wlan1Match =
-      ipRaw.match(/wlan1.*src\s+(\d+\.\d+\.\d+\.\d+)/) ||
-      ipRaw.match(/src\s+(\d+\.\d+\.\d+\.\d+).*wlan1/);
-
-    if (wlan0Match) {
-      ipAddr = wlan0Match[1];
-    } else if (wlan1Match) {
-      ipAddr = wlan1Match[1];
+    const deviceIpMatch = deviceId.match(/^(\d+\.\d+\.\d+\.\d+)/);
+    if (deviceIpMatch) {
+      ipAddr = deviceIpMatch[1];
     } else {
-      const ipAddrRaw = await safeShell(
-        "ip address show dev wlan0 2>/dev/null || ip address show dev wlan1 2>/dev/null",
-      );
+      const propIp =
+        getPropRaw.match(/\[dhcp\.wlan0\.ipaddress\]: \[(.*?)\]/)?.[1] ||
+        getPropRaw.match(/\[dhcp\.wlan1\.ipaddress\]: \[(.*?)\]/)?.[1];
 
-      const inetMatch = ipAddrRaw.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
-      if (inetMatch) {
-        ipAddr = inetMatch[1];
+      if (propIp && propIp !== "127.0.0.1" && !propIp.startsWith("0.")) {
+        ipAddr = propIp;
       } else {
-        const propIp =
-          getPropRaw.match(/\[dhcp\.wlan0\.ipaddress\]: \[(.*?)\]/)?.[1] ||
-          getPropRaw.match(/\[dhcp\.wlan1\.ipaddress\]: \[(.*?)\]/)?.[1];
-        if (propIp && propIp !== "127.0.0.1" && !propIp.startsWith("0.")) {
-          ipAddr = propIp;
+        const ipRaw = await safeShell(
+          "ip addr show dev wlan0 2>/dev/null || ip addr show dev wlan1 2>/dev/null || ifconfig wlan0 2>/dev/null || ifconfig wlan1 2>/dev/null || ip route show 2>/dev/null || ip addr show 2>/dev/null",
+        );
+        const extracted = extractValidDeviceIp(ipRaw);
+        if (extracted) {
+          ipAddr = extracted;
         }
       }
     }

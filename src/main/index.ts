@@ -61,9 +61,10 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    titleBarStyle: "hiddenInset",
+    frame: false,
     autoHideMenuBar: true,
-    backgroundColor: "#f4f7fb",
+    transparent: true,
+    backgroundColor: "#00000000",
     icon: join(__dirname, "../../resources/icon.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -81,29 +82,8 @@ function createWindow(): void {
       try {
         const { checkForUpdates } = await import("./core/updateService");
         const updateInfo = await checkForUpdates();
-        if (updateInfo.available) {
-          const { response } = await dialog.showMessageBox(mainWindow, {
-            type: "info",
-            title: "Phát hiện bản cập nhật mới",
-            message: `Phiên bản mới v${updateInfo.version} đã sẵn sàng!`,
-            detail: `Nội dung cập nhật:\n${updateInfo.changelog || "Không có chi tiết."}\n\nBạn có muốn tải xuống và nâng cấp tự động không?`,
-            buttons: ["Nâng cấp ngay", "Để sau"],
-            defaultId: 0,
-            cancelId: 1,
-          });
-
-          if (response === 0 && updateInfo.downloadUrl) {
-            dialog.showMessageBox(mainWindow, {
-              type: "info",
-              title: "Đang tải bản cập nhật",
-              message: "Bản cập nhật đang được tải xuống ở chế độ nền. Ứng dụng sẽ tự động đóng và cài đặt lại khi hoàn tất.",
-              buttons: ["OK"],
-            });
-            const { downloadAndInstallUpdate } = await import("./core/updateService");
-            downloadAndInstallUpdate(updateInfo.downloadUrl, () => {}).catch((err: any) => {
-              dialog.showErrorBox("Lỗi cập nhật", `Quá trình tải bản cập nhật gặp lỗi:\n${err.message}`);
-            });
-          }
+        if (updateInfo.available && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("app:update-available", updateInfo);
         }
       } catch (err) {
         console.error("Auto-update check failed:", err);
