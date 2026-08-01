@@ -152,39 +152,29 @@ export async function downloadAndInstallUpdate(
     response.data.pipe(writer);
 
     writer.on("finish", () => {
-      writer.close(async () => {
+      writer.close(() => {
         onProgress(100);
-        try {
-          // Thử khởi chạy bộ cài đặt NSIS với công tắc /S (Silent)
-          const child = spawn(destPath, ["/S"], {
-            detached: true,
-            stdio: "ignore",
-            shell: false,
-          });
+        resolve();
 
-          child.on("error", async () => {
-            // Nếu /S thất bại, mở file cài đặt dạng GUI trực tiếp bằng shell
+        // Tự động kích hoạt cài đặt ngầm (/S) và thoát ứng dụng
+        setTimeout(async () => {
+          try {
+            const child = spawn(`"${destPath}"`, ["/S"], {
+              detached: true,
+              stdio: "ignore",
+              shell: true,
+            });
+            child.unref();
+          } catch (err: any) {
+            console.error("Lỗi khi tự động chạy installer:", err);
             const { shell } = await import("electron");
             await shell.openPath(destPath);
-          });
-
-          child.unref();
-
-          // Thoát ứng dụng lập tức để giải phóng file lock hoàn toàn cho bộ cài
-          setTimeout(() => {
-            app.exit(0);
-          }, 1000);
-
-          resolve();
-        } catch (err: any) {
-          console.error("Lỗi khi mở bộ cài:", err);
-          const { shell } = await import("electron");
-          shell.openPath(destPath);
-          setTimeout(() => {
-            app.exit(0);
-          }, 1000);
-          resolve();
-        }
+          } finally {
+            setTimeout(() => {
+              app.quit();
+            }, 500);
+          }
+        }, 300);
       });
     });
 

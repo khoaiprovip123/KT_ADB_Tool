@@ -91,6 +91,10 @@ export interface IADBAPI {
     tweakId: string,
     enable: boolean,
   ) => Promise<any>;
+  fixAllNotifications: (deviceId: string) => Promise<{ success: boolean; count: number; message: string }>;
+  onFixNotificationsProgress: (
+    cb: (data: { current: number; total: number; pkgName: string }) => void,
+  ) => () => void;
   getDpi: (deviceId: string) => Promise<any>;
   getResolution: (deviceId: string) => Promise<any>;
   setDpi: (deviceId: string, dpi: number) => Promise<any>;

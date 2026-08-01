@@ -107,12 +107,13 @@ describe("adbCore", () => {
       );
     });
 
-    it("should reject when command fails on all attempts", async () => {
+    it("should return error output string when command fails on all attempts", async () => {
       vi.mocked((exec as any)[util.promisify.custom]).mockRejectedValue(
         new Error("Command failed")
       );
 
-      await expect(execAdb("device-1", "getprop")).rejects.toThrow("Command failed");
+      const result = await execAdb("device-1", "getprop");
+      expect(result).toContain("Command failed");
     });
   });
 });

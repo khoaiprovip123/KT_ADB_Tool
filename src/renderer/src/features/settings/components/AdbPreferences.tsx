@@ -4,6 +4,7 @@ import {
   ShieldCheck,
   Zap,
   RotateCcw,
+  Sliders,
 } from "lucide-react";
 import { toast } from "../../../store/toastStore";
 import { useDeviceStore } from "../../../store/deviceStore";
@@ -128,6 +129,52 @@ export default function AdbPreferences() {
             >
               <RefreshCw className={`w-4 h-4 ${isResetting ? "animate-spin" : ""}`} />
               <span>{isResetting ? "Đang xử lý..." : "Reset ADB Server ngay"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Developer Advanced Options Toggle */}
+      <div className="space-y-4 pt-2">
+        <label className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
+          3. Chế độ Tùy chọn Nâng cao (Developer Mode)
+        </label>
+
+        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-blue-600" />
+                <span>Bật Chế độ Tùy chọn Nâng cao (Nâng cao ADB)</span>
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl">
+                Khi kích hoạt, menu <strong>"Nâng cao ADB"</strong> (Property Inspector, Command Catalog, Raw Shell Runner) sẽ hiển thị trên thanh menu điều hướng chính.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                const current = localStorage.getItem("enableAdvancedAdb") === "true";
+                const next = !current;
+                localStorage.setItem("enableAdvancedAdb", String(next));
+                window.dispatchEvent(new Event("advanced-adb-toggled"));
+                if (next) {
+                  toast.success("Đã bật Chế độ Nâng cao! Menu Nâng cao ADB đã xuất hiện.");
+                } else {
+                  toast.info("Đã ẩn menu Nâng cao ADB.");
+                }
+              }}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0 ${
+                localStorage.getItem("enableAdvancedAdb") === "true"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+              }`}
+            >
+              <span>
+                {localStorage.getItem("enableAdvancedAdb") === "true"
+                  ? "Đang BẬT (Bấm để Ẩn)"
+                  : "Đang TẮT (Bấm để Mở)"}
+              </span>
             </button>
           </div>
         </div>

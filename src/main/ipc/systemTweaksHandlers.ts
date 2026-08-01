@@ -14,6 +14,7 @@ import {
   setResolution,
   resetResolution,
   setAnimationScale,
+  fixAllNotifications,
 } from "../core/systemTweaksService";
 import {
   assertValidAnimationScale,
@@ -195,4 +196,21 @@ export function registerSystemTweaksHandlers(
       }
     },
   );
+
+  ipcMain.handle("adb:fix-all-notifications", async (_event, deviceId: string) => {
+    try {
+      assertValidDeviceId(deviceId);
+      return fixAllNotifications(deviceId, (current, total, pkgName) => {
+        if (!mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("adb:fix-notifications-progress", {
+            current,
+            total,
+            pkgName,
+          });
+        }
+      });
+    } catch (err: any) {
+      return { success: false, count: 0, message: err.message };
+    }
+  });
 }

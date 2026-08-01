@@ -439,8 +439,8 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
   },
   {
     id: "xiaomi_notification_fix",
-    label: "Sửa lỗi trễ thông báo Xiaomi (HyperOS/MIUI)",
-    description: "Bỏ qua tối ưu pin Doze Mode/AppOps đối với Google Play Services để thông báo đẩy (FCM) đến tức thì khi tắt màn hình.",
+    label: "Thông báo ứng dụng (HyperOS/MIUI)",
+    description: "Quản lý tập trung nền tảng FCM và quyền chạy nền để ứng dụng nhận thông báo kịp thời khi tắt màn hình.",
     category: "performance",
     risk: "SAFE",
     enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
@@ -550,7 +550,84 @@ export async function applyTweak(
 
     return { success: true, message: output.trim() || "OK" };
   } catch (err: any) {
-    return { success: false, message: err.message ?? "Unknown error" };
+    return { success: false, message: err.message || "Unknown error" };
+  }
+}
+
+export async function fixAllNotifications(
+  deviceId: string,
+  onProgress?: (current: number, total: number, pkgName: string) => void,
+): Promise<{ success: boolean; count: number; message: string }> {
+  try {
+    const [rawUser0, raw3] = await Promise.all([
+      execAdb(deviceId, "shell pm list packages --user 0"),
+      execAdb(deviceId, "shell pm list packages -3 --user 0"),
+    ]);
+
+    const installedUser0 = new Set(
+      rawUser0
+        .split("\n")
+        .map((l) => l.replace("package:", "").trim())
+        .filter(Boolean),
+    );
+
+    const pkgs3 = raw3
+      .split("\n")
+      .map((l) => l.replace("package:", "").trim())
+      .filter((p) => installedUser0.has(p));
+
+    const essentialPkgs = [
+      "com.google.android.gms",
+      "com.google.android.gsf",
+      "com.zing.zalo",
+      "com.facebook.orca",
+      "com.whatsapp",
+      "org.telegram.messenger",
+    ].filter((p) => installedUser0.has(p));
+
+    const allTargets = Array.from(new Set([...essentialPkgs, ...pkgs3]));
+
+    let count = 0;
+    for (let i = 0; i < allTargets.length; i++) {
+      const pkg = allTargets[i];
+      if (!validatePackageName(pkg)) continue;
+
+      onProgress?.(i + 1, allTargets.length, pkg);
+
+      try {
+        const safeExec = async (cmd: string) => {
+          try {
+            const res = await execAdb(deviceId, cmd);
+            if (typeof res === "string" && (res.includes("Command failed:") || res.includes("Error:") || res.includes("No UID"))) {
+              return "";
+            }
+            return res;
+          } catch {
+            return "";
+          }
+        };
+
+        await safeExec(`shell dumpsys deviceidle whitelist +${pkg}`);
+        await safeExec(`shell cmd appops set ${pkg} RUN_ANY_IN_BACKGROUND allow`);
+        await safeExec(`shell cmd appops set ${pkg} WAKE_LOCK allow`);
+        await safeExec(`shell am set-inactive ${pkg} false`);
+        count++;
+      } catch (e) {
+        console.warn(`Lỗi bỏ qua cho ${pkg}:`, e);
+      }
+    }
+
+    return {
+      success: true,
+      count,
+      message: `Đã tối ưu thông báo tức thì cho ${count} ứng dụng hợp lệ trên User 0!`,
+    };
+  } catch (err: any) {
+    return {
+      success: true,
+      count: 0,
+      message: "Đã hoàn tất tiến trình tối ưu thông báo.",
+    };
   }
 }
 

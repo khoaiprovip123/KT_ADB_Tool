@@ -143,6 +143,19 @@ const api = {
     ipcRenderer.invoke("adb:get-tweaks-status", deviceId),
   applyTweak: (deviceId: string, tweakId: string, enable: boolean) =>
     ipcRenderer.invoke("adb:apply-tweak", deviceId, tweakId, enable),
+  fixAllNotifications: (deviceId: string) =>
+    ipcRenderer.invoke("adb:fix-all-notifications", deviceId),
+  onFixNotificationsProgress: (
+    cb: (data: { current: number; total: number; pkgName: string }) => void,
+  ) => {
+    const listener = (
+      _e: any,
+      data: { current: number; total: number; pkgName: string },
+    ) => cb(data);
+    ipcRenderer.on("adb:fix-notifications-progress", listener);
+    return () =>
+      ipcRenderer.removeListener("adb:fix-notifications-progress", listener);
+  },
 
   // Display & DPI
   getDpi: (deviceId: string) => ipcRenderer.invoke("adb:get-dpi", deviceId),

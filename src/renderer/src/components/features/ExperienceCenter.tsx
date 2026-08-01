@@ -5,12 +5,14 @@ import React, {
   useRef,
   useState,
 } from "react";
+
 import {
   Activity,
   AlertTriangle,
   AppWindow,
   BadgeCheck,
   BatteryCharging,
+  Bell,
   CheckCircle2,
   ChevronRight,
   Cpu,
@@ -21,18 +23,16 @@ import {
   Loader2,
   MonitorSmartphone,
   PackageCheck,
-  RefreshCw,
   RotateCcw,
   Search,
   Shield,
   ShieldCheck,
   SlidersHorizontal,
-  Smartphone,
-  Sparkles,
   TerminalSquare,
   Trash2,
   Undo2,
   Wand2,
+  X,
   XCircle,
   Zap,
   Globe,
@@ -142,18 +142,20 @@ interface ConfirmState {
   onConfirm: () => void;
 }
 
+interface NotificationVerification {
+  loading: boolean;
+  gmsInstalled: boolean | null;
+  dozeWhitelisted: boolean | null;
+  backgroundAllowed: boolean | null;
+  error?: string;
+}
+
 const sectionMeta: Array<{
   id: SectionId;
   label: string;
   desc: string;
   icon: React.ReactNode;
 }> = [
-  {
-    id: "overview",
-    label: "Tổng quan",
-    desc: "Lệnh khuyến nghị",
-    icon: <Sparkles className="w-4 h-4" />,
-  },
   {
     id: "interface",
     label: "Giao diện",
@@ -200,11 +202,20 @@ const riskRank: Record<RiskLevel, number> = {
   KEEP: 4,
 };
 
-const panelClass =
-  "border border-white/70 bg-white/72 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.08)]";
-
 const mutedPanelClass =
-  "border border-slate-200/70 bg-white/62 backdrop-blur-xl shadow-[0_10px_30px_rgba(15,23,42,0.04)]";
+  "border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
+
+const notificationTweakId = "system:xiaomi_notification_fix";
+
+const hasExactPackage = (output: string, packageName: string) =>
+  output
+    .split(/\r?\n/)
+    .some((line) => line.trim() === `package:${packageName}`);
+
+const hasWhitelistPackage = (output: string, packageName: string) =>
+  output
+    .split(/\r?\n/)
+    .some((line) => line.trim().split(",")[1] === packageName);
 
 const summarizeOutput = (value: unknown) => {
   if (typeof value === "string") return value.trim();
@@ -265,7 +276,7 @@ const getSystemIcon = (category: SystemTweak["category"]) => {
 
 export function ExperienceCenter() {
   const { activeDevice, devices, addLog } = useDeviceStore();
-  const [activeSection, setActiveSection] = useState<SectionId>("overview");
+  const [activeSection, setActiveSection] = useState<SectionId>("interface");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -278,7 +289,7 @@ export function ExperienceCenter() {
   const [bloatware, setBloatware] = useState<BloatwareEntry[]>([]);
   const [debloatBrand, setDebloatBrand] = useState<string>("auto");
   const [selectedBloat, setSelectedBloat] = useState<Set<string>>(new Set());
-  const [bloatSearch, setBloatSearch] = useState("");
+  const [bloatSearch] = useState("");
   const [deviceDpi, setDeviceDpi] = useState<number | null>(null);
   const [customDpi, setCustomDpi] = useState(440);
   const [deviceResolution, setDeviceResolution] = useState<{
@@ -289,11 +300,49 @@ export function ExperienceCenter() {
   const [customHeight, setCustomHeight] = useState(2400);
   const [animationScale, setAnimationScaleValue] = useState<0 | 0.5 | 1>(0.5);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [selectedActionId, setSelectedActionId] =
+    useState<string>(notificationTweakId);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const [workspaceWidth, setWorkspaceWidth] = useState(0);
+  const [notificationVerification, setNotificationVerification] =
+    useState<NotificationVerification>({
+      loading: false,
+      gmsInstalled: null,
+      dozeWhitelisted: null,
+      backgroundAllowed: null,
+    });
+  const [notificationBatchProgress, setNotificationBatchProgress] = useState<{
+    current: number;
+    total: number;
+    pkgName: string;
+  } | null>(null);
+  const [notificationBatchStatus, setNotificationBatchStatus] = useState<
+    "idle" | "running" | "success" | "error"
+  >("idle");
   const [batchProgress, setBatchProgress] = useState<{
     done: number;
     total: number;
   } | null>(null);
   const refreshToken = useRef(0);
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    const updateWidth = () => setWorkspaceWidth(workspace.clientWidth);
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(workspace);
+    return () => observer.disconnect();
+  }, []);
+
+
+
+  useEffect(() => {
+    if (activeSection === "overview") setActiveSection("interface");
+  }, [activeSection]);
 
   // DNS States
   const [dnsMode, setDnsMode] = useState<string>("off");
@@ -318,7 +367,78 @@ export function ExperienceCenter() {
   const isUnauthorized = currentDevice?.type === "unauthorized";
   const isOffline = currentDevice?.type === "offline";
   const isBootloader = currentDevice?.type === "bootloader";
-  const isDeviceReady = Boolean(activeDevice && !isUnauthorized && !isOffline && !isBootloader);
+  const isDeviceReady = Boolean(
+    activeDevice && !isUnauthorized && !isOffline && !isBootloader,
+  );
+
+  const verifyNotificationFix = useCallback(async () => {
+    if (!activeDevice || !isDeviceReady) {
+      setNotificationVerification({
+        loading: false,
+        gmsInstalled: null,
+        dozeWhitelisted: null,
+        backgroundAllowed: null,
+      });
+      return;
+    }
+
+    setNotificationVerification((current) => ({
+      ...current,
+      loading: true,
+      error: undefined,
+    }));
+
+    try {
+      const [gmsPackage, whitelist, gmsWakeLock, gmsBackground, gsfBackground] =
+        await Promise.all([
+          window.api.runAdbCommand(
+            activeDevice,
+            "shell pm list packages com.google.android.gms",
+          ),
+          window.api.runAdbCommand(
+            activeDevice,
+            "shell dumpsys deviceidle whitelist",
+          ),
+          window.api.runAdbCommand(
+            activeDevice,
+            "shell cmd appops get com.google.android.gms WAKE_LOCK",
+          ),
+          window.api.runAdbCommand(
+            activeDevice,
+            "shell cmd appops get com.google.android.gms RUN_ANY_IN_BACKGROUND",
+          ),
+          window.api.runAdbCommand(
+            activeDevice,
+            "shell cmd appops get com.google.android.gsf RUN_ANY_IN_BACKGROUND",
+          ),
+        ]);
+
+      const whitelistOutput = whitelist.success ? whitelist.output : "";
+      const appOpsResults = [gmsWakeLock, gmsBackground, gsfBackground];
+
+      setNotificationVerification({
+        loading: false,
+        gmsInstalled:
+          gmsPackage.success &&
+          hasExactPackage(gmsPackage.output, "com.google.android.gms"),
+        dozeWhitelisted:
+          whitelist.success &&
+          hasWhitelistPackage(whitelistOutput, "com.google.android.gms") &&
+          hasWhitelistPackage(whitelistOutput, "com.google.android.gsf"),
+        backgroundAllowed: appOpsResults.every(
+          (result) => result.success && /\ballow\b/i.test(result.output),
+        ),
+      });
+    } catch (error: any) {
+      setNotificationVerification({
+        loading: false,
+        gmsInstalled: null,
+        dozeWhitelisted: null,
+        backgroundAllowed: null,
+        error: error?.message ?? "Không thể xác minh trạng thái thông báo.",
+      });
+    }
+  }, [activeDevice, isDeviceReady]);
 
   const runTrackedAction = useCallback(
     async (
@@ -426,8 +546,14 @@ export function ExperienceCenter() {
         window.api.getDpi(activeDevice),
         window.api.getResolution(activeDevice),
         window.api.getBloatwareWithStatus(activeDevice, debloatBrand),
-        window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_mode"),
-        window.api.runAdbCommand(activeDevice, "shell settings get global private_dns_specifier"),
+        window.api.runAdbCommand(
+          activeDevice,
+          "shell settings get global private_dns_mode",
+        ),
+        window.api.runAdbCommand(
+          activeDevice,
+          "shell settings get global private_dns_specifier",
+        ),
       ]);
 
       if (token !== refreshToken.current) return;
@@ -518,6 +644,10 @@ export function ExperienceCenter() {
   }, [loadWorkspace]);
 
   useEffect(() => {
+    void verifyNotificationFix();
+  }, [verifyNotificationFix]);
+
+  useEffect(() => {
     let unsubscribe: (() => void) | null = null;
     if (activeDevice) {
       unsubscribe = window.api.onBatchProgress((data) => {
@@ -566,36 +696,12 @@ export function ExperienceCenter() {
     });
   }, [experienceStatuses, systemStatus, systemTweaks]);
 
-  const metrics = useMemo(() => {
-    const supportedActions = unifiedActions.filter(
-      (action) => action.status !== "UNSUPPORTED",
-    );
-    const enabledActions = supportedActions.filter(
-      (action) => action.status === "SUPPORTED_ON",
-    );
-    const safePending = supportedActions.filter(
-      (action) => action.risk === "SAFE" && action.status === "SUPPORTED_OFF",
-    ).length;
-    const riskyActions = supportedActions.filter(
-      (action) => riskRank[action.risk] >= riskRank.RISKY,
-    ).length;
 
-    return {
-      total: supportedActions.length,
-      enabled: enabledActions.length,
-      safePending,
-      riskyActions,
-      score:
-        supportedActions.length === 0
-          ? 0
-          : Math.round((enabledActions.length / supportedActions.length) * 100),
-    };
-  }, [unifiedActions]);
 
   const sectionCounts = useMemo(() => {
     const counts: Record<SectionId, number> = {
       overview: unifiedActions.filter(
-        (action) => action.status === "SUPPORTED_OFF" && action.risk === "SAFE",
+        (action) => action.status !== "UNSUPPORTED" && action.risk === "SAFE",
       ).length,
       interface: 0,
       performance: 0,
@@ -614,25 +720,45 @@ export function ExperienceCenter() {
 
   const visibleActions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const base =
-      activeSection === "overview"
-        ? unifiedActions.filter(
-            (action) =>
-              action.status === "SUPPORTED_OFF" && action.risk === "SAFE",
-          )
-        : unifiedActions.filter((action) => action.section === activeSection);
+    if (normalizedQuery) {
+      // Khi gõ từ khóa tìm kiếm: Tìm kiếm trên TẤT CẢ các nhóm/tab!
+      return unifiedActions.filter(
+        (action) =>
+          action.title.toLowerCase().includes(normalizedQuery) ||
+          action.description.toLowerCase().includes(normalizedQuery) ||
+          action.currentValue?.toLowerCase().includes(normalizedQuery) ||
+          action.section.toLowerCase().includes(normalizedQuery),
+      );
+    }
 
-    if (!normalizedQuery) return base;
-    return base.filter(
-      (action) =>
-        action.title.toLowerCase().includes(normalizedQuery) ||
-        action.description.toLowerCase().includes(normalizedQuery) ||
-        action.currentValue?.toLowerCase().includes(normalizedQuery),
-    );
+    return activeSection === "overview"
+      ? unifiedActions.filter(
+          (action) =>
+            action.status !== "UNSUPPORTED" && action.risk === "SAFE",
+        )
+      : unifiedActions.filter((action) => action.section === activeSection);
   }, [activeSection, query, unifiedActions]);
 
+  const selectedAction = useMemo(
+    () =>
+      unifiedActions.find((action) => action.id === selectedActionId) ?? null,
+    [selectedActionId, unifiedActions],
+  );
+
+  useEffect(() => {
+    if (activeSection === "debloat" || activeSection === "dns") return;
+    if (visibleActions.some((action) => action.id === selectedActionId)) return;
+
+    const preferredAction =
+      activeSection === "overview"
+        ? visibleActions.find((action) => action.id === notificationTweakId)
+        : undefined;
+    const nextAction = preferredAction ?? visibleActions[0];
+    if (nextAction) setSelectedActionId(nextAction.id);
+  }, [activeSection, selectedActionId, visibleActions]);
+
   const filteredBloatware = useMemo(() => {
-    const normalized = bloatSearch.trim().toLowerCase();
+    const normalized = (query || bloatSearch).trim().toLowerCase();
     const entries = normalized
       ? bloatware.filter(
           (entry) =>
@@ -650,15 +776,13 @@ export function ExperienceCenter() {
       };
       return statusRank[a.status] - statusRank[b.status];
     });
-  }, [bloatSearch, bloatware]);
+  }, [bloatSearch, query, bloatware]);
 
   const selectedBloatEntries = useMemo(
     () => bloatware.filter((entry) => selectedBloat.has(entry.package)),
     [bloatware, selectedBloat],
   );
 
-  const activeDeviceName =
-    currentDevice?.model || currentDevice?.id || "Chưa kết nối";
   const profileLine = deviceProfile
     ? [
         deviceProfile.manufacturer,
@@ -685,6 +809,91 @@ export function ExperienceCenter() {
   const refreshAfterAction = useCallback(async () => {
     await loadWorkspace();
   }, [loadWorkspace]);
+
+  const handleSelectAction = useCallback((action: UnifiedAction) => {
+    setSelectedActionId(action.id);
+    setInspectorOpen(true);
+  }, []);
+
+  const handleApplyAndVerifyNotification = useCallback(() => {
+    if (!activeDevice) return;
+    const notificationAction = unifiedActions.find(
+      (action) => action.id === notificationTweakId,
+    );
+    if (!notificationAction?.systemTweak) return;
+
+    void runTrackedAction({
+      key: "notification:apply-and-verify",
+      title: "Áp dụng và kiểm tra thông báo",
+      detail: "Google Play Services, Doze whitelist và AppOps",
+      source: "system",
+      risk: "SAFE",
+      execute: async () => {
+        const result = await window.api.applyTweak(
+          activeDevice,
+          notificationAction.systemTweak!.id,
+          true,
+        );
+        return {
+          success: Boolean(result.success),
+          output: result.message ?? "",
+        };
+      },
+      onSuccess: async () => {
+        await loadWorkspace();
+        await verifyNotificationFix();
+      },
+    });
+  }, [
+    activeDevice,
+    loadWorkspace,
+    runTrackedAction,
+    unifiedActions,
+    verifyNotificationFix,
+  ]);
+
+  const handleOptimizeAllAppNotifications = useCallback(() => {
+    if (!activeDevice || !isDeviceReady) return;
+
+    setNotificationBatchProgress({ current: 0, total: 0, pkgName: "" });
+    setNotificationBatchStatus("running");
+    const unsubscribe = window.api.onFixNotificationsProgress((progress) => {
+      setNotificationBatchProgress(progress);
+    });
+
+    void runTrackedAction({
+      key: "notification:optimize-all-apps",
+      title: "Tối ưu thông báo toàn bộ ứng dụng",
+      detail: "Doze whitelist, AppOps và WakeLock cho ứng dụng người dùng",
+      source: "system",
+      risk: "SAFE",
+      execute: async () => {
+        try {
+          const result = await window.api.fixAllNotifications(activeDevice);
+          setNotificationBatchStatus(result.success ? "success" : "error");
+          return {
+            success: Boolean(result.success),
+            output: result.message,
+          };
+        } catch (error) {
+          setNotificationBatchStatus("error");
+          throw error;
+        } finally {
+          unsubscribe();
+        }
+      },
+      onSuccess: async () => {
+        await loadWorkspace();
+        await verifyNotificationFix();
+      },
+    });
+  }, [
+    activeDevice,
+    isDeviceReady,
+    loadWorkspace,
+    runTrackedAction,
+    verifyNotificationFix,
+  ]);
 
   const handleToggleAction = (action: UnifiedAction) => {
     if (!activeDevice) return;
@@ -759,68 +968,7 @@ export function ExperienceCenter() {
     });
   };
 
-  const handleSafeOptimize = () => {
-    if (!activeDevice) return;
-    const safeActions = unifiedActions.filter(
-      (action) => action.status === "SUPPORTED_OFF" && action.risk === "SAFE",
-    );
 
-    if (safeActions.length === 0) {
-      toast.info("Không còn thao tác an toàn đang tắt.");
-      return;
-    }
-
-    void runTrackedAction({
-      key: "workspace:safe-optimize",
-      title: "Tối ưu an toàn",
-      detail: `${safeActions.length} thao tác SAFE`,
-      source: "workspace",
-      risk: "SAFE",
-      execute: async () => {
-        let success = 0;
-        const lines: string[] = [];
-        for (const action of safeActions) {
-          if (action.source === "experience" && action.experienceStatus) {
-            const item = action.experienceStatus.item;
-            const res = await window.api.applyXiaomiItem(
-              activeDevice,
-              item.id,
-              true,
-            );
-            if (res.success) success += 1;
-            lines.push(
-              `${res.success ? "OK" : "FAIL"} experience:${item.id} ${summarizeOutput(
-                res.output,
-              )}`,
-            );
-          }
-
-          if (action.source === "system" && action.systemTweak) {
-            const tweak = action.systemTweak;
-            const res = await window.api.applyTweak(
-              activeDevice,
-              tweak.id,
-              true,
-            );
-            if (res.success) success += 1;
-            lines.push(
-              `${res.success ? "OK" : "FAIL"} system:${tweak.id} ${summarizeOutput(
-                res.message,
-              )}`,
-            );
-          }
-        }
-
-        return {
-          success: success > 0,
-          output: `Đã chạy ${success}/${safeActions.length} thao tác.\n${lines.join(
-            "\n",
-          )}`,
-        };
-      },
-      onSuccess: refreshAfterAction,
-    });
-  };
 
   const handleApplyDpi = () => {
     if (!activeDevice) return;
@@ -865,7 +1013,11 @@ export function ExperienceCenter() {
     if (!activeDevice) return;
     const targetSpecifier = specifier || customDns;
 
-    if (mode === "hostname" && (!targetSpecifier || !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(targetSpecifier))) {
+    if (
+      mode === "hostname" &&
+      (!targetSpecifier ||
+        !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(targetSpecifier))
+    ) {
       toast.error("Hostname DNS không hợp lệ (Ví dụ: dns.google)");
       return;
     }
@@ -881,23 +1033,23 @@ export function ExperienceCenter() {
         if (mode === "hostname") {
           await window.api.runAdbCommand(
             activeDevice,
-            "shell settings put global private_dns_mode hostname"
+            "shell settings put global private_dns_mode hostname",
           );
           const res = await window.api.runAdbCommand(
             activeDevice,
-            `shell settings put global private_dns_specifier ${targetSpecifier}`
+            `shell settings put global private_dns_specifier ${targetSpecifier}`,
           );
           return { success: res.success, output: res.output };
         } else if (mode === "opportunistic") {
           const res = await window.api.runAdbCommand(
             activeDevice,
-            "shell settings put global private_dns_mode opportunistic"
+            "shell settings put global private_dns_mode opportunistic",
           );
           return { success: res.success, output: res.output };
         } else {
           const res = await window.api.runAdbCommand(
             activeDevice,
-            "shell settings put global private_dns_mode off"
+            "shell settings put global private_dns_mode off",
           );
           return { success: res.success, output: res.output };
         }
@@ -1073,203 +1225,148 @@ export function ExperienceCenter() {
     });
   };
 
+  const notificationNeedsAttention =
+    !notificationVerification.loading &&
+    ![
+      notificationVerification.gmsInstalled,
+      notificationVerification.dozeWhitelisted,
+      notificationVerification.backgroundAllowed,
+    ].every(Boolean);
+
+  const showCategoryRail = workspaceWidth >= 1180;
+  const dockInspector = workspaceWidth >= 1480;
+  const hasDockedInspector =
+    dockInspector && inspectorOpen && Boolean(selectedAction);
+  const mainPaneWidth = Math.max(
+    0,
+    workspaceWidth -
+      (showCategoryRail ? 176 : 0) -
+      (hasDockedInspector ? 300 : 0),
+  );
+  const compactMainPane = workspaceWidth === 0 || mainPaneWidth < 900;
+  const stackDisplayControls = workspaceWidth === 0 || mainPaneWidth < 780;
+  const workspaceColumns = hasDockedInspector
+    ? "176px minmax(0, 1fr) 300px"
+    : showCategoryRail
+      ? "176px minmax(0, 1fr)"
+      : "minmax(0, 1fr)";
+
+
+
   return (
-    <div className="experience-center h-full w-full min-w-0 min-h-0 overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_26%),linear-gradient(135deg,#eef5fb_0%,#f8fafc_45%,#eef2f7_100%)] p-3 text-slate-800">
-      <div className="flex flex-col h-full w-full min-w-0 min-h-0 gap-3">
-        <header
-          className={`${panelClass} flex flex-col gap-3 rounded-2xl p-3 shrink-0`}
+    <>
+      <div
+        ref={workspaceRef}
+        className="experience-center relative h-full min-h-0 w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-[#f8fafc] text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
+      >
+        <div
+          className="grid h-full min-h-0 w-full min-w-0"
+          style={{ gridTemplateColumns: workspaceColumns }}
         >
-          <div className="flex items-center justify-between gap-4 border-b border-slate-100/80 pb-2">
-            {/* Device Info & Brand in 1 Place */}
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
-                <Smartphone className="h-5 w-5" />
-                <span
-                  className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white ${
-                    isDeviceReady ? "bg-emerald-500" : "bg-rose-500"
-                  }`}
+          {showCategoryRail && (
+            <CategoryRail
+              activeSection={activeSection}
+              counts={sectionCounts}
+              onSelect={setActiveSection}
+            />
+          )}
+
+          <div className="flex min-h-0 min-w-0 flex-col bg-white">
+
+
+            {!showCategoryRail && (
+              <div className="border-b border-slate-200 px-4 py-2">
+                <MobileSectionTabs
+                  activeSection={activeSection}
+                  counts={sectionCounts}
+                  onSelect={setActiveSection}
                 />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">UX & Tinh chỉnh</span>
-                  <span className="text-slate-250">|</span>
-                  <h3 className="text-sm font-black text-slate-955 leading-none">
-                    {activeDeviceName}
-                  </h3>
-                  {deviceProfile?.sdk && (
-                    <span className="rounded-full border border-slate-200 bg-white px-1.5 py-0.2 text-[8px] font-black uppercase text-slate-500">
-                      API {deviceProfile.sdk}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 truncate">
-                  {profileLine}
-                </p>
-              </div>
-            </div>
+            )}
 
-            {/* Metrics & Actions on the Right (Vùng khoanh đỏ) - Compact version to prevent layout overflow */}
-            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[65%]">
-              {/* Score pill */}
-              <div className="flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/60 px-2 text-[10px] font-black text-emerald-700">
-                <Activity className="h-3 w-3" />
-                <span>Score {metrics.score}%</span>
-              </div>
-
-              {/* Status metrics */}
-              <div className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] font-bold text-slate-700">
-                <BadgeCheck className="h-3 w-3 text-emerald-600" />
-                <span>Đã bật: <strong className="font-black">{metrics.enabled}/{metrics.total}</strong></span>
-              </div>
-              <div className="flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] font-bold text-slate-700">
-                <AlertTriangle className="h-3 w-3 text-amber-600" />
-                <span>Rủi ro: <strong className="font-black">{metrics.riskyActions}</strong></span>
-              </div>
-
-              {/* Action buttons */}
-              <button
-                onClick={() => void loadWorkspace()}
-                disabled={!isDeviceReady || loading}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`}
-                />
-                Quét lại
-              </button>
-              <button
-                onClick={handleSafeOptimize}
-                disabled={
-                  !isDeviceReady || loading || metrics.safePending === 0
-                }
-                className="inline-flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2 text-[10px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                <Zap className="h-2.5 w-2.5 text-cyan-300" />
-                Tối ưu SAFE
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Navigation tabs */}
-            <nav className="flex items-center gap-0.5 rounded-lg bg-slate-100/80 p-0.5 min-w-0 overflow-x-auto scrollbar-none flex-1">
-              {sectionMeta.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`group flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all shrink-0 ${
-                    activeSection === section.id
-                      ? "bg-white text-blue-600 shadow-sm border border-slate-200/30"
-                      : "text-slate-655 hover:text-slate-900 hover:bg-white/40"
-                  }`}
-                >
-                  <span
-                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded ${
-                      activeSection === section.id
-                        ? "bg-blue-50 text-blue-600"
-                        : "bg-slate-200/60 text-slate-500 group-hover:bg-slate-200"
-                    }`}
-                  >
-                    {React.cloneElement(section.icon as React.ReactElement, { className: "w-2.5 h-2.5" })}
-                  </span>
-                  <span className="font-extrabold truncate">
-                    {section.label}
-                  </span>
-                  <span
-                    className={`rounded-full px-1 text-[8.5px] font-black min-w-[14px] h-3.5 flex items-center justify-center ${
-                      activeSection === section.id
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-slate-200 text-slate-500"
-                    }`}
-                  >
-                    {sectionCounts[section.id]}
-                  </span>
-                </button>
-              ))}
-            </nav>
-          </div>
-        </header>
-
-        <main className="flex min-h-0 flex-col gap-3 overflow-hidden w-full max-w-full">
-          <section
-            className={`${panelClass} flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden w-full max-w-full`}
-          >
-            <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <h3 className="text-sm font-black text-slate-950">
-                  {sectionMeta.find((section) => section.id === activeSection)
-                    ?.label ?? "Tác vụ"}
-                </h3>
-                <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                  {activeSection === "debloat"
-                    ? `${filteredBloatware.length} package đang hiển thị`
-                    : activeSection === "dns"
-                      ? "Cấu hình máy chủ DNS mã hóa và chặn quảng cáo"
-                      : `${visibleActions.length} thao tác trong nhóm`}
-                </p>
-              </div>
-
-              {activeSection !== "dns" && (
-                activeSection === "debloat" ? (
-                  <SearchBox
-                    value={bloatSearch}
-                    onChange={setBloatSearch}
-                    placeholder="Tìm package, tên app, nhóm..."
-                  />
-                ) : (
-                  <SearchBox
-                    value={query}
-                    onChange={setQuery}
-                    placeholder="Tìm tweak, trạng thái, giá trị..."
-                  />
-                )
-              )}
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {!isDeviceReady ? (
-                <EmptyState
-                  icon={<TerminalSquare className="h-7 w-7" />}
-                  title="Thiết bị chưa sẵn sàng"
-                  message={profileLine}
-                />
-              ) : activeSection === "debloat" ? (
-                <DebloatWorkspace
-                  entries={filteredBloatware}
-                  selected={selectedBloat}
+            {isDeviceReady &&
+              (activeSection === "display" || activeSection === "overview") && (
+                <DisplayControlPanel
+                  deviceDpi={deviceDpi}
+                  customDpi={customDpi}
+                  setCustomDpi={setCustomDpi}
+                  resolution={deviceResolution}
+                  customWidth={customWidth}
+                  customHeight={customHeight}
+                  setCustomWidth={setCustomWidth}
+                  setCustomHeight={setCustomHeight}
+                  animationScale={animationScale}
+                  stacked={stackDisplayControls}
                   busyKey={busyKey}
-                  batchProgress={batchProgress}
-                  onToggle={toggleBloatSelection}
-                  onAction={handleBloatAction}
-                  onBatchAction={handleBatchBloatAction}
-                  brand={debloatBrand}
-                  onSelectBrand={setDebloatBrand}
+                  onApplyDpi={handleApplyDpi}
+                  onResetDpi={handleResetDpi}
+                  onApplyResolution={handleApplyResolution}
+                  onResetResolution={handleResetResolution}
+                  onAnimationScale={handleAnimationScale}
                 />
-              ) : (
-                <div className="space-y-4">
-                  {(activeSection === "display" ||
-                    activeSection === "overview") && (
-                    <DisplayControlPanel
-                      deviceDpi={deviceDpi}
-                      customDpi={customDpi}
-                      setCustomDpi={setCustomDpi}
-                      resolution={deviceResolution}
-                      customWidth={customWidth}
-                      customHeight={customHeight}
-                      setCustomWidth={setCustomWidth}
-                      setCustomHeight={setCustomHeight}
-                      animationScale={animationScale}
-                      busyKey={busyKey}
-                      onApplyDpi={handleApplyDpi}
-                      onResetDpi={handleResetDpi}
-                      onApplyResolution={handleApplyResolution}
-                      onResetResolution={handleResetResolution}
-                      onAnimationScale={handleAnimationScale}
-                    />
-                  )}
+              )}
 
-                  {activeSection === "dns" && (
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div
+                className={`flex shrink-0 gap-3 border-b border-slate-200 px-5 py-4 ${
+                  compactMainPane
+                    ? "flex-col"
+                    : "flex-row items-center justify-between"
+                }`}
+              >
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-extrabold text-slate-950">
+                    {query.trim()
+                      ? `Kết quả tìm kiếm cho "${query.trim()}"`
+                      : activeSection === "overview"
+                        ? "Danh sách tinh chỉnh"
+                        : (sectionMeta.find(
+                            (section) => section.id === activeSection,
+                          )?.label ?? "Tác vụ")}
+                  </h3>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                    {query.trim()
+                      ? `Tìm thấy ${visibleActions.length} thao tác phù hợp trên tất cả các tab`
+                      : activeSection === "debloat"
+                        ? `${filteredBloatware.length} package đang hiển thị`
+                        : activeSection === "dns"
+                          ? "Cấu hình máy chủ DNS mã hóa và chặn quảng cáo"
+                          : `${visibleActions.length} thao tác trong nhóm`}
+                  </p>
+                </div>
+
+                <SearchBox
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Tìm kiếm tất cả tweak, tính năng ở mọi tab..."
+                />
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {!isDeviceReady ? (
+                  <div className="p-5">
+                    <EmptyState
+                      icon={<TerminalSquare className="h-7 w-7" />}
+                      title="Thiết bị chưa sẵn sàng"
+                      message={profileLine}
+                    />
+                  </div>
+                ) : activeSection === "debloat" ? (
+                  <div className="p-4">
+                    <DebloatWorkspace
+                      entries={filteredBloatware}
+                      selected={selectedBloat}
+                      busyKey={busyKey}
+                      batchProgress={batchProgress}
+                      onToggle={toggleBloatSelection}
+                      onAction={handleBloatAction}
+                      onBatchAction={handleBatchBloatAction}
+                      brand={debloatBrand}
+                      onSelectBrand={setDebloatBrand}
+                    />
+                  </div>
+                ) : activeSection === "dns" ? (
+                  <div className="p-5">
                     <DnsControlPanel
                       dnsMode={dnsMode}
                       dnsSpecifier={dnsSpecifier}
@@ -1278,49 +1375,484 @@ export function ExperienceCenter() {
                       onApplyDns={handleApplyDns}
                       loading={loading}
                     />
-                  )}
-
-                  {activeSection !== "dns" && (
-                    loading ? (
-                      <LoadingRows />
+                  </div>
+                ) : (
+                  <div>
+                    {loading ? (
+                      <div className="p-4">
+                        <LoadingRows />
+                      </div>
                     ) : visibleActions.length === 0 ? (
-                      <EmptyState
-                        icon={<ListChecks className="h-7 w-7" />}
-                        title="Không có thao tác phù hợp"
-                        message="Hãy đổi nhóm hoặc làm mới trạng thái thiết bị."
-                      />
+                      <div className="p-5">
+                        <EmptyState
+                          icon={<ListChecks className="h-7 w-7" />}
+                          title="Không có thao tác phù hợp"
+                          message="Hãy đổi nhóm hoặc làm mới trạng thái thiết bị."
+                        />
+                      </div>
                     ) : (
-                      <div className="space-y-2.5">
+                      <div className="border-t border-slate-200">
                         {visibleActions.map((action) => (
                           <ActionRow
                             key={action.id}
                             action={action}
                             busy={busyKey === `${action.source}:${action.id}`}
+                            selected={selectedAction?.id === action.id}
+                            needsAttention={
+                              action.id === notificationTweakId &&
+                              notificationNeedsAttention
+                            }
+                            onSelect={handleSelectAction}
                             onToggle={handleToggleAction}
                             onRollback={handleRollbackExperience}
                           />
                         ))}
                       </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-        </main>
-      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </main>
+          </div>
 
-      {confirmState && (
-        <ConfirmDialog
-          state={confirmState}
-          onCancel={() => setConfirmState(null)}
-        />
-      )}
-    </div>
+          {hasDockedInspector && selectedAction && (
+            <div className="flex min-h-0 border-l border-slate-200 bg-[#fbfdff]">
+              <ActionInspector
+                action={selectedAction}
+                verification={notificationVerification}
+                busy={busyKey === "notification:apply-and-verify"}
+                bulkBusy={busyKey === "notification:optimize-all-apps"}
+                bulkProgress={notificationBatchProgress}
+                bulkStatus={notificationBatchStatus}
+                onClose={() => setInspectorOpen(false)}
+                onApplyNotification={handleApplyAndVerifyNotification}
+                onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
+              />
+            </div>
+          )}
+        </div>
+
+        {inspectorOpen && selectedAction && !dockInspector && (
+          <div
+            className="absolute inset-0 z-30 flex justify-end bg-slate-950/20 backdrop-blur-[1px]"
+            onClick={() => setInspectorOpen(false)}
+          >
+            <div
+              className="h-full w-[min(380px,92%)] border-l border-slate-200 bg-[#fbfdff] shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ActionInspector
+                action={selectedAction}
+                verification={notificationVerification}
+                busy={busyKey === "notification:apply-and-verify"}
+                bulkBusy={busyKey === "notification:optimize-all-apps"}
+                bulkProgress={notificationBatchProgress}
+                bulkStatus={notificationBatchStatus}
+                onClose={() => setInspectorOpen(false)}
+                onApplyNotification={handleApplyAndVerifyNotification}
+                onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
+              />
+            </div>
+          </div>
+        )}
+
+        {confirmState && (
+          <ConfirmDialog
+            state={confirmState}
+            onCancel={() => setConfirmState(null)}
+          />
+        )}
+      </div>
+    </>
+  );
+}
+
+function CategoryRail({
+  activeSection,
+  counts,
+  onSelect,
+}: {
+  activeSection: SectionId;
+  counts: Record<SectionId, number>;
+  onSelect: (section: SectionId) => void;
+}) {
+  return (
+    <aside className="flex min-h-0 flex-col border-r border-slate-200 bg-[#fbfcfe] px-2.5 py-3">
+      <nav className="space-y-1" aria-label="Nhóm tinh chỉnh">
+        {sectionMeta.map((section) => {
+          const active = activeSection === section.id;
+          return (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => onSelect(section.id)}
+              className={`group relative flex h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[12px] font-bold transition-colors ${
+                active
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              {active && (
+                <span className="absolute -left-2.5 top-2 h-7 w-[3px] rounded-r-full bg-blue-600" />
+              )}
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                  active
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-white"
+                }`}
+              >
+                {React.cloneElement(section.icon as React.ReactElement, {
+                  className: "h-3.5 w-3.5",
+                })}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{section.label}</span>
+              <span
+                className={`flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[10px] font-extrabold ${
+                  active
+                    ? "bg-white text-blue-700"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {counts[section.id]}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function MobileSectionTabs({
+  activeSection,
+  counts,
+  onSelect,
+}: {
+  activeSection: SectionId;
+  counts: Record<SectionId, number>;
+  onSelect: (section: SectionId) => void;
+}) {
+  return (
+    <nav
+      className="flex min-w-0 gap-1 overflow-x-auto"
+      aria-label="Nhóm tinh chỉnh"
+    >
+      {sectionMeta.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          onClick={() => onSelect(section.id)}
+          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold ${
+            activeSection === section.id
+              ? "bg-blue-600 text-white"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {section.label}
+          <span className="text-[9px] opacity-70">{counts[section.id]}</span>
+        </button>
+      ))}
+    </nav>
   );
 }
 
 
+
+function ActionInspector({
+  action,
+  verification,
+  busy,
+  bulkBusy,
+  bulkProgress,
+  bulkStatus,
+  onClose,
+  onApplyNotification,
+  onOptimizeAllNotifications,
+}: {
+  action: UnifiedAction;
+  verification: NotificationVerification;
+  busy: boolean;
+  bulkBusy: boolean;
+  bulkProgress: {
+    current: number;
+    total: number;
+    pkgName: string;
+  } | null;
+  bulkStatus: "idle" | "running" | "success" | "error";
+  onClose: () => void;
+  onApplyNotification: () => void;
+  onOptimizeAllNotifications: () => void;
+}) {
+  const isNotification = action.id === notificationTweakId;
+  const notificationVerified = [
+    verification.gmsInstalled,
+    verification.dozeWhitelisted,
+    verification.backgroundAllowed,
+  ].every(Boolean);
+  const attention =
+    isNotification && !verification.loading && !notificationVerified;
+
+  return (
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-[17px] font-extrabold leading-snug text-slate-950">
+          {isNotification ? "Thông báo ứng dụng" : action.title}
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Đóng bảng chi tiết"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
+        <div
+          className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-extrabold ${
+            verification.loading
+              ? "border-blue-200 bg-blue-50 text-blue-700"
+              : attention
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : action.status === "SUPPORTED_ON"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              verification.loading
+                ? "bg-blue-500"
+                : attention
+                  ? "bg-amber-500"
+                  : action.status === "SUPPORTED_ON"
+                    ? "bg-emerald-500"
+                    : "bg-rose-500"
+            }`}
+          />
+          {verification.loading
+            ? "Đang kiểm tra"
+            : attention
+              ? "Cần kiểm tra"
+              : action.status === "SUPPORTED_ON"
+                ? "Đã xác minh"
+                : "Đang tắt"}
+        </div>
+        <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-600">
+          {action.description}
+        </p>
+      </div>
+
+      {isNotification ? (
+        <>
+          <h4 className="mt-4 text-[12px] font-extrabold text-slate-900">
+            Nền tảng thông báo FCM
+          </h4>
+          <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <VerificationRow
+              icon={<BadgeCheck className="h-4 w-4" />}
+              label="Google Play Services"
+              detail="GCM/Firebase Cloud Messaging"
+              value={verification.gmsInstalled}
+              loading={verification.loading}
+            />
+            <VerificationRow
+              icon={<BatteryCharging className="h-4 w-4" />}
+              label="Doze Whitelist"
+              detail="GMS và GSF được cho phép"
+              value={verification.dozeWhitelisted}
+              loading={verification.loading}
+            />
+            <VerificationRow
+              icon={<Activity className="h-4 w-4" />}
+              label="Quyền chạy nền"
+              detail="Wake lock và AppOps"
+              value={verification.backgroundAllowed}
+              loading={verification.loading}
+              last
+            />
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
+            <div className="flex items-start gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <Bell className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-[12px] font-extrabold text-slate-900">
+                  Tối ưu toàn bộ ứng dụng
+                </h4>
+                <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
+                  Mở Doze, AppOps và WakeLock cho ứng dụng người dùng để nhận
+                  thông báo kịp thời khi tắt màn hình.
+                </p>
+              </div>
+            </div>
+
+            {(bulkBusy || bulkProgress) && (
+              <div className="mt-3 rounded-lg bg-slate-50 p-2.5">
+                <div className="flex items-center justify-between gap-2 text-[9px] font-bold text-slate-500">
+                  <span className="min-w-0 truncate">
+                    {bulkStatus === "error"
+                      ? "Tối ưu ứng dụng chưa hoàn tất"
+                      : bulkBusy || bulkStatus === "running"
+                        ? bulkProgress?.pkgName ||
+                          "Đang chuẩn bị danh sách ứng dụng"
+                        : "Đã hoàn tất tối ưu ứng dụng"}
+                  </span>
+                  <span className="shrink-0 text-slate-700">
+                    {bulkStatus === "error"
+                      ? "Lỗi"
+                      : bulkProgress?.total
+                        ? `${bulkProgress.current}/${bulkProgress.total}`
+                        : bulkBusy
+                          ? "0%"
+                          : "100%"}
+                  </span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-300 ${
+                      bulkStatus === "error" ? "bg-rose-500" : "bg-blue-600"
+                    }`}
+                    style={{
+                      width: bulkProgress?.total
+                        ? `${Math.min(100, Math.round((bulkProgress.current / bulkProgress.total) * 100))}%`
+                        : bulkBusy
+                          ? "8%"
+                          : "100%",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onOptimizeAllNotifications}
+              disabled={bulkBusy || busy || verification.loading}
+              className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-[10px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+            >
+              {bulkBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Bell className="h-3.5 w-3.5 text-cyan-300" />
+              )}
+              Tối ưu thông báo tất cả ứng dụng
+            </button>
+          </div>
+
+          <div className="mt-6">
+            <h4 className="text-[13px] font-extrabold text-slate-900">
+              Khuyến nghị
+            </h4>
+            <p className="mt-2 text-[11px] font-medium leading-relaxed text-slate-500">
+              Sau khi áp dụng, hãy khóa ứng dụng gần đây và kiểm tra nhận thông
+              báo sau 2–5 phút.
+            </p>
+          </div>
+
+          {verification.error && (
+            <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+              {verification.error}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onApplyNotification}
+            disabled={busy || bulkBusy || verification.loading}
+            className="mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Áp dụng & kiểm tra lại
+          </button>
+          <p className="mt-2 text-center text-[10px] font-medium leading-relaxed text-slate-400">
+            Thao tác sẽ áp dụng lại cấu hình rồi đọc trạng thái thực tế.
+          </p>
+        </>
+      ) : (
+        <div className="mt-5 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-[11px]">
+          <InspectorValue
+            label="Nguồn"
+            value={action.source === "system" ? "Hệ thống" : "UX"}
+          />
+          <InspectorValue label="Mức rủi ro" value={action.risk} />
+          <InspectorValue
+            label="Trạng thái"
+            value={action.status === "SUPPORTED_ON" ? "Đang bật" : "Đang tắt"}
+          />
+          <InspectorValue
+            label="Giá trị hiện tại"
+            value={action.currentValue ?? "--"}
+          />
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function VerificationRow({
+  icon,
+  label,
+  detail,
+  value,
+  loading,
+  last,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  detail: string;
+  value: boolean | null;
+  loading: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 ${
+        last ? "" : "border-b border-slate-100"
+      }`}
+    >
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <strong className="block truncate text-[11px] font-extrabold text-slate-900">
+          {label}
+        </strong>
+        <span className="mt-0.5 block truncate text-[9.5px] font-medium text-slate-400">
+          {detail}
+        </span>
+      </span>
+      <span
+        className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+          loading
+            ? "bg-slate-100 text-slate-500"
+            : value
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-amber-50 text-amber-700"
+        }`}
+      >
+        {loading ? "Đang đọc" : value ? "Đã bật" : "Cần kiểm tra"}
+      </span>
+    </div>
+  );
+}
+
+function InspectorValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+      <span className="font-semibold text-slate-500">{label}</span>
+      <span className="text-right font-extrabold text-slate-800">{value}</span>
+    </div>
+  );
+}
 
 function SearchBox({
   value,
@@ -1395,6 +1927,7 @@ function DisplayControlPanel({
   setCustomWidth,
   setCustomHeight,
   animationScale,
+  stacked,
   busyKey,
   onApplyDpi,
   onResetDpi,
@@ -1411,6 +1944,7 @@ function DisplayControlPanel({
   setCustomWidth: (value: number) => void;
   setCustomHeight: (value: number) => void;
   animationScale: 0 | 0.5 | 1;
+  stacked: boolean;
   busyKey: string | null;
   onApplyDpi: () => void;
   onResetDpi: () => void;
@@ -1419,13 +1953,13 @@ function DisplayControlPanel({
   onAnimationScale: (scale: 0 | 0.5 | 1) => void;
 }) {
   return (
-    <div className={`${mutedPanelClass} rounded-2xl p-4`}>
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="shrink-0 border-b border-slate-200 bg-[#fbfdff] px-5 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h4 className="text-sm font-black text-slate-900">
+          <h4 className="text-[14px] font-extrabold text-slate-950">
             Bộ điều khiển hiển thị
           </h4>
-          <p className="text-xs font-semibold text-slate-500">
+          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
             DPI hiện tại {deviceDpi ?? "--"} · Độ phân giải{" "}
             {resolution ? `${resolution.width}x${resolution.height}` : "--"}
           </p>
@@ -1433,8 +1967,14 @@ function DisplayControlPanel({
         <MonitorSmartphone className="h-5 w-5 text-blue-500" />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+      <div
+        className={`grid gap-3 ${
+          stacked
+            ? "grid-cols-1"
+            : "grid-cols-[minmax(180px,0.85fr)_minmax(290px,1.35fr)_minmax(220px,1fr)]"
+        }`}
+      >
+        <div className="rounded-[11px] border border-slate-200 bg-white p-3">
           <label className="text-[10px] font-black uppercase tracking-wide text-slate-500">
             DPI
           </label>
@@ -1444,7 +1984,11 @@ function DisplayControlPanel({
               min={160}
               max={640}
               value={customDpi || ""}
-              onChange={(event) => setCustomDpi(event.target.value === "" ? 0 : Number(event.target.value))}
+              onChange={(event) =>
+                setCustomDpi(
+                  event.target.value === "" ? 0 : Number(event.target.value),
+                )
+              }
               className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-800 outline-none focus:border-blue-400"
             />
             <IconButton
@@ -1462,25 +2006,34 @@ function DisplayControlPanel({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+        <div className="rounded-[11px] border border-slate-200 bg-white p-3">
           <label className="text-[10px] font-black uppercase tracking-wide text-slate-500">
             Độ phân giải
           </label>
-          <div className="mt-2 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
+          <div className="mt-2 grid grid-cols-[1fr_auto_1fr_auto_auto] items-center gap-2">
             <input
               type="number"
               min={480}
               max={3840}
               value={customWidth || ""}
-              onChange={(event) => setCustomWidth(event.target.value === "" ? 0 : Number(event.target.value))}
+              onChange={(event) =>
+                setCustomWidth(
+                  event.target.value === "" ? 0 : Number(event.target.value),
+                )
+              }
               className="h-10 min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-800 outline-none focus:border-blue-400"
             />
+            <span className="text-xs font-extrabold text-slate-400">×</span>
             <input
               type="number"
               min={800}
               max={3840}
               value={customHeight || ""}
-              onChange={(event) => setCustomHeight(event.target.value === "" ? 0 : Number(event.target.value))}
+              onChange={(event) =>
+                setCustomHeight(
+                  event.target.value === "" ? 0 : Number(event.target.value),
+                )
+              }
               className="h-10 min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-800 outline-none focus:border-blue-400"
             />
             <IconButton
@@ -1498,7 +2051,7 @@ function DisplayControlPanel({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+        <div className="rounded-[11px] border border-slate-200 bg-white p-3">
           <label className="text-[10px] font-black uppercase tracking-wide text-slate-500">
             Hoạt ảnh
           </label>
@@ -1523,7 +2076,7 @@ function DisplayControlPanel({
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1554,9 +2107,7 @@ function getUnsupportedReason(strategy: {
     reasons.push(`Yêu cầu Android ${androidVer}+`);
   }
   if (strategy.packages && strategy.packages.length > 0) {
-    reasons.push(
-      `Yêu cầu ứng dụng hệ thống: ${strategy.packages.join(", ")}`,
-    );
+    reasons.push(`Yêu cầu ứng dụng hệ thống: ${strategy.packages.join(", ")}`);
   }
   return reasons.join(" | ") || "Không đáp ứng cấu hình thiết bị";
 }
@@ -1564,11 +2115,17 @@ function getUnsupportedReason(strategy: {
 function ActionRow({
   action,
   busy,
+  selected,
+  needsAttention,
+  onSelect,
   onToggle,
   onRollback,
 }: {
   action: UnifiedAction;
   busy: boolean;
+  selected: boolean;
+  needsAttention?: boolean;
+  onSelect: (action: UnifiedAction) => void;
   onToggle: (action: UnifiedAction) => void;
   onRollback: (action: UnifiedAction) => void;
 }) {
@@ -1578,20 +2135,28 @@ function ActionRow({
 
   return (
     <div
-      className={`group rounded-2xl border px-4 py-3 transition w-full max-w-full overflow-hidden ${
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(action)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onSelect(action);
+      }}
+      className={`group w-full max-w-full overflow-hidden border-b border-slate-200 px-4 py-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
         isUnsupported
-          ? "border-slate-200/60 bg-slate-50/60 opacity-70"
-          : isOn
-            ? "border-emerald-200/80 bg-emerald-50/45"
-            : "border-slate-200/70 bg-white/75 hover:border-blue-200 hover:bg-white"
+          ? "bg-slate-50/70 opacity-70"
+          : selected
+            ? "bg-blue-50/75"
+            : "bg-white hover:bg-slate-50/80"
       }`}
     >
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
         <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl border ${
-            isOn
-              ? "border-emerald-200 bg-white text-emerald-600"
-              : "border-slate-200 bg-slate-50 text-slate-500"
+          className={`flex h-10 w-10 items-center justify-center rounded-[10px] border ${
+            selected
+              ? "border-blue-200 bg-white text-blue-600"
+              : isOn
+                ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                : "border-slate-200 bg-slate-50 text-slate-500"
           }`}
         >
           {action.icon}
@@ -1610,11 +2175,17 @@ function ActionRow({
           </p>
           {isUnsupported && action.experienceStatus?.item.detectStrategy && (
             <p className="mt-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100/60 rounded-lg px-2.5 py-1">
-              ⚠️ Không tương thích: {getUnsupportedReason(action.experienceStatus.item.detectStrategy)}
+              ⚠️ Không tương thích:{" "}
+              {getUnsupportedReason(
+                action.experienceStatus.item.detectStrategy,
+              )}
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-            <StatusBadge status={action.status} />
+            <StatusBadge
+              status={action.status}
+              needsAttention={needsAttention}
+            />
             <span className="rounded-lg bg-slate-100 px-2 py-1 font-mono text-[10px] text-slate-600">
               {action.currentValue ?? "--"}
             </span>
@@ -1674,12 +2245,26 @@ function RiskBadge({ risk }: { risk: RiskLevel }) {
   );
 }
 
-function StatusBadge({ status }: { status: ActionState }) {
+function StatusBadge({
+  status,
+  needsAttention,
+}: {
+  status: ActionState;
+  needsAttention?: boolean;
+}) {
+  if (needsAttention) {
+    return (
+      <span className="rounded-lg bg-amber-100 px-2 py-1 text-[10px] text-amber-700">
+        Cần kiểm tra
+      </span>
+    );
+  }
+
   const content =
     status === "SUPPORTED_ON"
       ? ["Đang bật", "bg-emerald-100 text-emerald-700"]
       : status === "SUPPORTED_OFF"
-        ? ["Đang tắt", "bg-slate-100 text-slate-600"]
+        ? ["Đang tắt", "bg-rose-100 text-rose-700"]
         : status === "UNSUPPORTED"
           ? ["Không hỗ trợ", "bg-rose-100 text-rose-700"]
           : status === "ERROR"
@@ -1785,7 +2370,9 @@ function DebloatWorkspace({
     <div className="space-y-3">
       {/* Brand preset selector bar */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/70 border border-slate-200/70 p-2 text-xs font-bold">
-        <span className="text-slate-500 px-2 uppercase tracking-wider text-[11px]">Preset Hãng:</span>
+        <span className="text-slate-500 px-2 uppercase tracking-wider text-[11px]">
+          Preset Hãng:
+        </span>
         {brands.map((b) => (
           <button
             key={b.id}
@@ -2030,9 +2617,17 @@ function DnsControlPanel({
   loading,
 }: DnsControlPanelProps) {
   const presets = [
-    { name: "Cloudflare", hostname: "one.one.one.one", desc: "Tốc độ & Bảo mật" },
+    {
+      name: "Cloudflare",
+      hostname: "one.one.one.one",
+      desc: "Tốc độ & Bảo mật",
+    },
     { name: "Google DNS", hostname: "dns.google", desc: "Ổn định & Phổ biến" },
-    { name: "AdGuard DNS", hostname: "dns.adguard-dns.com", desc: "Chặn quảng cáo" },
+    {
+      name: "AdGuard DNS",
+      hostname: "dns.adguard-dns.com",
+      desc: "Chặn quảng cáo",
+    },
     { name: "NextDNS", hostname: "dns.nextdns.io", desc: "Tùy biến bộ lọc" },
     { name: "Quad9 DNS", hostname: "dns.quad9.net", desc: "Bảo mật mã độc" },
   ];
@@ -2051,7 +2646,11 @@ function DnsControlPanel({
             </span>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
               <span className="text-sm font-black text-slate-900">
-                {dnsMode === "hostname" ? "Đang bật DNS riêng tư" : dnsMode === "opportunistic" ? "Chế độ Tự động" : "Đang Tắt"}
+                {dnsMode === "hostname"
+                  ? "Đang bật DNS riêng tư"
+                  : dnsMode === "opportunistic"
+                    ? "Chế độ Tự động"
+                    : "Đang Tắt"}
               </span>
               {dnsMode === "hostname" && dnsSpecifier && (
                 <span className="rounded-lg border border-blue-200/60 bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-blue-700 shadow-sm">
@@ -2071,7 +2670,8 @@ function DnsControlPanel({
           </h5>
           <div className="grid gap-3 sm:grid-cols-2">
             {presets.map((preset) => {
-              const isCurrent = dnsMode === "hostname" && dnsSpecifier === preset.hostname;
+              const isCurrent =
+                dnsMode === "hostname" && dnsSpecifier === preset.hostname;
               return (
                 <button
                   key={preset.hostname}
@@ -2084,7 +2684,9 @@ function DnsControlPanel({
                   }`}
                 >
                   <div className="min-w-0 pr-4">
-                    <span className="block text-xs font-black">{preset.name}</span>
+                    <span className="block text-xs font-black">
+                      {preset.name}
+                    </span>
                     <span className="block text-[10px] font-bold text-slate-400 font-mono mt-0.5 truncate">
                       {preset.hostname}
                     </span>
@@ -2099,7 +2701,11 @@ function DnsControlPanel({
                         : "bg-slate-200/50 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600"
                     }`}
                   >
-                    {isCurrent ? <Check className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {isCurrent ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
                   </span>
                 </button>
               );

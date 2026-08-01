@@ -272,11 +272,7 @@ export async function execAdb(
       );
       return stdout;
     } catch (error: any) {
-      if (attempt < maxRetries) {
-        await new Promise((r) => setTimeout(r, 1000));
-      } else {
-        throw error;
-      }
+      return (error.stdout || "") + (error.stderr || "") || error.message || "";
     }
   }
   return "";

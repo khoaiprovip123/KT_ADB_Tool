@@ -22,27 +22,49 @@ import { useSettingsStore } from "./store/settingsStore";
 import { LogTerminal } from "./components/layout/LogTerminal";
 import { FloatingQuickBoot } from "./components/layout/FloatingQuickBoot";
 import { Dashboard } from "./components/features/Dashboard";
-const AppManager = React.lazy(() => import("./components/features/AppManager").then(m => ({ default: m.AppManager })));
-const FileManager = React.lazy(() => import("./components/features/FileManager").then(m => ({ default: m.FileManager })));
-const SystemOptimization = React.lazy(() => import("./components/features/SystemOptimization").then(m => ({ default: m.SystemOptimization })));
-const ExperienceCenter = React.lazy(() => import("./components/features/ExperienceCenter").then(m => ({ default: m.ExperienceCenter })));
-const QuickCleanerTab = React.lazy(() => import("./features/quick-cleaner/QuickCleanerTab").then(m => ({ default: m.QuickCleanerTab })));
+import { ControlCenterModal } from "./components/layout/ControlCenterModal";
+import { ConnectionManagerModal } from "./components/layout/ConnectionManagerModal";
+import { UpdateModal } from "./components/layout/UpdateModal";
+import { ToastProvider } from "./components/layout/ToastProvider";
+import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+import logoImg from "./assets/images/logo.png";
+
+const AppManager = React.lazy(() =>
+  import("./components/features/AppManager").then((m) => ({
+    default: m.AppManager,
+  })),
+);
+const FileManager = React.lazy(() =>
+  import("./components/features/FileManager").then((m) => ({
+    default: m.FileManager,
+  })),
+);
+const SystemOptimization = React.lazy(() =>
+  import("./components/features/SystemOptimization").then((m) => ({
+    default: m.SystemOptimization,
+  })),
+);
+const ExperienceCenter = React.lazy(() =>
+  import("./components/features/ExperienceCenter").then((m) => ({
+    default: m.ExperienceCenter,
+  })),
+);
+const QuickCleanerTab = React.lazy(() =>
+  import("./features/quick-cleaner/QuickCleanerTab").then((m) => ({
+    default: m.QuickCleanerTab,
+  })),
+);
 const AdvancedAdb = React.lazy(() => import("./features/advanced-adb"));
 const Settings = React.lazy(() => import("./features/settings/Settings"));
 
 const TabLoading = () => (
   <div className="flex flex-col items-center justify-center h-full space-y-4 animate-pulse">
     <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
-    <p className="text-xs font-black text-slate-400 tracking-widest uppercase">Đang tải giao diện...</p>
+    <p className="text-xs font-black text-slate-400 tracking-widest uppercase">
+      Đang tải giao diện...
+    </p>
   </div>
 );
-import { ControlCenterModal } from "./components/layout/ControlCenterModal";
-import { ConnectionManagerModal } from "./components/layout/ConnectionManagerModal";
-import { UpdateModal } from "./components/layout/UpdateModal";
-
-import { ToastProvider } from "./components/layout/ToastProvider";
-import { ErrorBoundary } from "./components/layout/ErrorBoundary";
-import logoImg from "./assets/images/logo.png";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -50,8 +72,51 @@ function App() {
   const [isCcOpen, setIsCcOpen] = useState(false);
   const [isConnManagerOpen, setIsConnManagerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [hasUpdate, setHasUpdate] = useState(false);
   const { settings, loadSettings } = useSettingsStore();
   const { devices, activeDevice, setDevices, addLog } = useDeviceStore();
+
+  useEffect(() => {
+    if (window.api?.checkForUpdates) {
+      window.api
+        .checkForUpdates()
+        .then((info) => {
+          if (info && info.available) {
+            setHasUpdate(true);
+          }
+        })
+        .catch(console.error);
+    }
+
+    if (window.api?.onUpdateAvailable) {
+      const unsub = window.api.onUpdateAvailable((info) => {
+        if (info && info.available) {
+          setHasUpdate(true);
+        }
+      });
+      return () => unsub();
+    }
+  }, []);
+
+  const [enableAdvancedMode, setEnableAdvancedMode] = useState(() => {
+    return localStorage.getItem("enableAdvancedAdb") === "true";
+  });
+
+  useEffect(() => {
+    const handleAdvancedToggle = () => {
+      const isEnabled = localStorage.getItem("enableAdvancedAdb") === "true";
+      setEnableAdvancedMode(isEnabled);
+      if (!isEnabled && activeTab === "advanced") {
+        setActiveTab("dashboard");
+      }
+    };
+    window.addEventListener("storage", handleAdvancedToggle);
+    window.addEventListener("advanced-adb-toggled", handleAdvancedToggle);
+    return () => {
+      window.removeEventListener("storage", handleAdvancedToggle);
+      window.removeEventListener("advanced-adb-toggled", handleAdvancedToggle);
+    };
+  }, [activeTab]);
 
   useEffect(() => {
     // Tải cài đặt từ Electron Store
@@ -133,7 +198,11 @@ function App() {
             className={`flex items-center ${isSidebarOpen ? "gap-3" : "justify-center"} mb-10 overflow-hidden`}
           >
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
-              <img src={logoImg} alt="Logo" className="w-10 h-10 object-contain rounded-xl shadow-sm" />
+              <img
+                src={logoImg}
+                alt="Logo"
+                className="w-10 h-10 object-contain rounded-xl shadow-sm"
+              />
             </div>
             {isSidebarOpen && (
               <div className="whitespace-nowrap transition-opacity duration-300">
@@ -190,14 +259,26 @@ function App() {
               isExpanded={isSidebarOpen}
               onClick={() => setActiveTab("experience")}
             />
-            <NavItem
-              icon={<Sliders />}
-              label="Nâng cao ADB"
-              active={activeTab === "advanced"}
-              isExpanded={isSidebarOpen}
-              onClick={() => setActiveTab("advanced")}
-            />
+            {enableAdvancedMode && (
+              <NavItem
+                icon={<Sliders />}
+                label="Nâng cao ADB"
+                active={activeTab === "advanced"}
+                isExpanded={isSidebarOpen}
+                onClick={() => setActiveTab("advanced")}
+              />
+            )}
           </nav>
+        </div>
+
+        <div className="min-h-0 flex-1 px-4 pb-3">
+          {activeTab === "experience" && isSidebarOpen && (
+            <div
+              id="experience-device-command-slot"
+              className="flex h-full min-h-[136px] items-end"
+              aria-label="Thông tin thiết bị và thao tác nhanh"
+            />
+          )}
         </div>
 
         <div className={`p-6 ${!isSidebarOpen ? "px-4" : ""}`}>
@@ -206,6 +287,7 @@ function App() {
             label="Cài đặt"
             active={activeTab === "settings"}
             isExpanded={isSidebarOpen}
+            badge={hasUpdate ? 1 : undefined}
             onClick={() => setActiveTab("settings")}
           />
         </div>
@@ -237,7 +319,10 @@ function App() {
                             : activeTab}
           </h2>
 
-          <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties} className="flex items-center gap-4">
+          <div
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            className="flex items-center gap-4"
+          >
             <div className="relative">
               <button
                 onClick={() => setIsCcOpen(!isCcOpen)}
@@ -325,9 +410,7 @@ function App() {
           </div>
         </header>
 
-        <div
-          className="flex-1 overflow-hidden relative p-4 lg:p-6 flex flex-col h-full"
-        >
+        <div className="flex-1 overflow-hidden relative p-4 lg:p-6 flex flex-col h-full">
           <ErrorBoundary>
             <React.Suspense fallback={<TabLoading />}>
               {activeTab === "dashboard" && <Dashboard />}
@@ -367,27 +450,43 @@ function NavItem({
   label,
   active,
   isExpanded,
+  badge,
   onClick,
 }: {
   icon: React.ReactElement;
   label: string;
   active: boolean;
   isExpanded: boolean;
+  badge?: number | string;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center ${isExpanded ? "gap-3 px-4" : "justify-center px-0"} py-3 rounded-xl transition-all duration-300 font-medium ${
+      className={`relative w-full flex items-center ${isExpanded ? "gap-3 px-4 justify-between" : "justify-center px-0"} py-3 rounded-xl transition-all duration-300 font-medium ${
         active
           ? "bg-white/90 text-blue-600 border border-white/90 shadow-[0_6px_18px_rgba(59,130,246,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] dark:bg-blue-600/80 dark:text-white dark:border-blue-400/20"
           : "text-slate-500 border border-transparent hover:bg-white/55 hover:border-white/70 hover:text-slate-800 dark:hover:bg-slate-800/55 dark:hover:text-slate-100"
       }`}
       title={!isExpanded ? label : undefined}
     >
-      {React.cloneElement(icon, { className: "w-5 h-5 shrink-0" })}
-      {isExpanded && (
-        <span className="whitespace-nowrap overflow-hidden">{label}</span>
+      <div className="flex items-center gap-3 overflow-hidden">
+        {React.cloneElement(icon, { className: "w-5 h-5 shrink-0" })}
+        {isExpanded && (
+          <span className="whitespace-nowrap overflow-hidden">{label}</span>
+        )}
+      </div>
+
+      {badge !== undefined && (
+        <span
+          className={`flex items-center justify-center rounded-full bg-red-500 text-white font-bold text-[10px] leading-none shadow-md shadow-red-500/40 animate-pulse ${
+            isExpanded
+              ? "w-4 h-4 ml-auto shrink-0"
+              : "absolute -top-1 -right-1 w-4 h-4 border-2 border-white dark:border-slate-900"
+          }`}
+        >
+          {badge}
+        </span>
       )}
     </button>
   );

@@ -62,7 +62,8 @@ export function SystemOptimization() {
   const [optCleanArt, setOptCleanArt] = useState<boolean>(true);
 
   // Column 3: Tối ưu Biên dịch & Hệ thống
-  const [optCompileEverything, setOptCompileEverything] = useState<boolean>(false);
+  const [optCompileEverything, setOptCompileEverything] =
+    useState<boolean>(false);
   const [optCompileAll, setOptCompileAll] = useState<boolean>(true);
   const [optCompileDaily, setOptCompileDaily] = useState<boolean>(true);
   const [optCompileBoot, setOptCompileBoot] = useState<boolean>(false);
@@ -115,12 +116,14 @@ export function SystemOptimization() {
   const runOptimizationBatch = async () => {
     if (!activeDevice) return;
 
-    let warningMsg = "⚡ CẢNH BÁO TỐI ƯU HÓA HỆ THỐNG:\n\n" +
+    let warningMsg =
+      "⚡ CẢNH BÁO TỐI ƯU HÓA HỆ THỐNG:\n\n" +
       "Quy trình này sẽ áp dụng các tinh chỉnh hệ thống sâu và biên dịch tối ưu hóa ứng dụng bằng ART Compiler (speed/speed-profile).\n" +
       "Các tác vụ biên dịch có thể mất vài phút tùy số lượng ứng dụng trên thiết bị.\n\n";
 
     if (optCompileEverything) {
-      warningMsg += "⚠️ ĐẶC BIỆT CẢNH BÁO:\n" +
+      warningMsg +=
+        "⚠️ ĐẶC BIỆT CẢNH BÁO:\n" +
         "Bạn đã chọn 'Biên dịch AOT toàn bộ (Everything)'. Tác vụ này sẽ vắt kiệt 100% CPU, làm máy RẤT NÓNG và hao pin. Quá trình chạy mất từ 15 - 40 phút.\n" +
         "Khuyên dùng: cắm sạc và dùng quạt tản nhiệt/sò lạnh cho điện thoại khi chạy.\n\n";
     }
@@ -288,7 +291,9 @@ export function SystemOptimization() {
             "cmd package cleanup-dex-files",
           );
           if (!res.success || res.output?.includes("Unknown command")) {
-            logAndPush("  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt --all");
+            logAndPush(
+              "  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt --all",
+            );
             const fbRes = await window.api.runAdbCommand(
               activeDevice!,
               "cmd package compile -r bg-dexopt --all",
@@ -360,17 +365,35 @@ export function SystemOptimization() {
       if (optViLocale) {
         await runStep(
           "Cấu hình Việt hóa hệ thống (Rom China)",
-          `settings put system system_locales vi-VN`
+          `settings put system system_locales vi-VN`,
         );
         try {
           await Promise.all([
-            window.api.runAdbCommand(activeDevice!, "settings put secure system_locales vi-VN"),
-            window.api.runAdbCommand(activeDevice!, "settings put global system_locales vi-VN"),
-            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.locale vi-VN"),
-            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.language vi"),
-            window.api.runAdbCommand(activeDevice!, "setprop persist.sys.country VN"),
+            window.api.runAdbCommand(
+              activeDevice!,
+              "settings put secure system_locales vi-VN",
+            ),
+            window.api.runAdbCommand(
+              activeDevice!,
+              "settings put global system_locales vi-VN",
+            ),
+            window.api.runAdbCommand(
+              activeDevice!,
+              "setprop persist.sys.locale vi-VN",
+            ),
+            window.api.runAdbCommand(
+              activeDevice!,
+              "setprop persist.sys.language vi",
+            ),
+            window.api.runAdbCommand(
+              activeDevice!,
+              "setprop persist.sys.country VN",
+            ),
           ]);
-          await window.api.runAdbCommand(activeDevice!, "am broadcast -a android.intent.action.LOCALE_CHANGED");
+          await window.api.runAdbCommand(
+            activeDevice!,
+            "am broadcast -a android.intent.action.LOCALE_CHANGED",
+          );
         } catch (e) {
           console.error("Lỗi bổ trợ locale:", e);
         }
@@ -414,7 +437,9 @@ export function SystemOptimization() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-[32px] border border-slate-200/80 dark:border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.06)] text-slate-800 dark:text-slate-100 w-full h-full">
         <SlidersHorizontal className="w-16 h-16 text-slate-300 mb-4 animate-bounce" />
-        <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">Chưa có thiết bị</h3>
+        <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">
+          Chưa có thiết bị
+        </h3>
         <p className="text-slate-500 dark:text-slate-400 mt-2 text-center max-w-sm">
           Vui lòng kết nối thiết bị Android để thực hiện quy trình tối ưu.
         </p>
@@ -760,7 +785,8 @@ export function SystemOptimization() {
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Ép Android &quot;nấu chín&quot; toàn bộ app (Nóng máy, tốn 15-40 phút)
+                    Ép Android &quot;nấu chín&quot; toàn bộ app (Nóng máy, tốn
+                    15-40 phút)
                   </span>
                 </div>
                 <button
@@ -900,7 +926,8 @@ export function SystemOptimization() {
                     Việt hóa hệ thống (Rom China)
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Ép hệ thống chuyển sang Tiếng Việt (vi-VN) qua settings locale giống SetEdit
+                    Ép hệ thống chuyển sang Tiếng Việt (vi-VN) qua settings
+                    locale giống SetEdit
                   </span>
                 </div>
                 <button
@@ -957,26 +984,26 @@ export function SystemOptimization() {
       {/* Modal Popup Overlay */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white/90 backdrop-blur-2xl border border-white/50 w-[600px] max-w-full rounded-3xl shadow-2xl p-6 flex flex-col max-h-[85vh] overflow-hidden"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/50 dark:border-slate-800 w-[620px] max-w-[95vw] rounded-3xl shadow-2xl p-5 sm:p-6 flex flex-col max-h-[90vh] my-auto overflow-hidden"
             >
               {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl text-indigo-600 dark:text-indigo-400">
                     <Cpu
-                      className={`w-6 h-6 ${modalStatus === "running" ? "animate-spin" : ""}`}
+                      className={`w-5 h-5 ${modalStatus === "running" ? "animate-spin" : ""}`}
                     />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
                       Siêu Tối Ưu Hóa
                     </h3>
-                    <p className="text-[10px] text-slate-500 font-medium">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                       Thiết bị: {activeDevice}
                     </p>
                   </div>
@@ -984,7 +1011,7 @@ export function SystemOptimization() {
                 {modalStatus !== "running" && (
                   <button
                     onClick={() => setShowModal(false)}
-                    className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -992,41 +1019,41 @@ export function SystemOptimization() {
               </div>
 
               {/* Progress & Status */}
-              <div className="py-6 space-y-4 shrink-0">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+              <div className="py-3 space-y-2 shrink-0">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
                   <span className="flex items-center gap-2">
                     {modalStatus === "running" && (
                       <>
-                        <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                        <span className="text-indigo-600">
+                        <Loader2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                        <span className="text-indigo-600 dark:text-indigo-400">
                           Đang chạy các tác vụ tối ưu...
                         </span>
                       </>
                     )}
                     {modalStatus === "success" && (
                       <>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span className="text-emerald-600">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-emerald-600 dark:text-emerald-400">
                           Hoàn tất quy trình tối ưu thành công!
                         </span>
                       </>
                     )}
                     {modalStatus === "failed" && (
                       <>
-                        <AlertTriangle className="w-4 h-4 text-rose-600" />
-                        <span className="text-rose-600">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        <span className="text-rose-600 dark:text-rose-400">
                           Quy trình tối ưu có lỗi xảy ra!
                         </span>
                       </>
                     )}
                   </span>
-                  <span className="font-mono text-indigo-600">
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400">
                     {modalProgress}%
                   </span>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${modalProgress}%` }}
@@ -1043,12 +1070,12 @@ export function SystemOptimization() {
               </div>
 
               {/* Terminal Logs */}
-              <div className="flex-1 min-h-[200px] bg-slate-950 text-emerald-400 font-mono text-[11px] p-4 rounded-2xl overflow-hidden border border-slate-900 shadow-inner flex flex-col">
-                <div className="text-slate-500 text-[10px] pb-2 border-b border-slate-900 mb-2 flex items-center gap-1.5 shrink-0">
-                  <Terminal className="w-3.5 h-3.5" />
+              <div className="flex-1 min-h-[140px] bg-slate-950 text-emerald-400 font-mono text-[11px] p-3.5 rounded-2xl overflow-hidden border border-slate-900 shadow-inner flex flex-col">
+                <div className="text-slate-500 text-[10px] pb-1.5 border-b border-slate-900 mb-1.5 flex items-center gap-1.5 shrink-0">
+                  <Terminal className="w-3.5 h-3.5 text-indigo-400" />
                   <span>OUTPUT TERMINAL (STDOUT)</span>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1 pr-1 font-mono text-xs">
+                <div className="flex-1 overflow-y-auto space-y-1 pr-1 font-mono text-xs custom-scrollbar">
                   {modalLogs.map((log, i) => (
                     <div key={i} className="leading-relaxed break-all">
                       {log.startsWith("❌") ? (
