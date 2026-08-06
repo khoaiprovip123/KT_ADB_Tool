@@ -148,16 +148,21 @@ export async function getDeviceInfo(deviceId: string) {
     const brand =
       getPropRaw.match(/\[ro\.product\.brand\]: \[(.*?)\]/)?.[1] || "Unknown";
 
-    const codename =
+    const rawCodename =
+      getPropRaw.match(/\[ro\.boot\.device\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.product\.mod_device\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.vendor\.product\.device\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.product\.vendor\.device\]: \[(.*?)\]/)?.[1] ||
       getPropRaw.match(/\[ro\.build\.product\]: \[(.*?)\]/)?.[1] ||
       getPropRaw.match(/\[ro\.product\.device\]: \[(.*?)\]/)?.[1] ||
       "Unknown";
 
-    const cleanCodename = codename.trim();
+    const cleanCodename = rawCodename.trim().replace(/_(global|eea|in|ru|id|tr|tw|jp).*/i, "");
     let friendlyName = (xiaomiCodenames as Record<string, string>)[cleanCodename];
     if (friendlyName && friendlyName.includes("|")) {
       friendlyName = friendlyName.split("|")[0].trim();
     }
+    const codename = cleanCodename;
     const displayCodename = friendlyName ? `${codename} (${friendlyName})` : codename;
 
     let model = deviceName || marketName;

@@ -554,6 +554,38 @@ export async function applyTweak(
   }
 }
 
+async function addToXiaomiSystemSetting(
+  safeExec: (cmd: string) => Promise<string>,
+  key: string,
+  packageName: string,
+) {
+  try {
+    const currentRaw = (await safeExec(`shell settings get system ${key}`)).trim();
+    if (!currentRaw || currentRaw === "null" || currentRaw.includes("Command failed") || currentRaw.includes("Error")) {
+      return;
+    }
+
+    const isMilletWhite = key.toLowerCase() === "millet_white";
+    const delimiter = isMilletWhite ? ";" : currentRaw.includes(";") ? ";" : currentRaw.includes(":") ? ":" : ",";
+
+    const existingList = currentRaw
+      .split(/[;,:\s]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s !== "null");
+
+    if (!existingList.includes(packageName)) {
+      existingList.push(packageName);
+      const newValue =
+        delimiter === ";"
+          ? existingList.join(";") + ";"
+          : existingList.join(delimiter);
+      await safeExec(`shell settings put system ${key} "${newValue}"`);
+    }
+  } catch {
+    // Bỏ qua nếu ROM không hỗ trợ key hệ thống này
+  }
+}
+
 export async function fixAllNotifications(
   deviceId: string,
   onProgress?: (current: number, total: number, pkgName: string) => void,
@@ -577,12 +609,46 @@ export async function fixAllNotifications(
       .filter((p) => installedUser0.has(p));
 
     const essentialPkgs = [
+      // Google Services Core
       "com.google.android.gms",
       "com.google.android.gsf",
+      // Social & Messaging (Fix-Noti-Xiaomi CDN Preset)
       "com.zing.zalo",
       "com.facebook.orca",
-      "com.whatsapp",
+      "com.facebook.katana",
       "org.telegram.messenger",
+      "org.telegram.plus",
+      "com.whatsapp",
+      "com.instagram.android",
+      "com.instagram.barcelona",
+      "com.zhiliaoapp.musically",
+      "com.ss.android.ugc.trill",
+      "com.locket.Locket",
+      "com.discord",
+      "com.viber.voip",
+      "jp.naver.line.android",
+      "com.tencent.mm",
+      "com.twitter.android",
+      "com.skype.raider",
+      // Banking & E-Wallets (Vietnam & Global)
+      "com.mservice.momotransfer",
+      "com.mbmobile",
+      "com.vietcombank.phone",
+      "vn.com.techcombank.bb.app",
+      "com.vpb.neo",
+      "com.vnpay.bidv",
+      "com.vietinbank.ipay",
+      "com.vnpay.agribank3g",
+      "com.acb.mobile",
+      "com.tpb.mb.gprsauto",
+      "com.sacombank.mbanking",
+      "com.msb.mb",
+      "com.vib.myvib2",
+      "vn.cake.app",
+      "vn.vnpay.vnpaywallet",
+      "vn.com.vng.zalopay",
+      "com.bplus.vtpay",
+      "com.airpay.consumer",
     ].filter((p) => installedUser0.has(p));
 
     const allTargets = Array.from(new Set([...essentialPkgs, ...pkgs3]));
@@ -607,10 +673,24 @@ export async function fixAllNotifications(
           }
         };
 
+        // 1. DeviceIdle Doze Whitelist
         await safeExec(`shell dumpsys deviceidle whitelist +${pkg}`);
+        // 2. Set App Standby Bucket to ACTIVE (Mức ưu tiên tài nguyên cao nhất - 10)
+        await safeExec(`shell am set-standby-bucket ${pkg} active`);
+        // 3. Cấp quyền AppOps chạy nền & WakeLock
+        await safeExec(`shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`);
         await safeExec(`shell cmd appops set ${pkg} RUN_ANY_IN_BACKGROUND allow`);
         await safeExec(`shell cmd appops set ${pkg} WAKE_LOCK allow`);
+        // 4. Chống hệ thống tự động tước quyền ứng dụng không dùng
+        await safeExec(`shell appops set --user 0 ${pkg} AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore`);
+        // 5. Đảm bảo ứng dụng không ở trạng thái inactive
         await safeExec(`shell am set-inactive ${pkg} false`);
+
+        // 6. Tích hợp Xiaomi MIUI / HyperOS Millet Freezing Engine Whitelists
+        await addToXiaomiSystemSetting(safeExec, "millet_white", pkg);
+        await addToXiaomiSystemSetting(safeExec, "cloud_lowlatency_whitelist", pkg);
+        await addToXiaomiSystemSetting(safeExec, "MILLET_NO_RESTRICT_APP", pkg);
+
         count++;
       } catch (e) {
         console.warn(`Lỗi bỏ qua cho ${pkg}:`, e);
@@ -620,7 +700,7 @@ export async function fixAllNotifications(
     return {
       success: true,
       count,
-      message: `Đã tối ưu thông báo tức thì cho ${count} ứng dụng hợp lệ trên User 0!`,
+      message: `Đã tối ưu thông báo tức thì đa tầng cho ${count} ứng dụng hợp lệ trên User 0!`,
     };
   } catch (err: any) {
     return {

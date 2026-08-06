@@ -1,5 +1,27 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.3] - 2026-08-06
+
+### Thêm mới (Added)
+- **Tích hợp Danh Mục Khối Lệnh MIUI / HyperOS (Android 9–17 Standard)**:
+  - Tích hợp quy chuẩn danh mục khối lệnh AOSP & Xiaomi MIUI/HyperOS vào `xiaomiExperienceRegistry.ts`.
+  - Thêm các tính năng AOSP Stable mới: `Chế độ Tối hệ thống (cmd uimode night)`, `Độ trễ nhấn giữ 300ms (long_press_timeout)`, `Hiển thị điểm chạm cảm ứng (show_touches)`, `Hiển thị tọa độ con trỏ (pointer_location)`, `Chế độ Tiết kiệm pin hệ thống (low_power)`, `Chống nhấp nháy màn hình (dc_back_light / DC Dimming)`.
+- **Nâng cấp Bảng Chi Tiết Tweak (Action Inspector Modal)**:
+  - Tích hợp **Nút Bật / Tắt trực tiếp** ngay tại bảng chi tiết (Bật/Tắt tức thì mà không cần đóng modal).
+  - Thêm **Thẻ tag phân loại hãng thiết bị** (`Xiaomi`, `Samsung`, `AOSP`) cạnh tiêu đề card.
+  - Tích hợp **Thanh cuộn tùy biến (`custom-scrollbar`)** giúp cuộn mượt mà toàn bộ nội dung mà không bị che khuất.
+- **Tối ưu Sửa Trễ Thông Báo Đa Tầng (Fix-Noti-Xiaomi Integration)**:
+  - Nâng cấp bộ công cụ sửa trễ thông báo 104/104 app với Standby Bucket ACTIVE (Level 10), AppOps Ignore, Doze Whitelist và danh sách trắng Xiaomi `millet_white`.
+
+### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)
+- **Sửa triệt để lỗi `service call` trên Windows (`advanced_textures_hyperos`)**:
+  - Chuyển phương thức thực thi lệnh ADB `service call` qua `execFilePromise` mảng đối số độc lập để tránh bị Windows `cmd.exe` xé nhỏ chuỗi tham số `s16` có chứa dấu cách.
+  - Sửa lệnh kích hoạt Họa tiết nâng cao HyperOS 2 / HyperOS 3 đồng bộ trên cả `system`, `global` namespaces và `deviceLevelList` để công tắc Cài đặt điện thoại bật xanh ngay lập tức.
+- **Sửa lỗi Safety Layer chặn lệnh `cmd uimode`**:
+  - Bổ sung `cmd uimode` vào danh sách trắng lệnh an toàn trong `adbSafety.ts`.
+- **Đồng bộ bộ kiểm thử tự động**:
+  - Đạt 100% 71/71 unit tests passed across 11 test suites, 0 typecheck errors.
+
 ## [2.5.0] - 2026-07-28
 
 ### Thêm mới (Added)

@@ -3,7 +3,7 @@ import { ensureAdb } from "./adbDownloader";
 import { ensureScrcpy } from "./scrcpyDownloader";
 import * as path from "path";
 import { app } from "electron";
-import { exec, spawn } from "child_process";
+import { exec, execFile, spawn } from "child_process";
 import { evaluateCommand, cleanAdbPrefix } from "./adbSafety";
 import * as fs from "fs";
 
@@ -65,6 +65,7 @@ export async function initAdb(onProgress: (msg: string) => void) {
 
 import util from "util";
 const execPromise = util.promisify(exec);
+const execFilePromise = util.promisify(execFile);
 
 export async function getDevices() {
   const maxRetries = 3;
@@ -225,9 +226,17 @@ export async function runAdbCommand(
       return blockedMsg;
     }
 
-    const { stdout, stderr } = await execPromise(
-      `"${currentAdbExe}" -s ${deviceId} shell ${shellCommand}`
-    );
+    let stdout = "";
+    let stderr = "";
+    if (shellCommand.includes("service call")) {
+      const res = await execFilePromise(currentAdbExe, ["-s", deviceId, "shell", shellCommand]);
+      stdout = res.stdout;
+      stderr = res.stderr;
+    } else {
+      const res = await execPromise(`"${currentAdbExe}" -s ${deviceId} shell ${shellCommand}`);
+      stdout = res.stdout;
+      stderr = res.stderr;
+    }
     const output = stdout || stderr || "";
     onLog(output);
     return output;
@@ -267,6 +276,13 @@ export async function execAdb(
   const maxRetries = 2;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      if (cleanCmd.includes("service call")) {
+        const { stdout, stderr } = await execFilePromise(
+          currentAdbExe,
+          ["-s", deviceId, "shell", cleanCmd]
+        );
+        return stdout || stderr || "";
+      }
       const { stdout } = await execPromise(
         `"${currentAdbExe}" -s ${deviceId} shell ${cleanCmd}`
       );

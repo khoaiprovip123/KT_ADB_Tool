@@ -22,18 +22,15 @@ import {
   ListChecks,
   Loader2,
   MonitorSmartphone,
-  PackageCheck,
   RotateCcw,
   Search,
   Shield,
   ShieldCheck,
   SlidersHorizontal,
   TerminalSquare,
-  Trash2,
   Undo2,
   Wand2,
   X,
-  XCircle,
   Zap,
   Globe,
   Check,
@@ -42,7 +39,6 @@ import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
 import {
   validateDpi,
-  validatePackageName,
   validateResolution,
 } from "../../utils/validation";
 
@@ -52,7 +48,6 @@ type SectionId =
   | "performance"
   | "privacy"
   | "display"
-  | "debloat"
   | "dns";
 
 type RiskLevel = "SAFE" | "MEDIUM" | "RISKY" | "DANGEROUS" | "KEEP";
@@ -63,8 +58,6 @@ type ActionState =
   | "UNSUPPORTED"
   | "UNKNOWN"
   | "ERROR";
-type PackageStatus = "installed" | "disabled" | "uninstalled";
-type DebloatAction = "uninstall" | "disable" | "restore";
 
 interface XiaomiExperienceItem {
   id: string;
@@ -86,6 +79,10 @@ interface XiaomiExperienceItem {
     minSdk?: number;
     packages?: string[];
   };
+  readCommand?: { namespace: "system" | "secure" | "global"; key: string };
+  enableCommand?: string;
+  disableCommand?: string;
+  fallbackEnableCommands?: string[];
 }
 
 interface ExperienceItemStatus {
@@ -101,16 +98,6 @@ interface SystemTweak {
   category: "performance" | "privacy" | "display" | "battery";
   risk: "SAFE" | "RISKY" | "KEEP";
   defaultEnabled: boolean;
-}
-
-interface BloatwareEntry {
-  package: string;
-  name: string;
-  description: string;
-  risk: "SAFE" | "RISKY" | "KEEP";
-  category: string;
-  preferDisable?: boolean;
-  status: PackageStatus;
 }
 
 interface UnifiedAction {
@@ -181,12 +168,6 @@ const sectionMeta: Array<{
     icon: <MonitorSmartphone className="w-4 h-4" />,
   },
   {
-    id: "debloat",
-    label: "Debloat",
-    desc: "Gói cài sẵn",
-    icon: <PackageCheck className="w-4 h-4" />,
-  },
-  {
     id: "dns",
     label: "Cấu hình DNS",
     desc: "Mã hóa DNS, chặn QC",
@@ -202,8 +183,7 @@ const riskRank: Record<RiskLevel, number> = {
   KEEP: 4,
 };
 
-const mutedPanelClass =
-  "border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
+
 
 const notificationTweakId = "system:xiaomi_notification_fix";
 
@@ -286,16 +266,13 @@ export function ExperienceCenter() {
   >([]);
   const [systemTweaks, setSystemTweaks] = useState<SystemTweak[]>([]);
   const [systemStatus, setSystemStatus] = useState<Record<string, boolean>>({});
-  const [bloatware, setBloatware] = useState<BloatwareEntry[]>([]);
-  const [debloatBrand, setDebloatBrand] = useState<string>("auto");
-  const [selectedBloat, setSelectedBloat] = useState<Set<string>>(new Set());
-  const [bloatSearch] = useState("");
   const [deviceDpi, setDeviceDpi] = useState<number | null>(null);
   const [customDpi, setCustomDpi] = useState(440);
   const [deviceResolution, setDeviceResolution] = useState<{
     width: number;
     height: number;
   } | null>(null);
+  const [brandFilter, setBrandFilter] = useState<string>("all");
   const [customWidth, setCustomWidth] = useState(1080);
   const [customHeight, setCustomHeight] = useState(2400);
   const [animationScale, setAnimationScaleValue] = useState<0 | 0.5 | 1>(0.5);
@@ -320,10 +297,6 @@ export function ExperienceCenter() {
   const [notificationBatchStatus, setNotificationBatchStatus] = useState<
     "idle" | "running" | "success" | "error"
   >("idle");
-  const [batchProgress, setBatchProgress] = useState<{
-    done: number;
-    total: number;
-  } | null>(null);
   const refreshToken = useRef(0);
 
   useEffect(() => {
@@ -520,7 +493,6 @@ export function ExperienceCenter() {
       setDeviceProfile(null);
       setExperienceStatuses([]);
       setSystemStatus({});
-      setBloatware([]);
       setDeviceDpi(null);
       setDeviceResolution(null);
       return;
@@ -535,7 +507,6 @@ export function ExperienceCenter() {
         tweakStatusResult,
         dpiResult,
         resolutionResult,
-        bloatResult,
         dnsModeResult,
         dnsSpecResult,
       ] = await Promise.allSettled([
@@ -545,7 +516,6 @@ export function ExperienceCenter() {
         window.api.getTweaksStatus(activeDevice),
         window.api.getDpi(activeDevice),
         window.api.getResolution(activeDevice),
-        window.api.getBloatwareWithStatus(activeDevice, debloatBrand),
         window.api.runAdbCommand(
           activeDevice,
           "shell settings get global private_dns_mode",
@@ -602,11 +572,7 @@ export function ExperienceCenter() {
         setDeviceResolution(null);
       }
 
-      setBloatware(
-        bloatResult.status === "fulfilled"
-          ? (bloatResult.value as BloatwareEntry[])
-          : [],
-      );
+
 
       // Map DNS States
       if (
@@ -647,15 +613,7 @@ export function ExperienceCenter() {
     void verifyNotificationFix();
   }, [verifyNotificationFix]);
 
-  useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-    if (activeDevice) {
-      unsubscribe = window.api.onBatchProgress((data) => {
-        setBatchProgress({ done: data.done, total: data.total });
-      });
-    }
-    return () => unsubscribe?.();
-  }, [activeDevice]);
+
 
   const unifiedActions = useMemo<UnifiedAction[]>(() => {
     const experienceActions = experienceStatuses.map((status) => ({
@@ -707,7 +665,6 @@ export function ExperienceCenter() {
       performance: 0,
       privacy: 0,
       display: 0,
-      debloat: bloatware.filter((entry) => entry.status === "installed").length,
       dns: 0,
     };
 
@@ -716,28 +673,64 @@ export function ExperienceCenter() {
     });
 
     return counts;
-  }, [bloatware, unifiedActions]);
+  }, [unifiedActions]);
 
   const visibleActions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    let actions = unifiedActions;
+
     if (normalizedQuery) {
-      // Khi gõ từ khóa tìm kiếm: Tìm kiếm trên TẤT CẢ các nhóm/tab!
-      return unifiedActions.filter(
+      actions = actions.filter(
         (action) =>
           action.title.toLowerCase().includes(normalizedQuery) ||
           action.description.toLowerCase().includes(normalizedQuery) ||
           action.currentValue?.toLowerCase().includes(normalizedQuery) ||
           action.section.toLowerCase().includes(normalizedQuery),
       );
+    } else {
+      actions =
+        activeSection === "overview"
+          ? actions.filter(
+              (action) =>
+                action.status !== "UNSUPPORTED" && action.risk === "SAFE",
+            )
+          : actions.filter((action) => action.section === activeSection);
     }
 
-    return activeSection === "overview"
-      ? unifiedActions.filter(
-          (action) =>
-            action.status !== "UNSUPPORTED" && action.risk === "SAFE",
-        )
-      : unifiedActions.filter((action) => action.section === activeSection);
-  }, [activeSection, query, unifiedActions]);
+    if (brandFilter !== "all") {
+      actions = actions.filter((action) => {
+        const brandList = action.experienceStatus?.item.detectStrategy?.brand;
+        const lowerTitle = (action.title + " " + action.id + " " + (action.description || "")).toLowerCase();
+        if (brandFilter === "xiaomi") {
+          return (
+            (brandList && brandList.some((b) => ["xiaomi", "redmi", "poco"].includes(b.toLowerCase()))) ||
+            lowerTitle.includes("xiaomi") || lowerTitle.includes("miui") || lowerTitle.includes("hyperos")
+          );
+        }
+        if (brandFilter === "samsung") {
+          return (
+            (brandList && brandList.some((b) => b.toLowerCase().includes("samsung"))) ||
+            lowerTitle.includes("samsung") || lowerTitle.includes("oneui")
+          );
+        }
+        if (brandFilter === "oppo") {
+          return (
+            (brandList && brandList.some((b) => ["oppo", "realme", "coloros"].includes(b.toLowerCase()))) ||
+            lowerTitle.includes("oppo") || lowerTitle.includes("realme") || lowerTitle.includes("coloros")
+          );
+        }
+        if (brandFilter === "vivo") {
+          return (
+            (brandList && brandList.some((b) => ["vivo", "funtouch", "origin"].includes(b.toLowerCase()))) ||
+            lowerTitle.includes("vivo") || lowerTitle.includes("funtouch")
+          );
+        }
+        return true;
+      });
+    }
+
+    return actions;
+  }, [activeSection, brandFilter, query, unifiedActions]);
 
   const selectedAction = useMemo(
     () =>
@@ -746,7 +739,7 @@ export function ExperienceCenter() {
   );
 
   useEffect(() => {
-    if (activeSection === "debloat" || activeSection === "dns") return;
+    if (activeSection === "dns") return;
     if (visibleActions.some((action) => action.id === selectedActionId)) return;
 
     const preferredAction =
@@ -757,31 +750,7 @@ export function ExperienceCenter() {
     if (nextAction) setSelectedActionId(nextAction.id);
   }, [activeSection, selectedActionId, visibleActions]);
 
-  const filteredBloatware = useMemo(() => {
-    const normalized = (query || bloatSearch).trim().toLowerCase();
-    const entries = normalized
-      ? bloatware.filter(
-          (entry) =>
-            entry.package.toLowerCase().includes(normalized) ||
-            entry.name.toLowerCase().includes(normalized) ||
-            entry.category.toLowerCase().includes(normalized),
-        )
-      : bloatware;
 
-    return entries.sort((a, b) => {
-      const statusRank: Record<PackageStatus, number> = {
-        installed: 0,
-        disabled: 1,
-        uninstalled: 2,
-      };
-      return statusRank[a.status] - statusRank[b.status];
-    });
-  }, [bloatSearch, query, bloatware]);
-
-  const selectedBloatEntries = useMemo(
-    () => bloatware.filter((entry) => selectedBloat.has(entry.package)),
-    [bloatware, selectedBloat],
-  );
 
   const profileLine = deviceProfile
     ? [
@@ -1122,108 +1091,7 @@ export function ExperienceCenter() {
     });
   };
 
-  const toggleBloatSelection = (entry: BloatwareEntry) => {
-    if (entry.risk === "KEEP") return;
-    setSelectedBloat((prev) => {
-      const next = new Set(prev);
-      if (next.has(entry.package)) next.delete(entry.package);
-      else next.add(entry.package);
-      return next;
-    });
-  };
 
-  const handleBloatAction = (entry: BloatwareEntry, action: DebloatAction) => {
-    if (!activeDevice) return;
-    if (!validatePackageName(entry.package)) {
-      toast.error("Package không hợp lệ.");
-      return;
-    }
-
-    const actionLabel =
-      action === "uninstall"
-        ? "Gỡ"
-        : action === "disable"
-          ? "Vô hiệu hóa"
-          : "Khôi phục";
-
-    void runTrackedAction({
-      key: `debloat:${action}:${entry.package}`,
-      title: `${actionLabel} ${entry.name}`,
-      detail: entry.package,
-      source: "debloat",
-      risk: action === "uninstall" || entry.risk === "RISKY" ? "RISKY" : "SAFE",
-      confirm: action === "uninstall" || entry.risk === "RISKY",
-      confirmMessage:
-        "Thao tác với package hệ thống có thể ảnh hưởng đến một số chức năng ROM.",
-      execute: async () => {
-        const res = await window.api.debloatPackage(
-          activeDevice,
-          entry.package,
-          action,
-          Boolean(entry.preferDisable),
-        );
-        return { success: Boolean(res.success), output: res.message ?? "" };
-      },
-      onSuccess: refreshAfterAction,
-    });
-  };
-
-  const handleBatchBloatAction = (action: DebloatAction) => {
-    if (!activeDevice || selectedBloatEntries.length === 0) return;
-
-    const actionLabel =
-      action === "uninstall"
-        ? "Gỡ hàng loạt"
-        : action === "disable"
-          ? "Vô hiệu hóa hàng loạt"
-          : "Khôi phục hàng loạt";
-
-    void runTrackedAction({
-      key: `debloat:batch:${action}`,
-      title: actionLabel,
-      detail: `${selectedBloatEntries.length} package`,
-      source: "debloat",
-      risk:
-        action === "uninstall" ||
-        selectedBloatEntries.some((entry) => entry.risk === "RISKY")
-          ? "RISKY"
-          : "SAFE",
-      confirm:
-        action === "uninstall" ||
-        selectedBloatEntries.some((entry) => entry.risk === "RISKY"),
-      confirmMessage:
-        "Bạn đang chạy thao tác hàng loạt trên các package hệ thống đã chọn.",
-      execute: async () => {
-        setBatchProgress({ done: 0, total: selectedBloatEntries.length });
-        const results = await window.api.batchDebloat(
-          activeDevice,
-          selectedBloatEntries.map((entry) => ({
-            package: entry.package,
-            preferDisable: entry.preferDisable,
-          })),
-          action,
-        );
-        const success = results.filter((result: any) => result.success).length;
-        const output = results
-          .map(
-            (result: any) =>
-              `${result.success ? "OK" : "FAIL"} ${result.package}: ${
-                result.message
-              }`,
-          )
-          .join("\n");
-        return {
-          success: success > 0,
-          output: `Hoàn tất ${success}/${results.length} package.\n${output}`,
-        };
-      },
-      onSuccess: async () => {
-        setSelectedBloat(new Set());
-        setBatchProgress(null);
-        await refreshAfterAction();
-      },
-    });
-  };
 
   const notificationNeedsAttention =
     !notificationVerification.loading &&
@@ -1327,19 +1195,34 @@ export function ExperienceCenter() {
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                     {query.trim()
                       ? `Tìm thấy ${visibleActions.length} thao tác phù hợp trên tất cả các tab`
-                      : activeSection === "debloat"
-                        ? `${filteredBloatware.length} package đang hiển thị`
-                        : activeSection === "dns"
-                          ? "Cấu hình máy chủ DNS mã hóa và chặn quảng cáo"
-                          : `${visibleActions.length} thao tác trong nhóm`}
+                      : activeSection === "dns"
+                        ? "Cấu hình máy chủ DNS mã hóa và chặn quảng cáo"
+                        : `${visibleActions.length} thao tác trong nhóm`}
                   </p>
                 </div>
 
-                <SearchBox
-                  value={query}
-                  onChange={setQuery}
-                  placeholder="Tìm kiếm tất cả tweak, tính năng ở mọi tab..."
-                />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex items-center">
+                    <SlidersHorizontal className="absolute left-3 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <select
+                      value={brandFilter}
+                      onChange={(e) => setBrandFilter(e.target.value)}
+                      className="h-9 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs font-extrabold text-slate-700 outline-none hover:bg-slate-100 focus:border-blue-500 transition-colors cursor-pointer"
+                      title="Lọc theo hãng sản xuất"
+                    >
+                      <option value="all">Tất cả hãng</option>
+                      <option value="xiaomi">Xiaomi / HyperOS</option>
+                      <option value="samsung">Samsung OneUI</option>
+                      <option value="oppo">OPPO / Realme</option>
+                      <option value="vivo">Vivo Funtouch</option>
+                    </select>
+                  </div>
+                  <SearchBox
+                    value={query}
+                    onChange={setQuery}
+                    placeholder="Tìm kiếm tất cả tweak, tính năng ở mọi tab..."
+                  />
+                </div>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto">
@@ -1349,20 +1232,6 @@ export function ExperienceCenter() {
                       icon={<TerminalSquare className="h-7 w-7" />}
                       title="Thiết bị chưa sẵn sàng"
                       message={profileLine}
-                    />
-                  </div>
-                ) : activeSection === "debloat" ? (
-                  <div className="p-4">
-                    <DebloatWorkspace
-                      entries={filteredBloatware}
-                      selected={selectedBloat}
-                      busyKey={busyKey}
-                      batchProgress={batchProgress}
-                      onToggle={toggleBloatSelection}
-                      onAction={handleBloatAction}
-                      onBatchAction={handleBatchBloatAction}
-                      brand={debloatBrand}
-                      onSelectBrand={setDebloatBrand}
                     />
                   </div>
                 ) : activeSection === "dns" ? (
@@ -1416,15 +1285,17 @@ export function ExperienceCenter() {
           </div>
 
           {hasDockedInspector && selectedAction && (
-            <div className="flex min-h-0 border-l border-slate-200 bg-[#fbfdff]">
+            <div className="flex h-full max-h-full min-h-0 w-[380px] shrink-0 overflow-hidden border-l border-slate-200 bg-[#fbfdff]">
               <ActionInspector
                 action={selectedAction}
                 verification={notificationVerification}
                 busy={busyKey === "notification:apply-and-verify"}
+                busyAction={busyKey === `${selectedAction.source}:${selectedAction.id}`}
                 bulkBusy={busyKey === "notification:optimize-all-apps"}
                 bulkProgress={notificationBatchProgress}
                 bulkStatus={notificationBatchStatus}
                 onClose={() => setInspectorOpen(false)}
+                onToggle={handleToggleAction}
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
               />
@@ -1438,17 +1309,19 @@ export function ExperienceCenter() {
             onClick={() => setInspectorOpen(false)}
           >
             <div
-              className="h-full w-[min(380px,92%)] border-l border-slate-200 bg-[#fbfdff] shadow-2xl"
+              className="flex h-full max-h-full min-h-0 w-[min(380px,92%)] overflow-hidden border-l border-slate-200 bg-[#fbfdff] shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <ActionInspector
                 action={selectedAction}
                 verification={notificationVerification}
                 busy={busyKey === "notification:apply-and-verify"}
+                busyAction={busyKey === `${selectedAction.source}:${selectedAction.id}`}
                 bulkBusy={busyKey === "notification:optimize-all-apps"}
                 bulkProgress={notificationBatchProgress}
                 bulkStatus={notificationBatchStatus}
                 onClose={() => setInspectorOpen(false)}
+                onToggle={handleToggleAction}
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
               />
@@ -1563,16 +1436,19 @@ function ActionInspector({
   action,
   verification,
   busy,
+  busyAction,
   bulkBusy,
   bulkProgress,
   bulkStatus,
   onClose,
+  onToggle,
   onApplyNotification,
   onOptimizeAllNotifications,
 }: {
   action: UnifiedAction;
   verification: NotificationVerification;
   busy: boolean;
+  busyAction?: boolean;
   bulkBusy: boolean;
   bulkProgress: {
     current: number;
@@ -1581,6 +1457,7 @@ function ActionInspector({
   } | null;
   bulkStatus: "idle" | "running" | "success" | "error";
   onClose: () => void;
+  onToggle: (action: UnifiedAction) => void;
   onApplyNotification: () => void;
   onOptimizeAllNotifications: () => void;
 }) {
@@ -1594,11 +1471,18 @@ function ActionInspector({
     isNotification && !verification.loading && !notificationVerified;
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col overflow-y-auto px-4 py-4">
+    <aside className="flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden px-4 py-4 pr-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[17px] font-extrabold leading-snug text-slate-950">
-          {isNotification ? "Thông báo ứng dụng" : action.title}
-        </h3>
+        <div className="min-w-0">
+          <h3 className="text-[17px] font-extrabold leading-snug text-slate-950">
+            {isNotification ? "Thông báo ứng dụng" : action.title}
+          </h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <BrandBadge action={action} />
+            <SourceBadge source={action.source} />
+            <RiskBadge risk={action.risk} />
+          </div>
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -1609,44 +1493,44 @@ function ActionInspector({
         </button>
       </div>
 
-      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
-        <div
-          className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-extrabold ${
-            verification.loading
-              ? "border-blue-200 bg-blue-50 text-blue-700"
-              : attention
-                ? "border-amber-200 bg-amber-50 text-amber-700"
-                : action.status === "SUPPORTED_ON"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          <span
-            className={`h-2 w-2 rounded-full ${
-              verification.loading
-                ? "bg-blue-500"
-                : attention
-                  ? "bg-amber-500"
-                  : action.status === "SUPPORTED_ON"
-                    ? "bg-emerald-500"
-                    : "bg-rose-500"
-            }`}
-          />
-          {verification.loading
-            ? "Đang kiểm tra"
-            : attention
-              ? "Cần kiểm tra"
-              : action.status === "SUPPORTED_ON"
-                ? "Đã xác minh"
-                : "Đang tắt"}
-        </div>
-        <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-600">
-          {action.description}
-        </p>
-      </div>
-
       {isNotification ? (
         <>
+          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
+            <div
+              className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-extrabold ${
+                verification.loading
+                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                  : attention
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : action.status === "SUPPORTED_ON"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  verification.loading
+                    ? "bg-blue-500"
+                    : attention
+                      ? "bg-amber-500"
+                      : action.status === "SUPPORTED_ON"
+                        ? "bg-emerald-500"
+                        : "bg-rose-500"
+                }`}
+              />
+              {verification.loading
+                ? "Đang kiểm tra"
+                : attention
+                  ? "Cần kiểm tra"
+                  : action.status === "SUPPORTED_ON"
+                    ? "Đã xác minh"
+                    : "Đang tắt"}
+            </div>
+            <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-600">
+              {action.description}
+            </p>
+          </div>
+
           <h4 className="mt-4 text-[12px] font-extrabold text-slate-900">
             Nền tảng thông báo FCM
           </h4>
@@ -1778,20 +1662,123 @@ function ActionInspector({
           </p>
         </>
       ) : (
-        <div className="mt-5 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-[11px]">
-          <InspectorValue
-            label="Nguồn"
-            value={action.source === "system" ? "Hệ thống" : "UX"}
-          />
-          <InspectorValue label="Mức rủi ro" value={action.risk} />
-          <InspectorValue
-            label="Trạng thái"
-            value={action.status === "SUPPORTED_ON" ? "Đang bật" : "Đang tắt"}
-          />
-          <InspectorValue
-            label="Giá trị hiện tại"
-            value={action.currentValue ?? "--"}
-          />
+        <div className="mt-5 space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[12px] font-medium leading-relaxed text-slate-600">
+              {action.description}
+            </p>
+
+            <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    action.status === "SUPPORTED_ON"
+                      ? "bg-emerald-500"
+                      : action.status === "SUPPORTED_OFF"
+                        ? "bg-slate-400"
+                        : "bg-rose-500"
+                  }`}
+                />
+                <span className="text-[11px] font-black text-slate-700">
+                  {action.status === "SUPPORTED_ON"
+                    ? "Đang bật"
+                    : action.status === "SUPPORTED_OFF"
+                      ? "Đang tắt"
+                      : "Không hỗ trợ"}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                disabled={action.status === "UNSUPPORTED" || busyAction}
+                onClick={() => onToggle(action)}
+                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-xl px-4 text-[11px] font-black shadow-md transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  action.status === "SUPPORTED_ON"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20"
+                    : "bg-slate-950 text-white hover:bg-slate-800 shadow-slate-950/20"
+                }`}
+              >
+                {busyAction ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : action.status === "SUPPORTED_ON" ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-200" />
+                    Tắt ngay
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3.5 w-3.5 text-amber-300" />
+                    Bật ngay
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-[11px]">
+            <InspectorValue
+              label="Nguồn"
+              value={action.source === "system" ? "Cấu hình hệ thống" : "Trung Tâm Trải Nghiệm (UX)"}
+            />
+            <InspectorValue
+              label="Mức rủi ro"
+              value={
+                <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+                  action.risk === "SAFE"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : action.risk === "MEDIUM"
+                      ? "bg-amber-100 text-amber-800"
+                      : action.risk === "RISKY"
+                        ? "bg-orange-100 text-orange-800"
+                        : "bg-rose-100 text-rose-800"
+                }`}>
+                  {action.risk}
+                </span>
+              }
+            />
+            <InspectorValue
+              label="Giá trị hiện tại"
+              value={action.currentValue ?? "--"}
+            />
+
+            {action.experienceStatus?.item && (
+              <>
+                <InspectorValue
+                  label="Hãng áp dụng"
+                  value={
+                    action.experienceStatus.item.detectStrategy?.brand
+                      ? action.experienceStatus.item.detectStrategy.brand.join(" / ")
+                      : "Chung (Mọi hãng AOSP)"
+                  }
+                />
+
+                {action.experienceStatus.item.readCommand && (
+                  <InspectorValue
+                    label="Khóa thuộc tính"
+                    value={`${action.experienceStatus.item.readCommand.namespace}.${action.experienceStatus.item.readCommand.key}`}
+                  />
+                )}
+
+                {action.experienceStatus.item.detectStrategy?.minSdk && (
+                  <InspectorValue
+                    label="Yêu cầu Android"
+                    value={`Android ${
+                      action.experienceStatus.item.detectStrategy.minSdk >= 35 ? "15+" :
+                      action.experienceStatus.item.detectStrategy.minSdk === 34 ? "14+" :
+                      action.experienceStatus.item.detectStrategy.minSdk === 33 ? "13+" :
+                      action.experienceStatus.item.detectStrategy.minSdk === 31 ? "12+" :
+                      action.experienceStatus.item.detectStrategy.minSdk === 29 ? "10+" : "9+"
+                    } (SDK ${action.experienceStatus.item.detectStrategy.minSdk}+)`}
+                  />
+                )}
+
+                <InspectorValue
+                  label="Giá trị chuẩn"
+                  value={`Mặc định: ${action.experienceStatus.item.defaultValue || "null"} | Kích hoạt: ${action.experienceStatus.item.activeValues ? action.experienceStatus.item.activeValues.join(", ") : "1"}`}
+                />
+              </>
+            )}
+          </div>
         </div>
       )}
     </aside>
@@ -1845,11 +1832,11 @@ function VerificationRow({
   );
 }
 
-function InspectorValue({ label, value }: { label: string; value: string }) {
+function InspectorValue({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-      <span className="font-semibold text-slate-500">{label}</span>
-      <span className="text-right font-extrabold text-slate-800">{value}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2.5 last:border-0 last:pb-0">
+      <span className="shrink-0 font-semibold text-slate-500">{label}</span>
+      <span className="text-right font-extrabold text-slate-800 break-all">{value}</span>
     </div>
   );
 }
@@ -2167,6 +2154,7 @@ function ActionRow({
             <h4 className="truncate text-sm font-black text-slate-900">
               {action.title}
             </h4>
+            <BrandBadge action={action} />
             <SourceBadge source={action.source} />
             <RiskBadge risk={action.risk} />
           </div>
@@ -2209,6 +2197,53 @@ function ActionRow({
         </div>
       </div>
     </div>
+  );
+}
+
+function BrandBadge({ action }: { action: UnifiedAction }) {
+  let brandName = "Chung";
+  let badgeStyle = "border-slate-200 bg-slate-100 text-slate-600";
+
+  const brandList = action.experienceStatus?.item.detectStrategy?.brand;
+  const lowerTitle = (action.title + " " + action.id + " " + (action.description || "")).toLowerCase();
+
+  if (brandList && brandList.length > 0) {
+    const mainBrand = brandList[0].toLowerCase();
+    if (mainBrand.includes("xiaomi") || mainBrand.includes("redmi") || mainBrand.includes("poco")) {
+      brandName = "Xiaomi";
+      badgeStyle = "border-orange-200 bg-orange-50 text-orange-600";
+    } else if (mainBrand.includes("samsung")) {
+      brandName = "Samsung";
+      badgeStyle = "border-indigo-200 bg-indigo-50 text-indigo-600";
+    } else if (mainBrand.includes("oppo") || mainBrand.includes("realme")) {
+      brandName = "Oppo";
+      badgeStyle = "border-emerald-200 bg-emerald-50 text-emerald-600";
+    } else if (mainBrand.includes("vivo")) {
+      brandName = "Vivo";
+      badgeStyle = "border-sky-200 bg-sky-50 text-sky-600";
+    }
+  } else {
+    if (lowerTitle.includes("xiaomi") || lowerTitle.includes("miui") || lowerTitle.includes("hyperos")) {
+      brandName = "Xiaomi";
+      badgeStyle = "border-orange-200 bg-orange-50 text-orange-600";
+    } else if (lowerTitle.includes("samsung") || lowerTitle.includes("oneui")) {
+      brandName = "Samsung";
+      badgeStyle = "border-indigo-200 bg-indigo-50 text-indigo-600";
+    } else if (lowerTitle.includes("oppo") || lowerTitle.includes("realme") || lowerTitle.includes("coloros")) {
+      brandName = "Oppo";
+      badgeStyle = "border-emerald-200 bg-emerald-50 text-emerald-600";
+    } else if (lowerTitle.includes("vivo") || lowerTitle.includes("funtouch")) {
+      brandName = "Vivo";
+      badgeStyle = "border-sky-200 bg-sky-50 text-sky-600";
+    }
+  }
+
+  return (
+    <span
+      className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${badgeStyle}`}
+    >
+      {brandName}
+    </span>
   );
 }
 
@@ -2335,224 +2370,7 @@ function IconButton({
   );
 }
 
-function DebloatWorkspace({
-  entries,
-  selected,
-  busyKey,
-  batchProgress,
-  onToggle,
-  onAction,
-  onBatchAction,
-  brand,
-  onSelectBrand,
-}: {
-  entries: BloatwareEntry[];
-  selected: Set<string>;
-  busyKey: string | null;
-  batchProgress: { done: number; total: number } | null;
-  onToggle: (entry: BloatwareEntry) => void;
-  onAction: (entry: BloatwareEntry, action: DebloatAction) => void;
-  onBatchAction: (action: DebloatAction) => void;
-  brand: string;
-  onSelectBrand: (brand: string) => void;
-}) {
-  const selectedCount = selected.size;
 
-  const brands = [
-    { id: "auto", label: "Tự động" },
-    { id: "xiaomi", label: "Xiaomi (MIUI/HyperOS)" },
-    { id: "samsung", label: "Samsung (OneUI)" },
-    { id: "coloros", label: "Oppo / Realme (ColorOS)" },
-    { id: "funtouch", label: "Vivo (FuntouchOS)" },
-  ];
-
-  return (
-    <div className="space-y-3">
-      {/* Brand preset selector bar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/70 border border-slate-200/70 p-2 text-xs font-bold">
-        <span className="text-slate-500 px-2 uppercase tracking-wider text-[11px]">
-          Preset Hãng:
-        </span>
-        {brands.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => onSelectBrand(b.id)}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              brand === b.id
-                ? "bg-slate-900 text-white shadow-sm font-black"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-
-      <div
-        className={`${mutedPanelClass} flex flex-col gap-3 rounded-2xl p-3 lg:flex-row lg:items-center lg:justify-between`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-cyan-300">
-            <PackageCheck className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-900">
-              {selectedCount} package đã chọn
-            </p>
-            <p className="text-xs font-semibold text-slate-500">
-              {batchProgress
-                ? `Đang xử lý ${batchProgress.done}/${batchProgress.total}`
-                : "Chọn package để thao tác hàng loạt"}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onBatchAction("disable")}
-            disabled={selectedCount === 0 || Boolean(batchProgress)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <XCircle className="h-4 w-4" />
-            Vô hiệu hóa
-          </button>
-          <button
-            onClick={() => onBatchAction("restore")}
-            disabled={selectedCount === 0 || Boolean(batchProgress)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Undo2 className="h-4 w-4" />
-            Khôi phục
-          </button>
-          <button
-            onClick={() => onBatchAction("uninstall")}
-            disabled={selectedCount === 0 || Boolean(batchProgress)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-3 text-xs font-black text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-          >
-            <Trash2 className="h-4 w-4" />
-            Gỡ
-          </button>
-        </div>
-      </div>
-
-      {entries.length === 0 ? (
-        <EmptyState
-          icon={<PackageCheck className="h-7 w-7" />}
-          title="Không có package phù hợp"
-          message="Thử đổi từ khóa tìm kiếm hoặc quét lại thiết bị."
-        />
-      ) : (
-        <div className="space-y-2.5">
-          {entries.map((entry) => (
-            <BloatwareRow
-              key={entry.package}
-              entry={entry}
-              selected={selected.has(entry.package)}
-              busyKey={busyKey}
-              onToggle={() => onToggle(entry)}
-              onAction={(action) => onAction(entry, action)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BloatwareRow({
-  entry,
-  selected,
-  busyKey,
-  onToggle,
-  onAction,
-}: {
-  entry: BloatwareEntry;
-  selected: boolean;
-  busyKey: string | null;
-  onToggle: () => void;
-  onAction: (action: DebloatAction) => void;
-}) {
-  const busy =
-    busyKey === `debloat:disable:${entry.package}` ||
-    busyKey === `debloat:restore:${entry.package}` ||
-    busyKey === `debloat:uninstall:${entry.package}`;
-
-  return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-slate-200/70 bg-white/75 px-4 py-3 w-full max-w-full overflow-hidden">
-      <button
-        onClick={onToggle}
-        disabled={entry.risk === "KEEP"}
-        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${
-          selected
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-slate-200 bg-slate-50 text-slate-400 hover:bg-white"
-        } disabled:cursor-not-allowed disabled:opacity-40`}
-        title={selected ? "Bỏ chọn" : "Chọn package"}
-      >
-        {selected ? (
-          <CheckCircle2 className="h-4 w-4" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
-      </button>
-
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h4 className="truncate text-sm font-black text-slate-900">
-            {entry.name}
-          </h4>
-          <RiskBadge risk={entry.risk} />
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-500">
-            {entry.category}
-          </span>
-        </div>
-        <p className="mt-1 truncate font-mono text-[11px] font-bold text-slate-500">
-          {entry.package}
-        </p>
-        <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
-          {entry.description || "Không có mô tả."}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <PackageStatusBadge status={entry.status} />
-        <IconButton
-          title="Vô hiệu hóa"
-          onClick={() => onAction("disable")}
-          busy={busy && busyKey?.includes(":disable:")}
-          icon={<XCircle className="h-4 w-4" />}
-        />
-        <IconButton
-          title="Khôi phục"
-          onClick={() => onAction("restore")}
-          busy={busy && busyKey?.includes(":restore:")}
-          icon={<Undo2 className="h-4 w-4" />}
-        />
-        <IconButton
-          title="Gỡ khỏi user 0"
-          onClick={() => onAction("uninstall")}
-          busy={busy && busyKey?.includes(":uninstall:")}
-          icon={<Trash2 className="h-4 w-4" />}
-        />
-      </div>
-    </div>
-  );
-}
-
-function PackageStatusBadge({ status }: { status: PackageStatus }) {
-  const className =
-    status === "installed"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : status === "disabled"
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : "bg-slate-100 text-slate-500 border-slate-200";
-  return (
-    <span
-      className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase ${className}`}
-    >
-      {status}
-    </span>
-  );
-}
 
 function ConfirmDialog({
   state,

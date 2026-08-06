@@ -64,4 +64,38 @@ describe("deviceInfoService - getDeviceInfo", () => {
     expect(info?.ramTotal).toBe(3842); // 3934336 / 1024 = 3842.125 -> round to 3842
     expect(info?.ramFree).toBe(1855); // 1900000 / 1024 = 1855.46 -> round to 1855
   });
+
+  it("should prioritize ro.boot.device over port ROM build.product (e.g. lisa over missi)", async () => {
+    vi.mocked(adbState.client.shell).mockImplementation((_deviceId, cmd) => {
+      if (cmd === "getprop") {
+        return Promise.resolve(
+          createMockStream(
+            `[ro.product.brand]: [Xiaomi]\n[ro.boot.device]: [lisa]\n[ro.build.product]: [missi]\n[ro.product.device]: [missi]\n[ro.product.model]: [2109119DG]\n`,
+          ),
+        ) as any;
+      }
+      return Promise.resolve(createMockStream("")) as any;
+    });
+
+    const info = await getDeviceInfo("test-device");
+    expect(info).not.toBeNull();
+    expect(info?.codename).toBe("lisa (Mi 11 LE)");
+  });
+
+  it("should strip region suffix like lisa_global to match lisa", async () => {
+    vi.mocked(adbState.client.shell).mockImplementation((_deviceId, cmd) => {
+      if (cmd === "getprop") {
+        return Promise.resolve(
+          createMockStream(
+            `[ro.product.brand]: [Xiaomi]\n[ro.product.mod_device]: [lisa_global]\n[ro.product.model]: [2109119DG]\n`,
+          ),
+        ) as any;
+      }
+      return Promise.resolve(createMockStream("")) as any;
+    });
+
+    const info = await getDeviceInfo("test-device");
+    expect(info).not.toBeNull();
+    expect(info?.codename).toBe("lisa (Mi 11 LE)");
+  });
 });

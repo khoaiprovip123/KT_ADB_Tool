@@ -33,8 +33,18 @@ vi.mock("child_process", () => {
     return { stdout: "mock output", stderr: "" };
   });
 
+  const execFileMock = vi.fn((_file, _args, options, cb) => {
+    const callback = typeof options === "function" ? options : cb;
+    if (typeof callback === "function") callback(null, "mock output", "");
+  });
+
+  (execFileMock as any)[utilModule.promisify.custom] = vi.fn(async () => {
+    return { stdout: "mock output", stderr: "" };
+  });
+
   return {
     exec: execMock,
+    execFile: execFileMock,
     spawn: vi.fn(),
   };
 });

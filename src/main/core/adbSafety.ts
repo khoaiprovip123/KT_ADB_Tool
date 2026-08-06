@@ -162,6 +162,7 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "cmd settings",
     "cmd power",
     "cmd appops ",
+    "cmd uimode",
     "svc power",
     "svc wifi",
     "svc data",
