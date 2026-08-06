@@ -156,25 +156,28 @@ export async function downloadAndInstallUpdate(
         onProgress(100);
         resolve();
 
-        // Tự động kích hoạt cài đặt ngầm (/S) và thoát ứng dụng
+        // Kích hoạt installer cài đặt và thoát ứng dụng
         setTimeout(async () => {
           try {
-            const child = spawn(`"${destPath}"`, ["/S"], {
-              detached: true,
-              stdio: "ignore",
-              shell: true,
-            });
-            child.unref();
-          } catch (err: any) {
-            console.error("Lỗi khi tự động chạy installer:", err);
             const { shell } = await import("electron");
             await shell.openPath(destPath);
+          } catch (err: any) {
+            console.error("Lỗi khi tự động chạy installer:", err);
+            try {
+              const child = spawn(destPath, [], {
+                detached: true,
+                stdio: "ignore",
+              });
+              child.unref();
+            } catch (spawnErr) {
+              console.error("Lỗi spawn installer:", spawnErr);
+            }
           } finally {
             setTimeout(() => {
               app.quit();
-            }, 500);
+            }, 1000);
           }
-        }, 300);
+        }, 500);
       });
     });
 
