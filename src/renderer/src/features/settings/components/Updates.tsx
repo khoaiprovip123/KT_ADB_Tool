@@ -27,6 +27,16 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
     ],
   },
   {
+    version: "v2.5.3",
+    date: "01/08/2026",
+    highlights: [
+      "⚡ Khắc phục triệt để lỗi trễ thông báo 100% App (FCM Push Fix): Tự động mở Doze Mode, cấp quyền AppOps (RUN_ANY_IN_BACKGROUND, WAKE_LOCK) và tắt Standby cho toàn bộ ứng dụng người dùng & Google Play Services.",
+      "🛡️ Tự động lọc danh sách ứng dụng chuẩn theo '--user 0' loại bỏ hoàn toàn lỗi 'No UID' trên thiết bị Android/Xiaomi có sử dụng ứng dụng kép (Dual Apps / Parallel Space).",
+      "🔍 Tìm kiếm Toàn cục (Global Search): Cho phép gõ từ khóa tìm kiếm tức thì tất cả các tweak & tính năng trên toàn bộ các tab (Giao diện, Hiệu năng, Riêng tư, Màn hình, Debloat).",
+      "⚙️ Chế độ Tùy chọn Nâng cao (Developer Mode): Cho phép bật/tắt ẩn hiện tab 'Nâng cao ADB' trên thanh điều hướng chính linh hoạt theo nhu cầu.",
+    ],
+  },
+  {
     version: "v2.5.0",
     date: "28/07/2026",
     highlights: [

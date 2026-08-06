@@ -22,6 +22,18 @@
 - **Đồng bộ bộ kiểm thử tự động**:
   - Đạt 100% 71/71 unit tests passed across 11 test suites, 0 typecheck errors.
 
+## [2.5.3] - 2026-08-01
+
+### Thêm mới (Added)
+- **Khắc phục triệt để lỗi trễ thông báo 100% App (FCM Push Fix)**:
+  - Tự động mở Doze Mode, cấp quyền AppOps (RUN_ANY_IN_BACKGROUND, WAKE_LOCK) và tắt Standby cho toàn bộ ứng dụng người dùng & Google Play Services.
+- **Tự động lọc danh sách ứng dụng chuẩn theo '--user 0'**:
+  - Loại bỏ hoàn toàn lỗi 'No UID' trên thiết bị Android/Xiaomi có sử dụng ứng dụng kép (Dual Apps / Parallel Space).
+- **Tìm kiếm Toàn cục (Global Search)**:
+  - Cho phép gõ từ khóa tìm kiếm tức thì tất cả các tweak & tính năng trên toàn bộ các tab.
+- **Chế độ Tùy chọn Nâng cao (Developer Mode)**:
+  - Cho phép bật/tắt ẩn hiện tab 'Nâng cao ADB' trên thanh điều hướng chính linh hoạt theo nhu cầu.
+
 ## [2.5.0] - 2026-07-28
 
 ### Thêm mới (Added)
