@@ -16,10 +16,10 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
-    version: "v2.5.4-beta",
+    version: "v2.5.4",
     date: "06/08/2026",
     highlights: [
-      "🧪 [Bản Beta 2.5.4] Tích hợp quy chuẩn 100% Danh Mục Khối Lệnh AOSP & Xiaomi MIUI/HyperOS (Android 9–17 Specs).",
+      "⚡ [Bản Chính Thức 2.5.4] Tích hợp quy chuẩn 100% Danh Mục Khối Lệnh AOSP & Xiaomi MIUI/HyperOS (Android 9–17 Specs).",
       "🛠️ Khắc phục triệt để lỗi lệnh 'service call' trên Windows (Họa tiết nâng cao HyperOS 2 / HyperOS 3).",
       "🎛️ Nâng cấp Action Inspector: Tích hợp nút Bật/Tắt trực tiếp, thẻ tag phân loại hãng (Xiaomi/Samsung/AOSP) và thanh cuộn tùy biến.",
       "🔒 Bổ sung lệnh 'cmd uimode' vào Whitelist An Toàn (adbSafety.ts).",
@@ -91,7 +91,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.4-beta");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.4");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );

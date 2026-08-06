@@ -1,6 +1,6 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
-## [2.5.4-beta] - 2026-08-06
+## [2.5.4] - 2026-08-06
 
 ### Thêm mới (Added)
 - **Tích hợp Danh Mục Khối Lệnh MIUI / HyperOS (Android 9–17 Standard)**:
