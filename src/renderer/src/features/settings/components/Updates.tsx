@@ -17,14 +17,13 @@ interface ReleaseItem {
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
     version: "v2.5.3",
-    date: "01/08/2026",
+    date: "06/08/2026",
     highlights: [
-      "⚡ Khắc phục triệt để lỗi trễ thông báo 100% App (FCM Push Fix): Tự động mở Doze Mode, cấp quyền AppOps (RUN_ANY_IN_BACKGROUND, WAKE_LOCK) và tắt Standby cho toàn bộ ứng dụng người dùng & Google Play Services.",
-      "🛡️ Tự động lọc danh sách ứng dụng chuẩn theo '--user 0' loại bỏ hoàn toàn lỗi 'No UID' trên thiết bị Android/Xiaomi có sử dụng ứng dụng kép (Dual Apps / Parallel Space).",
-      "🔍 Tìm kiếm Toàn cục (Global Search): Cho phép gõ từ khóa tìm kiếm tức thì tất cả các tweak & tính năng trên toàn bộ các tab (Giao diện, Hiệu năng, Riêng tư, Màn hình, Debloat).",
-      "⚙️ Chế độ Tùy chọn Nâng cao (Developer Mode): Cho phép bật/tắt ẩn hiện tab 'Nâng cao ADB' trên thanh điều hướng chính linh hoạt theo nhu cầu.",
-      "🔔 Cập nhật tự động (Auto Installer Silent Mode): Hỗ trợ tải & cài đặt tự động ở chế độ im lặng (/S), hiển thị badge đỏ thông báo bản cập nhật trực quan ngoài menu Cài Đặt.",
-      "🖼️ Tối ưu giao diện & Modal Popup: Điều chỉnh chiều cao popup modal 90vh hiển thị trọn vẹn nội dung và sửa bố cục bảng danh sách thông báo FCM không bị cắt chữ.",
+      "⚡ Tích hợp quy chuẩn 100% Danh Mục Khối Lệnh AOSP & Xiaomi MIUI/HyperOS (Android 9–17 Specs).",
+      "🛠️ Khắc phục triệt để lỗi lệnh 'service call' trên Windows (Họa tiết nâng cao HyperOS 2 / HyperOS 3).",
+      "🎛️ Nâng cấp Action Inspector: Tích hợp nút Bật/Tắt trực tiếp, thẻ tag phân loại hãng (Xiaomi/Samsung/AOSP) và thanh cuộn tùy biến.",
+      "🔒 Bổ sung lệnh 'cmd uimode' vào Whitelist An Toàn (adbSafety.ts).",
+      "🔔 Tối ưu Sửa Trễ Thông Báo 104/104 App với Standby ACTIVE (Level 10) & Millet White list.",
     ],
   },
   {
@@ -116,10 +115,19 @@ export default function Updates() {
         if (Array.isArray(data) && data.length > 0) {
           const fetched: ReleaseItem[] = data.map((rel: any) => {
             const rawBody = rel.body || "";
-            const lines = rawBody
+            const rawLines = rawBody
               .split("\n")
-              .map((l: string) => l.replace(/^[\s*-]+/, "").trim())
+              .map((l: string) =>
+                l
+                  .replace(/^[\s*\-#]+/, "")
+                  .replace(/\*\*/g, "")
+                  .trim(),
+              )
               .filter((l: string) => l.length > 0);
+
+            // Deduplicate lines
+            const uniqueLines = Array.from(new Set<string>(rawLines));
+
             const dateObj = new Date(rel.published_at || rel.created_at);
             const dateStr = !isNaN(dateObj.getTime())
               ? dateObj.toLocaleDateString("vi-VN")
@@ -130,17 +138,23 @@ export default function Updates() {
                 : `v${rel.tag_name}`,
               date: dateStr,
               highlights:
-                lines.length > 0 ? lines : [rel.name || "Bản cập nhật mới"],
+                uniqueLines.length > 0 ? uniqueLines : [rel.name || "Bản cập nhật mới"],
             };
           });
 
           const mergedMap = new Map<string, ReleaseItem>();
-          fetched.forEach((item) => mergedMap.set(item.version, item));
+
+          // Priority to DEFAULT_RELEASE_HISTORY if local highlights exist
           DEFAULT_RELEASE_HISTORY.forEach((item) => {
+            mergedMap.set(item.version, item);
+          });
+
+          fetched.forEach((item) => {
             if (!mergedMap.has(item.version)) {
               mergedMap.set(item.version, item);
             }
           });
+
           const mergedList = Array.from(mergedMap.values()).sort((a, b) =>
             a.version < b.version ? 1 : -1,
           );
