@@ -1,6 +1,6 @@
 {
   "name": "kt-adb-tool",
-  "version": "2.5.3-beta",
+  "version": "2.5.4-beta",
   "description": "KT ADB Tool Pro - Giải pháp tối ưu hóa và quản lý Android chuyên nghiệp toàn diện",
   "main": "./out/main/index.js",
   "author": "khoaiprovip123",
