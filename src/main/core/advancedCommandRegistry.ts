@@ -116,6 +116,21 @@ export const ADVANCED_COMMANDS: AdvancedCommandDefinition[] = [
 
   // ── PERMISSIONS MANAGER ───────────────────────────────────────────────────
   {
+    id: "perm_write_secure_settings",
+    title: "Cấp quyền WRITE_SECURE_SETTINGS",
+    description:
+      "Cấp quyền chỉnh sửa secure settings cho ứng dụng tin cậy như SetEdit hoặc Tasker.",
+    category: "permissions",
+    risk: "RISKY",
+    mode: "PACKAGE_OP",
+    applyTemplate:
+      "pm grant {package} android.permission.WRITE_SECURE_SETTINGS",
+    rollbackTemplate:
+      "pm revoke {package} android.permission.WRITE_SECURE_SETTINGS",
+    needsConfirmText:
+      "Quyền này cho phép ứng dụng thay đổi cài đặt hệ thống bảo mật. Chỉ cấp cho ứng dụng đáng tin cậy.",
+  },
+  {
     id: "perm_grant_runtime",
     title: "Cấp quyền Runtime nâng cao",
     description:
@@ -147,7 +162,7 @@ export const ADVANCED_COMMANDS: AdvancedCommandDefinition[] = [
     mode: "WRITE_SETTING",
     readTemplate: "settings get global background_process_limit",
     applyTemplate: "settings put global background_process_limit {value}",
-    rollbackTemplate: "settings put global background_process_limit 0",
+    rollbackTemplate: "settings put global background_process_limit -1",
     needsConfirmText:
       "Giới hạn quá nghiêm ngặt có thể làm đóng ứng dụng chạy ngầm liên tục, tốn pin khi khởi động lại.",
   },
@@ -177,6 +192,20 @@ export const ADVANCED_COMMANDS: AdvancedCommandDefinition[] = [
   },
 
   // ── NETWORK & DEBUG ───────────────────────────────────────────────────────
+  {
+    id: "net_fix_captive_portal",
+    title: "Sửa lỗi WiFi chấm than (Captive Portal)",
+    description:
+      "Cấu hình lại endpoint kiểm tra kết nối và có thể hoàn tác về endpoint mặc định của Android.",
+    category: "network",
+    risk: "MEDIUM",
+    mode: "WRITE_SETTING",
+    readTemplate: "settings get global captive_portal_http_url",
+    applyTemplate:
+      "settings put global captive_portal_mode 1 && settings put global captive_portal_http_url http://captive.apple.com/hotspot-detect.html && settings put global captive_portal_https_url https://captive.apple.com/hotspot-detect.html",
+    rollbackTemplate:
+      "settings put global captive_portal_mode 1 && settings put global captive_portal_http_url http://connectivitycheck.gstatic.com/generate_204 && settings put global captive_portal_https_url https://connectivitycheck.gstatic.com/generate_204",
+  },
   {
     id: "net_ip_addr",
     title: "Xem địa chỉ IP mạng",

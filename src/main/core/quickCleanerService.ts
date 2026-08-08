@@ -1,4 +1,4 @@
-import { execAdb } from "./adbCore";
+import { execAdb, execAdbDetailed, isAdbFailureOutput } from "./adbCore";
 import { ScanResult, CleanOptions, CleanProgressData } from "../../shared/types";
 
 export const DEFAULT_WHITELIST_PACKAGES = [
@@ -36,6 +36,27 @@ export const TELEGRAM_SERIES_PACKAGES = [
   "com.ss.android.ugc.trill",
   "com.instagram.android",
 ];
+
+async function executeRequired(deviceId: string, command: string): Promise<string> {
+  const result = await execAdbDetailed(deviceId, command);
+  if (!result.success || isAdbFailureOutput(result.output)) {
+    throw new Error(result.output || `Lệnh thất bại: ${command}`);
+  }
+  return result.output;
+}
+
+async function getDataAvailableMb(deviceId: string): Promise<number> {
+  const output = await execAdb(deviceId, "df -k /data");
+  if (isAdbFailureOutput(output)) return 0;
+  const line = output
+    .split("\n")
+    .map((value) => value.trim())
+    .find((value) => value.endsWith(" /data") || value.includes(" /data "));
+  if (!line) return 0;
+  const parts = line.split(/\s+/);
+  const availableKb = Number(parts[3]);
+  return Number.isFinite(availableKb) ? Math.round(availableKb / 1024) : 0;
+}
 
 export async function getAndroidSdkVersion(deviceId: string): Promise<{ sdk: number; release: string }> {
   try {
@@ -163,19 +184,17 @@ export async function scanQuickCleaner(deviceId: string): Promise<ScanResult> {
     totalPackagesCount = 0;
   }
 
-  const estimatedCacheMb = Math.round(totalPackagesCount * 8.5); // Ước tính cache trung bình
-
   return {
     sdkVersion: sdk,
     androidRelease: release,
     junk: {
-      logcatSizeEst: "2 - 16 MB",
+      logcatSizeEst: "Không thể đo chính xác khi không có root",
       tempFilesCount,
       apkFiles,
     },
     cache: {
       totalPackagesCount,
-      estimatedCacheMb,
+      estimatedCacheMb: 0,
     },
     runningApps,
     ramInfo,
@@ -187,8 +206,15 @@ export async function executeQuickCleaner(
   options: CleanOptions,
   whitelist: string[],
   onProgress: (data: CleanProgressData) => void
-): Promise<{ freedRamMb: number; freedStorageMb: number; closedAppsCount: number }> {
+): Promise<{
+  freedRamMb: number;
+  freedStorageMb: number;
+  closedAppsCount: number;
+  completedTasksCount: number;
+  failedTasksCount: number;
+}> {
   const initialRam = await getRamInfo(deviceId);
+  const initialDataAvailableMb = await getDataAvailableMb(deviceId);
   const { sdk } = await getAndroidSdkVersion(deviceId);
   const userWhitelist = new Set([...DEFAULT_WHITELIST_PACKAGES, ...whitelist]);
 
@@ -199,7 +225,7 @@ export async function executeQuickCleaner(
     tasks.push({
       name: "Xóa logcat buffer hệ thống",
       fn: async () => {
-        const res = await execAdb(deviceId, "logcat -c");
+        const res = await executeRequired(deviceId, "logcat -c");
         return { log: `[Logcat] Xóa nhật ký đệm logcat thành công (${res.trim() || "OK"})` };
       },
     });
@@ -210,8 +236,8 @@ export async function executeQuickCleaner(
     tasks.push({
       name: "Dọn dẹp thư mục file tạm (/data/local/tmp)",
       fn: async () => {
-        const res = await execAdb(deviceId, "rm -rf /data/local/tmp/*");
-        return { log: `[Temp] Đã dọn dẹp thư mục tạm hệ thống (${res.trim() || "Cleaned"})`, storageFreed: 15 };
+        const res = await executeRequired(deviceId, "rm -rf /data/local/tmp/*");
+        return { log: `[Temp] Đã dọn dẹp thư mục tạm hệ thống (${res.trim() || "Cleaned"})` };
       },
     });
   }
@@ -221,8 +247,8 @@ export async function executeQuickCleaner(
     tasks.push({
       name: "Quét và xóa bộ cài APK rác trong /sdcard/Download/",
       fn: async () => {
-        await execAdb(deviceId, "rm -rf /sdcard/Download/*.apk");
-        return { log: `[APK] Đã xóa file cài đặt .apk trong thư mục Download`, storageFreed: 50 };
+        await executeRequired(deviceId, "rm -rf /sdcard/Download/*.apk");
+        return { log: `[APK] Đã xóa file cài đặt .apk trong thư mục Download` };
       },
     });
   }
@@ -237,8 +263,8 @@ export async function executeQuickCleaner(
           // Android 15+ hỗ trợ cmd package trim-caches
           cmd = "cmd package trim-caches 1000G";
         }
-        const res = await execAdb(deviceId, cmd);
-        return { log: `[TrimCache] Thực thi trim-caches thành công: ${res.trim() || "Success"}`, storageFreed: 120 };
+        const res = await executeRequired(deviceId, cmd);
+        return { log: `[TrimCache] Thực thi trim-caches thành công: ${res.trim() || "Success"}` };
       },
     });
   }
@@ -248,22 +274,29 @@ export async function executeQuickCleaner(
     tasks.push({
       name: "Dọn dẹp bộ nhớ cache Telegram, Nekogram & MXH",
       fn: async () => {
+        const installedRaw = await executeRequired(
+          deviceId,
+          "pm list packages -3",
+        );
+        const installed = new Set(
+          installedRaw
+            .split("\n")
+            .map((line) => line.replace("package:", "").trim())
+            .filter(Boolean),
+        );
         let cleanedCount = 0;
-        for (const pkg of TELEGRAM_SERIES_PACKAGES) {
-          try {
-            await execAdb(deviceId, `rm -rf /sdcard/Android/data/${pkg}/cache/*`);
-            await execAdb(deviceId, `rm -rf /sdcard/Android/data/${pkg}/code_cache/*`);
-            cleanedCount++;
-          } catch {
-            /* ignore */
-          }
+        for (const pkg of TELEGRAM_SERIES_PACKAGES.filter((name) => installed.has(name))) {
+          const cache = await execAdbDetailed(
+            deviceId,
+            `rm -rf /sdcard/Android/data/${pkg}/cache/*`,
+          );
+          const codeCache = await execAdbDetailed(
+            deviceId,
+            `rm -rf /sdcard/Android/data/${pkg}/code_cache/*`,
+          );
+          if (cache.success && codeCache.success) cleanedCount++;
         }
-        try {
-          await execAdb(deviceId, "rm -rf /sdcard/Telegram/Telegram\\ Images/* /sdcard/Telegram/Telegram\\ Video/* /sdcard/Telegram/Telegram\\ Documents/*");
-        } catch {
-          /* ignore */
-        }
-        return { log: `[SocialCache] Đã dọn dẹp bộ nhớ đệm Telegram, Nekogram & MXH (${cleanedCount} ứng dụng)`, storageFreed: 350 };
+        return { log: `[SocialCache] Đã dọn dẹp bộ nhớ đệm Telegram, Nekogram & MXH (${cleanedCount} ứng dụng đã cài)` };
       },
     });
   }
@@ -281,18 +314,17 @@ export async function executeQuickCleaner(
           .filter((pkg) => pkg.length > 0 && !userWhitelist.has(pkg));
 
         for (const pkg of apps3rd) {
-          try {
-            // Lệnh chuẩn diệt tận gốc app cho User 0 trên Android 11 -> 17
-            await execAdb(deviceId, `am force-stop --user 0 ${pkg}`);
-            await execAdb(deviceId, `am kill --user 0 ${pkg}`);
-            await execAdb(deviceId, `pkill -9 -f ${pkg}`).catch(() => {});
+          const stopped = await execAdbDetailed(
+            deviceId,
+            `am force-stop --user 0 ${pkg}`,
+          );
+          if (stopped.success) {
+            await execAdbDetailed(deviceId, `am kill --user 0 ${pkg}`);
             closedCount++;
-          } catch {
-            /* ignore */
           }
         }
-        await execAdb(deviceId, "am kill-all").catch(() => {});
-        return { log: `[AppKiller] Đã triệt hạ thành công ${closedCount} ứng dụng ngầm cho User 0.`, appsClosed: closedCount };
+        await execAdbDetailed(deviceId, "am kill-all");
+        return { log: `[AppKiller] Đã gửi force-stop thành công cho ${closedCount} ứng dụng của User 0.`, appsClosed: closedCount };
       },
     });
   }
@@ -308,19 +340,33 @@ export async function executeQuickCleaner(
           .map((l) => l.replace("package:", "").trim())
           .filter((pkg) => pkg.length > 0 && !userWhitelist.has(pkg));
 
+        let successfulOps = 0;
         for (const pkg of apps3rd) {
-          await execAdb(deviceId, `am trim-memory ${pkg} RUNNING_CRITICAL`).catch(() => {});
+          const trim = await execAdbDetailed(
+            deviceId,
+            `am send-trim-memory ${pkg} RUNNING_CRITICAL`,
+          );
+          if (trim.success) successfulOps++;
+          const compact = await execAdbDetailed(
+            deviceId,
+            `am compact full ${pkg}`,
+          );
+          if (compact.success) successfulOps++;
         }
-        // Nén Heap Memory ART Runtime & Kill Cached Processes (Android 10+)
-        await execAdb(deviceId, "am compact full").catch(() => {});
-        await execAdb(deviceId, "am kill-all").catch(() => {});
-        return { log: `[RAMBooster] Nén bộ nhớ ART & Giải phóng RAM hoàn tất.` };
+        const killAll = await execAdbDetailed(deviceId, "am kill-all");
+        if (killAll.success) successfulOps++;
+        if (successfulOps === 0) {
+          throw new Error("Thiết bị không chấp nhận lệnh thu hồi bộ nhớ.");
+        }
+        return { log: `[RAMBooster] ${successfulOps} thao tác thu hồi bộ nhớ được hệ thống chấp nhận.` };
       },
     });
   }
 
   const totalSteps = tasks.length;
   let totalFreedStorageMb = 0;
+  let completedTasksCount = 0;
+  let failedTasksCount = 0;
 
   for (let i = 0; i < totalSteps; i++) {
     const task = tasks[i];
@@ -340,6 +386,7 @@ export async function executeQuickCleaner(
       if (result.storageFreed) {
         totalFreedStorageMb += result.storageFreed;
       }
+      completedTasksCount++;
       onProgress({
         step: currentStep,
         totalSteps,
@@ -348,6 +395,7 @@ export async function executeQuickCleaner(
         logLine: result.log,
       });
     } catch (err: any) {
+      failedTasksCount++;
       onProgress({
         step: currentStep,
         totalSteps,
@@ -361,20 +409,29 @@ export async function executeQuickCleaner(
   // Đo đạc lại thông số RAM sau dọn dẹp
   await new Promise((r) => setTimeout(r, 1000));
   const finalRam = await getRamInfo(deviceId);
+  const finalDataAvailableMb = await getDataAvailableMb(deviceId);
   const freedRamMb = Math.max(0, finalRam.memAvailableMb - initialRam.memAvailableMb);
 
   const summary = {
-    freedRamMb: freedRamMb > 0 ? freedRamMb : Math.floor(Math.random() * 150) + 120, // Ước tính nếu Kernel không phản ánh ngay
-    freedStorageMb: totalFreedStorageMb,
+    freedRamMb,
+    freedStorageMb:
+      initialDataAvailableMb > 0 && finalDataAvailableMb > 0
+        ? Math.max(0, finalDataAvailableMb - initialDataAvailableMb)
+        : totalFreedStorageMb,
     closedAppsCount: closedCount,
+    completedTasksCount,
+    failedTasksCount,
   };
 
   onProgress({
     step: totalSteps,
     totalSteps,
-    message: "Hoàn tất dọn dẹp!",
+    message:
+      failedTasksCount === 0
+        ? "Hoàn tất dọn dẹp!"
+        : `Hoàn tất một phần (${failedTasksCount} tác vụ thất bại)`,
     percentage: 100,
-    logLine: `=== HOÀN TẤT DỌN DẸP ===\n- RAM Giải phóng: ${summary.freedRamMb} MB\n- Dung lượng dọn dẹp: ${summary.freedStorageMb} MB\n- Ứng dụng đã đóng: ${summary.closedAppsCount}`,
+    logLine: `=== HOÀN TẤT DỌN DẸP ===\n- Tác vụ thành công: ${summary.completedTasksCount}/${totalSteps}\n- Tác vụ thất bại: ${summary.failedTasksCount}\n- RAM giải phóng đo được: ${summary.freedRamMb} MB\n- Dung lượng dọn dẹp đo được: ${summary.freedStorageMb} MB\n- Ứng dụng đã đóng: ${summary.closedAppsCount}`,
     isComplete: true,
     summary,
   });

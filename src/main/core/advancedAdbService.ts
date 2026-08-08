@@ -1,8 +1,9 @@
-import { runAdbCommand } from "./adbCore";
+import { runAdbCommand, runAdbCommandDetailed } from "./adbCore";
 import { ADVANCED_COMMANDS } from "./advancedCommandRegistry";
 import { evaluateCommand, buildShellCommand, cleanAdbPrefix } from "./adbSafety";
 
 const GETPROP_REGEX = /^\[([^\]]+)\]:\s*\[([^\]]*)\]$/;
+export type PresetAction = "read" | "apply" | "rollback";
 
 export class AdvancedAdbService {
   /**
@@ -126,6 +127,7 @@ export class AdvancedAdbService {
     deviceId: string,
     commandId: string,
     params: Record<string, string | number>,
+    action: PresetAction,
   ): Promise<{ success: boolean; output: string }> {
     const definition = ADVANCED_COMMANDS.find((c) => c.id === commandId);
     if (!definition) {
@@ -135,30 +137,52 @@ export class AdvancedAdbService {
       };
     }
 
-    const template = definition.applyTemplate || definition.readTemplate;
+    const template =
+      action === "read"
+        ? definition.readTemplate
+        : action === "rollback"
+          ? definition.rollbackTemplate
+          : definition.applyTemplate;
     if (!template) {
       return {
         success: false,
-        output: `Lệnh ${commandId} không có template thực thi.`,
+        output: `Lệnh ${commandId} không hỗ trợ thao tác ${action}.`,
       };
     }
 
     try {
       // 1. Dựng câu lệnh shell an toàn từ template và tham số hóa
       const shellCmd = buildShellCommand(template, params);
-
-      // 2. Đánh giá tính an toàn của câu lệnh trước khi chạy
-      const safetyCheck = evaluateCommand(shellCmd);
-      if (!safetyCheck.allowed) {
+      if (/\{[a-zA-Z0-9_]+\}/.test(shellCmd)) {
         return {
           success: false,
-          output: `[BLOCKED BY SAFETY LAYER] Lệnh bị chặn vì lý do bảo mật: ${safetyCheck.reason || "Không an toàn"}`,
+          output: "Thiếu tham số bắt buộc cho câu lệnh.",
         };
       }
 
-      // 3. Thực thi câu lệnh
-      const output = await runAdbCommand(deviceId, shellCmd, () => {});
-      return { success: true, output };
+      const outputs: string[] = [];
+      const subCommands = shellCmd
+        .split("&&")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      for (const subCommand of subCommands) {
+        const safetyCheck = evaluateCommand(subCommand);
+        if (!safetyCheck.allowed) {
+          return {
+            success: false,
+            output: `[BLOCKED BY SAFETY LAYER] ${safetyCheck.reason || "Lệnh không an toàn."}`,
+          };
+        }
+
+        const result = await runAdbCommandDetailed(deviceId, subCommand);
+        outputs.push(result.output);
+        if (!result.success) {
+          return { success: false, output: outputs.join("\n").trim() };
+        }
+      }
+
+      return { success: true, output: outputs.join("\n").trim() };
     } catch (error: any) {
       return {
         success: false,
@@ -211,8 +235,8 @@ export class AdvancedAdbService {
         };
       }
 
-      const output = await runAdbCommand(deviceId, trimmed, () => {});
-      return { success: true, output };
+      const result = await runAdbCommandDetailed(deviceId, trimmed);
+      return { success: result.success, output: result.output };
     } catch (error: any) {
       return {
         success: false,

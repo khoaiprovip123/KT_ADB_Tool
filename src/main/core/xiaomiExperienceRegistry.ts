@@ -2,7 +2,14 @@ export interface XiaomiExperienceItem {
   id: string;
   title: string;
   description: string;
-  category: "display" | "navigation" | "launcher" | "sound" | "game" | "ads" | "utility";
+  category:
+    | "display"
+    | "navigation"
+    | "launcher"
+    | "sound"
+    | "game"
+    | "ads"
+    | "utility";
   risk: "SAFE" | "MEDIUM" | "RISKY" | "DANGEROUS";
   detectStrategy: {
     brand?: string[];
@@ -21,9 +28,10 @@ export interface XiaomiExperienceItem {
   fallbackDisableCommands?: string[];
   defaultValue: string;
   activeValues?: string[];
+  dynamicActiveValue?: "max-refresh-rate";
 }
 
-export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
+const XIAOMI_EXPERIENCE_CATALOG: XiaomiExperienceItem[] = [
   // ═══════════════════════════════════════════════════════════
   // 1. HIỂN THỊ & MÀN HÌNH
   // ═══════════════════════════════════════════════════════════
@@ -55,25 +63,19 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   },
   {
     id: "force_high_refresh_rate",
-    title: "Ép tần số quét màn hình",
+    title: "Khóa tần số quét tối đa",
     description:
-      "Ép màn hình duy trì tần số quét tối đa (60Hz / 90Hz / 120Hz / 144Hz), loại bỏ tự động tụt Hz.",
+      "Đọc mode màn hình do thiết bị công bố rồi giữ tần số quét tối đa; có thể làm tăng hao pin.",
     category: "display",
     risk: "MEDIUM",
     detectStrategy: {
-      settingsKeys: [{ namespace: "system", key: "peak_refresh_rate" }],
+      settingsKeys: [{ namespace: "system", key: "min_refresh_rate" }],
     },
-    readCommand: { namespace: "system", key: "peak_refresh_rate" },
-    enableCommand: "settings put system peak_refresh_rate 90 && settings put system min_refresh_rate 90",
-    disableCommand: "settings put system peak_refresh_rate 60 && settings put system min_refresh_rate 60",
-    fallbackEnableCommands: [
-      "settings put system screen_refresh_rate 90 && settings put system user_refresh_rate 90",
-    ],
-    fallbackDisableCommands: [
-      "settings put system screen_refresh_rate 60 && settings put system user_refresh_rate 60",
-    ],
-    defaultValue: "60",
-    activeValues: ["120", "90", "144", "165"],
+    readCommand: { namespace: "system", key: "min_refresh_rate" },
+    enableCommand: "settings put system min_refresh_rate {maxRefreshRate}",
+    disableCommand: "settings delete system min_refresh_rate",
+    defaultValue: "null",
+    dynamicActiveValue: "max-refresh-rate",
   },
   {
     id: "reading_mode",
@@ -129,14 +131,16 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 34,
     },
     readCommand: { namespace: "global", key: "status_bar_show_smart_island" },
-    enableCommand: "settings put global status_bar_show_smart_island 1 && settings put global status_bar_show_capsule 1",
-    disableCommand: "settings put global status_bar_show_smart_island 0 && settings put global status_bar_show_capsule 0",
+    enableCommand:
+      "settings put global status_bar_show_smart_island 1 && settings put global status_bar_show_capsule 1",
+    disableCommand:
+      "settings put global status_bar_show_smart_island 0 && settings put global status_bar_show_capsule 0",
     defaultValue: "0",
     activeValues: ["1"],
   },
   {
     id: "dark_mode",
-    title: "Bật Dark Mode toàn hệ thống",
+    title: "Chế độ tối hoặc theo lịch",
     description:
       "Kích hoạt chế độ tối trên toàn bộ giao diện hệ thống và ứng dụng hỗ trợ.",
     category: "display",
@@ -148,7 +152,7 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     enableCommand: "settings put secure ui_night_mode 2",
     disableCommand: "settings put secure ui_night_mode 1",
     defaultValue: "1",
-    activeValues: ["2"],
+    activeValues: ["2", "3"],
   },
   {
     id: "dynamic_resolution",
@@ -205,8 +209,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 21,
     },
     readCommand: { namespace: "secure", key: "show_ime_with_hard_keyboard" },
-    enableCommand: "settings put secure show_ime_with_hard_keyboard 0 && settings put secure show_keyboard_shortcuts_helper 0",
-    disableCommand: "settings put secure show_ime_with_hard_keyboard 1 && settings put secure show_keyboard_shortcuts_helper 1",
+    enableCommand:
+      "settings put secure show_ime_with_hard_keyboard 0 && settings put secure show_keyboard_shortcuts_helper 0",
+    disableCommand:
+      "settings put secure show_ime_with_hard_keyboard 1 && settings put secure show_keyboard_shortcuts_helper 1",
     fallbackEnableCommands: [
       "settings put system keyboard_shortcuts_disabled 1",
     ],
@@ -244,7 +250,7 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     },
     readCommand: { namespace: "global", key: "policy_control" },
     enableCommand: "settings put global policy_control immersive.full=*",
-    disableCommand: "settings put global policy_control null",
+    disableCommand: "settings delete global policy_control",
     defaultValue: "null",
     activeValues: ["immersive.full=*"],
   },
@@ -286,17 +292,9 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
-    readCommand: { namespace: "global", key: "meminfo_show_swap" },
-    enableCommand: "settings put global meminfo_show_swap 1",
-    disableCommand: "settings put global meminfo_show_swap 0",
-    fallbackEnableCommands: [
-      "settings put global show_memory_in_recents 1",
-      "settings put system recents_show_memory_info 1",
-    ],
-    fallbackDisableCommands: [
-      "settings put global show_memory_in_recents 0",
-      "settings put system recents_show_memory_info 0",
-    ],
+    readCommand: { namespace: "system", key: "miui_recents_show_mem_info" },
+    enableCommand: "settings put system miui_recents_show_mem_info 1",
+    disableCommand: "settings put system miui_recents_show_mem_info 0",
     defaultValue: "0",
     activeValues: ["1"],
   },
@@ -311,14 +309,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
     readCommand: { namespace: "secure", key: "miui_optimization" },
-    enableCommand: "settings put secure miui_optimization 0 && settings put global miui_optimization 0",
-    disableCommand: "settings put secure miui_optimization 1 && settings put global miui_optimization 1",
-    fallbackEnableCommands: [
-      "settings put global package_verifier_enable 0 && settings put global verifier_verify_adb_installs 0",
-    ],
-    fallbackDisableCommands: [
-      "settings put global package_verifier_enable 1 && settings put global verifier_verify_adb_installs 1",
-    ],
+    enableCommand:
+      "settings put secure miui_optimization 0 && settings put global miui_optimization 0",
+    disableCommand:
+      "settings put secure miui_optimization 1 && settings put global miui_optimization 1",
     defaultValue: "1",
     activeValues: ["0"],
   },
@@ -353,8 +347,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       settingsKeys: [{ namespace: "system", key: "haptic_feedback_enabled" }],
     },
     readCommand: { namespace: "system", key: "haptic_feedback_enabled" },
-    enableCommand: "settings put system haptic_feedback_enabled 1 && settings put system haptic_on_touch 1",
-    disableCommand: "settings put system haptic_feedback_enabled 0 && settings put system haptic_on_touch 0",
+    enableCommand:
+      "settings put system haptic_feedback_enabled 1 && settings put system haptic_on_touch 1",
+    disableCommand:
+      "settings put system haptic_feedback_enabled 0 && settings put system haptic_on_touch 0",
     fallbackEnableCommands: [
       "settings put system miui_haptic_enabled 1 && settings put system vibrate_on_touch_intensity 3",
     ],
@@ -378,9 +374,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     detectStrategy: {
       packages: ["com.miui.securitycenter"],
     },
-    readCommand: { namespace: "secure", key: "game_booster_toolbox" },
-    enableCommand: "settings put secure game_booster_toolbox 1 && am start -n com.xiaomi.gaming/.ui.GameTurboActivity",
-    disableCommand: "settings put secure game_booster_toolbox 0 && am force-stop com.xiaomi.gaming",
+    readCommand: { namespace: "secure", key: "pref_open_game_booster" },
+    enableCommand:
+      "settings put secure pref_open_game_booster 1 && am start -n com.miui.securitycenter/com.miui.gamebooster.ui.WelcomActivity",
+    disableCommand: "settings put secure pref_open_game_booster 0",
     defaultValue: "1",
     activeValues: ["1"],
   },
@@ -399,11 +396,9 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     disableCommand: "settings put global power_mode 0",
     fallbackEnableCommands: [
       "settings put system high_performance_mode 1 && settings put global game_turbo_mode 1",
-      "cmd power set-mode 2",
     ],
     fallbackDisableCommands: [
       "settings put system high_performance_mode 0 && settings put global game_turbo_mode 0",
-      "cmd power set-mode 0",
     ],
     defaultValue: "0",
     activeValues: ["2"],
@@ -418,7 +413,7 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     description:
       "Tắt thuật toán thu thập hành vi người dùng để phân phối quảng cáo mục tiêu trên toàn hệ thống Xiaomi.",
     category: "ads",
-    risk: "SAFE",
+    risk: "MEDIUM",
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
@@ -446,9 +441,12 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
-    readCommand: { namespace: "system", key: "miui_recommend_enable" },
-    enableCommand: "pm uninstall -k --user 0 com.miui.cleanmaster && pm uninstall -k --user 0 com.miui.powerkeeper && pm uninstall -k --user 0 com.miui.translation.kingsoft && pm uninstall -k --user 0 com.xiaomi.mipicks && pm uninstall -k --user 0 com.xiaomi.miuiad",
-    disableCommand: "pm install-existing --user 0 com.miui.cleanmaster && pm install-existing --user 0 com.miui.powerkeeper && pm install-existing --user 0 com.miui.translation.kingsoft && pm install-existing --user 0 com.xiaomi.mipicks && pm install-existing --user 0 com.xiaomi.miuiad",
+    readCommand: {
+      namespace: "global",
+      key: "com.miui.home.setting_recommend_app",
+    },
+    enableCommand: "settings put global com.miui.home.setting_recommend_app 0",
+    disableCommand: "settings put global com.miui.home.setting_recommend_app 1",
     defaultValue: "1",
     activeValues: ["0"],
   },
@@ -458,7 +456,7 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     description:
       "Tắt dịch vụ phân tích dữ liệu chạy ngầm của Xiaomi nhằm cải thiện thời lượng pin và tăng tính riêng tư.",
     category: "ads",
-    risk: "SAFE",
+    risk: "MEDIUM",
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
     },
@@ -484,7 +482,7 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   // ═══════════════════════════════════════════════════════════
   {
     id: "hide_bg_notification",
-    title: "Ẩn thông báo \"Ứng dụng đang chạy ngầm\"",
+    title: 'Ẩn thông báo "Ứng dụng đang chạy ngầm"',
     description:
       "Ẩn cảnh báo hệ thống về ứng dụng chạy ngầm, giúp thanh thông báo sạch sẽ hơn.",
     category: "utility",
@@ -492,7 +490,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     detectStrategy: {
       minSdk: 26,
     },
-    readCommand: { namespace: "secure", key: "show_notification_channel_warning" },
+    readCommand: {
+      namespace: "secure",
+      key: "show_notification_channel_warning",
+    },
     enableCommand: "settings put secure show_notification_channel_warning 0",
     disableCommand: "settings put secure show_notification_channel_warning 1",
     defaultValue: "1",
@@ -501,23 +502,25 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "haptic_intensity",
     title: "Cường độ rung phản hồi nâng cao (MIUI Haptics)",
-    description: "Ép mức phản hồi xúc giác lên tối đa cho các tác vụ cuộn, gõ phím hệ thống.",
+    description:
+      "Ép mức phản hồi xúc giác lên tối đa cho các tác vụ cuộn, gõ phím hệ thống.",
     category: "sound",
     risk: "SAFE",
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
       minSdk: 30,
     },
-    readCommand: { namespace: "system", key: "vibrate_on_touch_intensity" },
-    enableCommand: "settings put system haptic_feedback_enabled 1 && settings put system vibrate_on_touch_intensity 3",
-    disableCommand: "settings put system haptic_feedback_enabled 0 && settings put system vibrate_on_touch_intensity 0",
-    defaultValue: "0",
-    activeValues: ["3", "2", "1"],
+    readCommand: { namespace: "system", key: "haptic_feedback_intensity" },
+    enableCommand: "settings put system haptic_feedback_intensity 3",
+    disableCommand: "settings put system haptic_feedback_intensity 1",
+    defaultValue: "1",
+    activeValues: ["3"],
   },
   {
     id: "back_gesture_edge_width",
     title: "Tối ưu hóa vùng nhận diện vuốt cạnh (Cử chỉ quay lại)",
-    description: "Mở rộng vùng cảm ứng hai bên mép màn hình giúp vuốt Back nhạy hơn khi dùng ốp lưng dày.",
+    description:
+      "Mở rộng vùng cảm ứng hai bên mép màn hình giúp vuốt Back nhạy hơn khi dùng ốp lưng dày.",
     category: "navigation",
     risk: "SAFE",
     detectStrategy: {
@@ -533,7 +536,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "miui_fast_charge",
     title: "Bật tối ưu hóa sạc nhanh khi màn hình sáng (Mi Fast Charge)",
-    description: "Giảm thuật toán bóp dòng sạc của Xiaomi khi người dùng vừa sạc vừa sáng màn hình đọc tin tức.",
+    description:
+      "Giảm thuật toán bóp dòng sạc của Xiaomi khi người dùng vừa sạc vừa sáng màn hình đọc tin tức.",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
@@ -549,7 +553,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "miui_memory_extension_size",
     title: "Cấu hình dung lượng RAM ảo (Memory Extension)",
-    description: "Tắt RAM ảo (giá trị 0) giúp giảm chu kỳ ghi của bộ nhớ flash UFS, giảm lag giật trên các dòng chip cũ. Yêu cầu Reboot máy.",
+    description:
+      "Tắt RAM ảo (giá trị 0) giúp giảm chu kỳ ghi của bộ nhớ flash UFS, giảm lag giật trên các dòng chip cũ. Yêu cầu Reboot máy.",
     category: "utility",
     risk: "RISKY",
     detectStrategy: {
@@ -565,13 +570,17 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "app_hibernation_targets_enabled",
     title: "Vô hiệu hóa tính năng Ngủ đông ứng dụng ngầm (App Hibernation)",
-    description: "Ngăn không cho hệ thống tự động thu hồi quyền và đóng băng các app ít dùng, giúp nhận thông báo Zalo/Telegram tức thì.",
+    description:
+      "Ngăn không cho hệ thống tự động thu hồi quyền và đóng băng các app ít dùng, giúp nhận thông báo Zalo/Telegram tức thì.",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
       minSdk: 31,
     },
-    readCommand: { namespace: "global", key: "app_hibernation_targets_enabled" },
+    readCommand: {
+      namespace: "global",
+      key: "app_hibernation_targets_enabled",
+    },
     enableCommand: "settings put global app_hibernation_targets_enabled 0",
     disableCommand: "settings put global app_hibernation_targets_enabled 1",
     defaultValue: "1",
@@ -579,8 +588,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   },
   {
     id: "user_experience_program",
-    title: "Tắt Chương trình cải thiện trải nghiệm người dùng (User Experience)",
-    description: "Ngăn chặn tiến trình ngầm thu thập log thao tác màn hình gửi về server máy chủ.",
+    title:
+      "Tắt Chương trình cải thiện trải nghiệm người dùng (User Experience)",
+    description:
+      "Ngăn chặn tiến trình ngầm thu thập log thao tác màn hình gửi về server máy chủ.",
     category: "ads",
     risk: "SAFE",
     detectStrategy: {
@@ -595,7 +606,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "getapps_auto_update",
     title: "Chặn GetApps tự động tải và cập nhật ứng dụng rác",
-    description: "Đặc trị cho các máy xách tay ROM gốc Trung Quốc, ngăn tự động cài đặt app rác vùng nội địa.",
+    description:
+      "Đặc trị cho các máy xách tay ROM gốc Trung Quốc, ngăn tự động cài đặt app rác vùng nội địa.",
     category: "ads",
     risk: "SAFE",
     detectStrategy: {
@@ -611,23 +623,27 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "miui_upload_log",
     title: "Tắt dịch vụ tải lên nhật ký lỗi tự động (MiuiUploadLog)",
-    description: "Tiết kiệm băng thông mạng ngầm và giảm tải CPU xử lý nén file log zip ngầm.",
+    description:
+      "Tiết kiệm băng thông mạng ngầm và giảm tải CPU xử lý nén file log zip ngầm.",
     category: "ads",
     risk: "SAFE",
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
       minSdk: 29,
     },
-    readCommand: { namespace: "global", key: "miui_upload_log" },
-    enableCommand: "settings put global miui_upload_log 0",
-    disableCommand: "settings put global miui_upload_log 1",
+    readCommand: { namespace: "secure", key: "upload_log_pref" },
+    enableCommand:
+      "settings put secure upload_log_pref 0 && settings put secure upload_debug_log_pref 0",
+    disableCommand:
+      "settings put secure upload_log_pref 1 && settings put secure upload_debug_log_pref 1",
     defaultValue: "1",
     activeValues: ["0"],
   },
   {
     id: "dc_backlight_mode",
     title: "Kích hoạt chế độ chống nhấp nháy màn hình (DC Dimming)",
-    description: "Giúp bảo vệ mắt khi sử dụng điện thoại Xiaomi màn hình OLED/AMOLED trong môi trường đêm tối thiếu sáng.",
+    description:
+      "Giúp bảo vệ mắt khi sử dụng điện thoại Xiaomi màn hình OLED/AMOLED trong môi trường đêm tối thiếu sáng.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
@@ -643,7 +659,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "device_level_list",
     title: "Chế độ giao diện cấp cao (Device Level List)",
-    description: "Cấu hình cộng đồng: Ép MIUI/HyperOS nhận diện cấp độ phần cứng cao nhất (v:1,c:3,g:3) để mở khóa hoạt ảnh biểu tượng và hiệu ứng mờ thư mục.",
+    description:
+      "Cấu hình cộng đồng: Ép MIUI/HyperOS nhận diện cấp độ phần cứng cao nhất (v:1,c:3,g:3) để mở khóa hoạt ảnh biểu tượng và hiệu ứng mờ thư mục.",
     category: "display",
     risk: "MEDIUM",
     detectStrategy: {
@@ -651,18 +668,19 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 31,
     },
     readCommand: { namespace: "system", key: "deviceLevelList" },
-    enableCommand: "settings put system deviceLevelList v:1,c:3,g:3 && settings put global deviceLevelList v:1,c:3,g:3",
-    disableCommand: "settings delete system deviceLevelList && settings delete global deviceLevelList",
-    fallbackEnableCommands: [
-      "setprop persist.sys.device_level v:1,c:3,g:3",
-    ],
+    enableCommand:
+      "settings put system deviceLevelList v:1,c:3,g:3 && settings put global deviceLevelList v:1,c:3,g:3",
+    disableCommand:
+      "settings delete system deviceLevelList && settings delete global deviceLevelList",
+    fallbackEnableCommands: ["setprop persist.sys.device_level v:1,c:3,g:3"],
     defaultValue: "null",
     activeValues: ["v:1,c:3,g:3", "v:1,c:2,g:2", "v:1,c:1,g:1"],
   },
   {
     id: "advanced_textures_hyperos",
     title: "Hiện tùy chọn Họa tiết nâng cao HyperOS 2 / HyperOS 3",
-    description: "Kích hoạt thuộc tính persist.sys.advanced_visual_release qua dịch vụ IMQSNative để mở khóa menu 'Họa tiết nâng cao' trong Cài đặt -> Màn hình & độ sáng. Yêu cầu Reboot.",
+    description:
+      "Thử tạo các settings key cộng đồng để mở tùy chọn Họa tiết nâng cao. ROM có thể nhận hoặc bỏ qua; mọi key đều được snapshot và có thể hoàn tác.",
     category: "display",
     risk: "MEDIUM",
     detectStrategy: {
@@ -670,36 +688,36 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 33,
     },
     readCommand: { namespace: "global", key: "advanced_visual_release" },
-    enableCommand: "settings put system deviceLevelList v:1,c:3,g:3 && settings put global advanced_visual_release 3 && settings put system advanced_visual_release 3 && service call miui.mqsas.IMQSNative 21 i32 1 s16 'setprop' i32 1 s16 'persist.sys.advanced_visual_release 3' s16 '/storage/emulated/0/log.txt' i32 600",
-    disableCommand: "settings put global advanced_visual_release 0 && settings put system advanced_visual_release 0 && service call miui.mqsas.IMQSNative 21 i32 1 s16 'setprop' i32 1 s16 'persist.sys.advanced_visual_release 0' s16 '/storage/emulated/0/log.txt' i32 600",
-    fallbackEnableCommands: [
-      "service call miui.mqsas.IMQSNative 21 i32 1 s16 'setprop' i32 1 s16 'persist.sys.advanced_visual_release 4' s16 '/storage/emulated/0/log.txt' i32 600 && settings put global advanced_visual_release 4",
-      "settings put global advanced_visual_release 3 && setprop persist.sys.advanced_visual_release 3",
-      "settings put system deviceLevelList \"v:1,c:3,g:3\" && settings put global advanced_visual_release 3",
-    ],
+    enableCommand:
+      "settings put system deviceLevelList v:1,c:3,g:3 && settings put global advanced_visual_release 3 && settings put system advanced_visual_release 3",
+    disableCommand:
+      "settings put global advanced_visual_release 0 && settings put system advanced_visual_release 0",
     defaultValue: "0",
     activeValues: ["3", "4"],
   },
   {
     id: "control_center_blur",
-    title: "Sửa lỗi Thanh Trung tâm điều khiển bị xám (Force Control Center Blur)",
-    description: "Ép buộc nhân đồ họa render hiệu ứng làm mờ Gaussian (Blur) cho phông nền Control Center và thanh thông báo thay vì màu xám đục mặc định.",
+    title: "Hiệu ứng làm mờ nền hệ thống",
+    description:
+      "Thử tạo key làm mờ nền trên HyperOS. ROM có thể nhận hoặc bỏ qua; trạng thái key được xác minh và có thể hoàn tác.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
       brand: ["XIAOMI", "REDMI", "POCO"],
       minSdk: 30,
     },
-    readCommand: { namespace: "system", key: "background_blur_supported" },
-    enableCommand: "settings put system background_blur_supported 1 && settings put system control_center_blur 1 && settings put global background_blur_supported 1",
-    disableCommand: "settings put system background_blur_supported 0 && settings put system control_center_blur 0 && settings put global background_blur_supported 0",
+    readCommand: { namespace: "secure", key: "background_blur_enable" },
+    enableCommand: "settings put secure background_blur_enable 1",
+    disableCommand: "settings put secure background_blur_enable 0",
     defaultValue: "0",
     activeValues: ["1"],
   },
   {
     id: "miui_blur_enable",
-    title: "Bật mờ nhòe giao diện ứng dụng gần đây (Recents Thumbnail Gaussian Blur)",
-    description: "Kích hoạt công cụ làm mờ cục bộ cho các cửa sổ xem trước trong trình đa nhiệm, tăng cường độ mượt khi vuốt ngang chuyển app.",
+    title:
+      "Bật mờ nhòe giao diện ứng dụng gần đây (Recents Thumbnail Gaussian Blur)",
+    description:
+      "Kích hoạt công cụ làm mờ cục bộ cho các cửa sổ xem trước trong trình đa nhiệm, tăng cường độ mượt khi vuốt ngang chuyển app.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
@@ -707,15 +725,18 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 30,
     },
     readCommand: { namespace: "system", key: "miui_blur_enable" },
-    enableCommand: "settings put system miui_blur_enable 1 && settings put system multisp_view_blur 1",
-    disableCommand: "settings put system miui_blur_enable 0 && settings put system multisp_view_blur 0",
+    enableCommand:
+      "settings put system miui_blur_enable 1 && settings put system multisp_view_blur 1",
+    disableCommand:
+      "settings put system miui_blur_enable 0 && settings put system multisp_view_blur 0",
     defaultValue: "0",
     activeValues: ["1"],
   },
   {
     id: "miui_floating_window_blur",
     title: "Ép hiệu ứng mờ nền cho Cửa sổ nổi (Floating Window Blur Fix)",
-    description: "Giúp phần nền phía dưới các cửa sổ ứng dụng thu nhỏ (Freeform/Floating Window) có hiệu ứng mờ sâu, tách biệt không gian hiển thị rõ ràng hơn.",
+    description:
+      "Giúp phần nền phía dưới các cửa sổ ứng dụng thu nhỏ (Freeform/Floating Window) có hiệu ứng mờ sâu, tách biệt không gian hiển thị rõ ràng hơn.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
@@ -730,8 +751,10 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   },
   {
     id: "log_blur_supported",
-    title: "Bật làm mờ thời gian thực khi kéo thanh trạng thái (Real-time Status Bar Blur)",
-    description: "Xử lý triệt để hiện tượng mất hiệu ứng mờ nhòe khi kéo thanh thông báo trạng thái xuống ở một số bản ROM nội địa TQ bị tùy biến cắt giảm.",
+    title:
+      "Bật làm mờ thời gian thực khi kéo thanh trạng thái (Real-time Status Bar Blur)",
+    description:
+      "Xử lý triệt để hiện tượng mất hiệu ứng mờ nhòe khi kéo thanh thông báo trạng thái xuống ở một số bản ROM nội địa TQ bị tùy biến cắt giảm.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
@@ -739,15 +762,18 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
       minSdk: 31,
     },
     readCommand: { namespace: "system", key: "log_blur_supported" },
-    enableCommand: "settings put system log_blur_supported 1 && settings put system disable_html_blur 0",
-    disableCommand: "settings put system log_blur_supported 0 && settings put system disable_html_blur 1",
+    enableCommand:
+      "settings put system log_blur_supported 1 && settings put system disable_html_blur 0",
+    disableCommand:
+      "settings put system log_blur_supported 0 && settings put system disable_html_blur 1",
     defaultValue: "0",
     activeValues: ["1"],
   },
   {
     id: "long_press_timeout",
     title: "Độ trễ phản hồi nhấn giữ (Long-press Timeout 300ms)",
-    description: "Giảm thời gian phản hồi khi nhấn giữ màn hình xuống 300ms (AOSP Stable Standard), giúp thao tác cảm ứng nhanh mượt hơn.",
+    description:
+      "Giảm thời gian phản hồi khi nhấn giữ màn hình xuống 300ms (AOSP Stable Standard), giúp thao tác cảm ứng nhanh mượt hơn.",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
@@ -755,29 +781,31 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     },
     readCommand: { namespace: "secure", key: "long_press_timeout" },
     enableCommand: "settings put secure long_press_timeout 300",
-    disableCommand: "settings put secure long_press_timeout 500",
-    defaultValue: "500",
+    disableCommand: "settings put secure long_press_timeout 400",
+    defaultValue: "400",
     activeValues: ["300", "250", "200"],
   },
   {
     id: "show_touches",
     title: "Hiển thị điểm chạm cảm ứng (Show Touches)",
-    description: "Hiển thị vệt tròn phản hồi tại vị trí ngón tay chạm trên màn hình (Hỗ trợ quay clip hướng dẫn hoặc kiểm thử cảm ứng).",
+    description:
+      "Hiển thị vệt tròn phản hồi tại vị trí ngón tay chạm trên màn hình (Hỗ trợ quay clip hướng dẫn hoặc kiểm thử cảm ứng).",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
       minSdk: 28,
     },
     readCommand: { namespace: "system", key: "show_touches" },
-    enableCommand: "settings put system show_touches 1 && settings put global show_touches 1",
-    disableCommand: "settings put system show_touches 0 && settings put global show_touches 0",
+    enableCommand: "settings put system show_touches 1",
+    disableCommand: "settings put system show_touches 0",
     defaultValue: "0",
     activeValues: ["1"],
   },
   {
     id: "pointer_location",
     title: "Hiển thị tọa độ con trỏ cảm ứng (Pointer Location)",
-    description: "Hiển thị thước đo tọa độ X,Y và đường vẽ nét cảm ứng theo thời gian thực trên cùng màn hình.",
+    description:
+      "Hiển thị thước đo tọa độ X,Y và đường vẽ nét cảm ứng theo thời gian thực trên cùng màn hình.",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
@@ -791,23 +819,27 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   },
   {
     id: "cmd_uimode_night",
-    title: "Chế độ Tối hệ thống (System Dark Mode)",
-    description: "Kích hoạt Chế độ Tối (Dark Mode) trên toàn hệ thống bằng giao diện dịch vụ cmd uimode AOSP chuẩn (Android 10+).",
+    title: "Chế độ tối hệ thống",
+    description:
+      "Bật chế độ tối AOSP. Nếu máy đang dùng lịch tự động, khôi phục sẽ trả đúng lịch cũ.",
     category: "display",
     risk: "SAFE",
     detectStrategy: {
       minSdk: 29,
     },
     readCommand: { namespace: "secure", key: "ui_night_mode" },
-    enableCommand: "cmd uimode night yes && settings put secure ui_night_mode 2",
-    disableCommand: "cmd uimode night no && settings put secure ui_night_mode 1",
+    enableCommand:
+      "cmd uimode night yes && settings put secure ui_night_mode 2",
+    disableCommand:
+      "cmd uimode night no && settings put secure ui_night_mode 1",
     defaultValue: "1",
-    activeValues: ["2", "yes"],
+    activeValues: ["2", "3", "yes"],
   },
   {
     id: "battery_saver_global",
     title: "Chế độ Tiết kiệm pin hệ thống (Battery Saver)",
-    description: "Kích hoạt Chế độ Tiết kiệm pin toàn hệ thống (Low Power Mode) qua settings global AOSP.",
+    description:
+      "Kích hoạt Chế độ Tiết kiệm pin toàn hệ thống (Low Power Mode) qua settings global AOSP.",
     category: "utility",
     risk: "SAFE",
     detectStrategy: {
@@ -822,7 +854,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
   {
     id: "dc_dimming_xiaomi",
     title: "Chống nhấp nháy màn hình (DC Dimming)",
-    description: "Kích hoạt chế độ giảm nhấp nháy màn hình AMOLED ở độ sáng thấp (DC Backlight). Chỉ áp dụng cho các dòng máy Xiaomi có hỗ trợ phần cứng.",
+    description:
+      "Kích hoạt chế độ giảm nhấp nháy màn hình AMOLED ở độ sáng thấp (DC Backlight). Chỉ áp dụng cho các dòng máy Xiaomi có hỗ trợ phần cứng.",
     category: "display",
     risk: "MEDIUM",
     detectStrategy: {
@@ -837,3 +870,8 @@ export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] = [
     activeValues: ["1"],
   },
 ];
+
+// Không tự ý ẩn preset cộng đồng: key chưa tồn tại sẽ được service phân loại
+// EXPERIMENTAL và chỉ chạy sau xác nhận, snapshot và kiểm tra read-back.
+export const XIAOMI_EXPERIENCE_ITEMS: XiaomiExperienceItem[] =
+  XIAOMI_EXPERIENCE_CATALOG;

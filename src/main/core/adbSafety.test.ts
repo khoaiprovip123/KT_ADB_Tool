@@ -112,6 +112,17 @@ describe("ADB Safety Layer Tests", () => {
       expect(res.mode).toBe("READ_ONLY");
     });
 
+    it("should allow validated settings delete commands", () => {
+      const safe = evaluateCommand(
+        "settings delete global background_process_limit",
+      );
+      expect(safe.allowed).toBe(true);
+      expect(safe.mode).toBe("WRITE_SETTING");
+
+      const injected = evaluateCommand("settings delete global key;reboot");
+      expect(injected.allowed).toBe(false);
+    });
+
     it("should evaluate pm package commands", () => {
       // safe pm list
       const res1 = evaluateCommand("pm list packages");
@@ -184,6 +195,9 @@ describe("ADB Safety Layer Tests", () => {
       const r7 = evaluateCommand("id");
       expect(r7.allowed).toBe(true);
       expect(r7.risk).toBe("SAFE");
+
+      expect(evaluateCommand("du -sk /data/local/tmp").allowed).toBe(true);
+      expect(evaluateCommand("ps -A").allowed).toBe(true);
     });
 
     it("should allow whitelisted safe pm commands", () => {
@@ -220,22 +234,50 @@ describe("ADB Safety Layer Tests", () => {
       const r5 = evaluateCommand("service call activity 134 i32 1");
       expect(r5.allowed).toBe(true);
       expect(r5.risk).toBe("MEDIUM");
+
+      expect(
+        evaluateCommand("am send-trim-memory com.example.app MODERATE").allowed,
+      ).toBe(true);
+      expect(evaluateCommand("am compact full com.example.app").allowed).toBe(
+        true,
+      );
+      expect(evaluateCommand("am kill-all").allowed).toBe(true);
+    });
+
+    it("allows recursive deletion only in approved writable roots", () => {
+      expect(evaluateCommand("rm -rf /data/local/tmp/tool-cache").allowed).toBe(
+        true,
+      );
+      expect(evaluateCommand("rm -rf /data/system").allowed).toBe(false);
+      expect(evaluateCommand("rm -rf /system").allowed).toBe(false);
+      expect(evaluateCommand("rm -rf /sdcard-backup").allowed).toBe(false);
+      expect(evaluateCommand("rm -rf relative/path").allowed).toBe(false);
     });
 
     it("should allow newly added experience commands", () => {
-      const c1 = evaluateCommand("settings put global task_stack_view_layout_style 2");
+      const c1 = evaluateCommand(
+        "settings put global task_stack_view_layout_style 2",
+      );
       expect(c1.allowed).toBe(true);
 
-      const c2 = evaluateCommand("settings put global status_bar_show_smart_island 1");
+      const c2 = evaluateCommand(
+        "settings put global status_bar_show_smart_island 1",
+      );
       expect(c2.allowed).toBe(true);
 
-      const c3 = evaluateCommand("settings put global status_bar_show_capsule 1");
+      const c3 = evaluateCommand(
+        "settings put global status_bar_show_capsule 1",
+      );
       expect(c3.allowed).toBe(true);
 
-      const c4 = evaluateCommand("settings put secure show_keyboard_shortcuts_helper 0");
+      const c4 = evaluateCommand(
+        "settings put secure show_keyboard_shortcuts_helper 0",
+      );
       expect(c4.allowed).toBe(true);
 
-      const c5 = evaluateCommand("settings put global policy_control immersive.full=*");
+      const c5 = evaluateCommand(
+        "settings put global policy_control immersive.full=*",
+      );
       expect(c5.allowed).toBe(true);
 
       const c6 = evaluateCommand("settings put global hide_gesture_line 1");
@@ -247,7 +289,9 @@ describe("ADB Safety Layer Tests", () => {
       expect(c1.allowed).toBe(true);
       expect(c1.mode).toBe("PACKAGE_OP");
 
-      const c2 = evaluateCommand("pm install-existing --user 0 com.miui.systemAdSolution");
+      const c2 = evaluateCommand(
+        "pm install-existing --user 0 com.miui.systemAdSolution",
+      );
       expect(c2.allowed).toBe(true);
       expect(c2.mode).toBe("PACKAGE_OP");
     });
@@ -274,6 +318,36 @@ describe("ADB Safety Layer Tests", () => {
       // cmd power set-mode
       const c4 = evaluateCommand("cmd power set-mode 2");
       expect(c4.allowed).toBe(true);
+    });
+
+    it("strictly validates Device Idle whitelist mutations", () => {
+      expect(
+        evaluateCommand("dumpsys deviceidle whitelist +com.google.android.gms"),
+      ).toMatchObject({ allowed: true, risk: "RISKY", mode: "PACKAGE_OP" });
+      expect(
+        evaluateCommand("dumpsys deviceidle whitelist +invalid_package"),
+      ).toMatchObject({ allowed: false, risk: "DANGEROUS" });
+    });
+
+    it("strictly validates AppOps package, operation and mode", () => {
+      expect(
+        evaluateCommand("cmd appops get com.google.android.gms WAKE_LOCK"),
+      ).toMatchObject({ allowed: true, mode: "READ_ONLY" });
+      expect(
+        evaluateCommand(
+          "cmd appops set com.google.android.gms WAKE_LOCK allow",
+        ),
+      ).toMatchObject({ allowed: true, risk: "RISKY" });
+      expect(
+        evaluateCommand(
+          "cmd appops set com.google.android.gms WAKE_LOCK unrestricted",
+        ),
+      ).toMatchObject({ allowed: false, risk: "DANGEROUS" });
+    });
+
+    it("only permits supported cmd uimode night values", () => {
+      expect(evaluateCommand("cmd uimode night custom").allowed).toBe(true);
+      expect(evaluateCommand("cmd uimode night arbitrary").allowed).toBe(false);
     });
   });
 
@@ -307,12 +381,28 @@ describe("ADB Safety Layer Tests", () => {
 
   describe("cleanAdbPrefix", () => {
     it("should clean single and redundant adb shell, shell, adb prefixes", () => {
-      expect(cleanAdbPrefix("adb shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
-      expect(cleanAdbPrefix("adb shell adb shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
-      expect(cleanAdbPrefix("shell settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
-      expect(cleanAdbPrefix("adb settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
-      expect(cleanAdbPrefix("  adb shell   shell   settings put global show_refresh_rate 1  ")).toBe("settings put global show_refresh_rate 1");
-      expect(cleanAdbPrefix("settings put global show_refresh_rate 1")).toBe("settings put global show_refresh_rate 1");
+      expect(
+        cleanAdbPrefix("adb shell settings put global show_refresh_rate 1"),
+      ).toBe("settings put global show_refresh_rate 1");
+      expect(
+        cleanAdbPrefix(
+          "adb shell adb shell settings put global show_refresh_rate 1",
+        ),
+      ).toBe("settings put global show_refresh_rate 1");
+      expect(
+        cleanAdbPrefix("shell settings put global show_refresh_rate 1"),
+      ).toBe("settings put global show_refresh_rate 1");
+      expect(
+        cleanAdbPrefix("adb settings put global show_refresh_rate 1"),
+      ).toBe("settings put global show_refresh_rate 1");
+      expect(
+        cleanAdbPrefix(
+          "  adb shell   shell   settings put global show_refresh_rate 1  ",
+        ),
+      ).toBe("settings put global show_refresh_rate 1");
+      expect(cleanAdbPrefix("settings put global show_refresh_rate 1")).toBe(
+        "settings put global show_refresh_rate 1",
+      );
     });
   });
 });

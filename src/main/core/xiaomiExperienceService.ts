@@ -8,94 +8,279 @@ import {
   readSettingsSnapshot,
   CapabilityState,
 } from "./deviceProfileService";
-import { runAdbCommand } from "./adbCore";
+import { runAdbCommandDetailed } from "./adbCore";
 import type { XiaomiApplyResult } from "@shared/types/xiaomi";
+import {
+  buildSnapshotDeviceIdentity,
+  captureMutationSnapshot,
+  deleteMutationSnapshot,
+  extractSnapshotTargets,
+  restoreMutationSnapshot,
+} from "./adbMutationSnapshot";
+
+type SettingsNamespace = "system" | "secure" | "global";
+type ReadCommand = { namespace: SettingsNamespace; key: string };
 
 export interface ExperienceItemStatus {
   item: XiaomiExperienceItem;
   status: CapabilityState;
   currentValue?: string;
+  reason?: string;
+  resolvedReadCommand?: ReadCommand;
+}
+
+const KNOWN_PLATFORM_SETTINGS = new Set([
+  "global:window_animation_scale",
+  "global:transition_animation_scale",
+  "global:animator_duration_scale",
+  "global:low_power",
+  "global:policy_control",
+  "system:min_refresh_rate",
+  "system:peak_refresh_rate",
+  "system:show_refresh_rate",
+  "secure:ui_night_mode",
+  "secure:long_press_timeout",
+  "system:haptic_feedback_enabled",
+  "system:show_touches",
+  "system:pointer_location",
+]);
+
+interface PackageMutation {
+  verb: "uninstall" | "disable-user" | "install-existing" | "enable";
+  packageName: string;
+}
+
+function settingId(command: ReadCommand): string {
+  return `${command.namespace}:${command.key}`;
+}
+
+function candidateReadCommands(item: XiaomiExperienceItem): ReadCommand[] {
+  const candidates = [
+    item.readCommand,
+    ...(item.detectStrategy.settingsKeys ?? []),
+  ];
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const id = settingId(candidate);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function readSnapshotValue(
+  command: ReadCommand,
+  snapshots: Record<SettingsNamespace, Record<string, string>>,
+): string | undefined {
+  return snapshots[command.namespace][command.key];
+}
+
+function extractPackageMutations(command: string): PackageMutation[] {
+  const result: PackageMutation[] = [];
+  const regex =
+    /pm\s+(uninstall|disable-user|install-existing|enable)\b[^&]*?\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(command)) !== null) {
+    result.push({
+      verb: match[1] as PackageMutation["verb"],
+      packageName: match[2],
+    });
+  }
+  return result;
+}
+
+function exactPackageSet(output: string): Set<string> {
+  return new Set(
+    output
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^package:/, ""))
+      .filter(Boolean),
+  );
+}
+
+function matchesActiveValue(
+  item: XiaomiExperienceItem,
+  value: string,
+): boolean {
+  if (item.activeValues) return item.activeValues.includes(value);
+  return value === "1";
+}
+
+async function getMaximumRefreshRate(deviceId: string): Promise<string | null> {
+  const result = await runAdbCommandDetailed(deviceId, "dumpsys display");
+  if (!result.success) return null;
+  const values = [
+    ...result.output.matchAll(/(?:fps|refreshRate)\s*=\s*(\d+(?:\.\d+)?)/gi),
+  ]
+    .map((match) => Number(match[1]))
+    .filter((value) => Number.isFinite(value) && value >= 30 && value <= 240);
+  if (values.length === 0) return null;
+  return String(Math.round(Math.max(...values)));
+}
+
+async function materializeCommand(
+  deviceId: string,
+  command: string,
+): Promise<{ success: boolean; command: string; error?: string }> {
+  if (!command.includes("{maxRefreshRate}")) {
+    return { success: true, command };
+  }
+  const maximum = await getMaximumRefreshRate(deviceId);
+  if (!maximum) {
+    return {
+      success: false,
+      command,
+      error: "Không xác định được tần số quét tối đa được phần cứng công bố.",
+    };
+  }
+  return {
+    success: true,
+    command: command.replaceAll("{maxRefreshRate}", maximum),
+  };
 }
 
 /**
- * Đọc trạng thái chi tiết của từng tùy chọn Trải nghiệm người dùng
+ * Key OEM chưa tồn tại không đồng nghĩa framework không hỗ trợ. Đánh dấu là
+ * EXPERIMENTAL để người dùng có thể chủ động tạo key với snapshot/rollback.
  */
 export async function getExperienceCapabilities(
   deviceId: string,
 ): Promise<ExperienceItemStatus[]> {
   try {
     const profile = await getDeviceProfile(deviceId);
-    const installedPkgs = await getInstalledPackageSet(deviceId);
-
-    const [globalSettings, secureSettings, systemSettings] = await Promise.all([
+    const [
+      installedPkgs,
+      globalSettings,
+      secureSettings,
+      systemSettings,
+      disabled,
+    ] = await Promise.all([
+      getInstalledPackageSet(deviceId),
       readSettingsSnapshot(deviceId, "global"),
       readSettingsSnapshot(deviceId, "secure"),
       readSettingsSnapshot(deviceId, "system"),
+      runAdbCommandDetailed(deviceId, "pm list packages --user 0 -d"),
     ]);
+    const disabledPkgs = disabled.success
+      ? exactPackageSet(disabled.output)
+      : new Set<string>();
+    const snapshots = {
+      global: globalSettings,
+      secure: secureSettings,
+      system: systemSettings,
+    };
 
     const result: ExperienceItemStatus[] = [];
-
     for (const item of XIAOMI_EXPERIENCE_ITEMS) {
       const { brand, minSdk, packages } = item.detectStrategy;
-
-      // 1. Kiểm tra Brand
-      if (brand && brand.length > 0) {
-        const brandMatch = brand.some((b) =>
-          profile.brand.toUpperCase().includes(b.toUpperCase()),
-        );
-        if (!brandMatch) {
-          result.push({ item, status: "UNSUPPORTED" });
-          continue;
-        }
+      if (
+        brand?.length &&
+        !brand.some((value) =>
+          `${profile.brand} ${profile.manufacturer}`
+            .toUpperCase()
+            .includes(value.toUpperCase()),
+        )
+      ) {
+        result.push({
+          item,
+          status: "UNSUPPORTED",
+          reason: "Không đúng hãng thiết bị.",
+        });
+        continue;
       }
-
-      // 2. Kiểm tra Min SDK
       if (minSdk && profile.sdk < minSdk) {
-        result.push({ item, status: "UNSUPPORTED" });
+        result.push({
+          item,
+          status: "UNSUPPORTED",
+          reason: `Yêu cầu SDK ${minSdk}+.`,
+        });
+        continue;
+      }
+      if (
+        packages?.length &&
+        !packages.every((pkg) => installedPkgs.has(pkg))
+      ) {
+        result.push({
+          item,
+          status: "UNSUPPORTED",
+          reason: "Thiếu package hệ thống bắt buộc.",
+        });
         continue;
       }
 
-      // 3. Kiểm tra Packages yêu cầu
-      if (packages && packages.length > 0) {
-        const pkgsInstalled = packages.every((pkg) => installedPkgs.has(pkg));
-        if (!pkgsInstalled) {
-          result.push({ item, status: "UNSUPPORTED" });
-          continue;
+      const candidates = candidateReadCommands(item);
+      const resolvedReadCommand = candidates.find((candidate) => {
+        const value = readSnapshotValue(candidate, snapshots);
+        return value !== undefined && value !== "null";
+      });
+
+      if (resolvedReadCommand) {
+        const currentValue = readSnapshotValue(resolvedReadCommand, snapshots)!;
+        let isEnabled = matchesActiveValue(item, currentValue);
+        if (item.dynamicActiveValue === "max-refresh-rate") {
+          const maximum = await getMaximumRefreshRate(deviceId);
+          isEnabled =
+            maximum !== null && Number(currentValue) >= Number(maximum);
         }
-      }
-
-      // 4. Đọc giá trị hiện tại
-      const readCmd = item.readCommand;
-      const snapshot =
-        readCmd.namespace === "global"
-          ? globalSettings
-          : readCmd.namespace === "secure"
-            ? secureSettings
-            : systemSettings;
-
-      const currentValue = snapshot[readCmd.key];
-
-      if (currentValue === undefined || currentValue === "null") {
-        const isEnabled = item.activeValues
-          ? item.activeValues.includes(item.defaultValue)
-          : item.defaultValue === "1" || item.defaultValue === "120";
-        result.push({
-          item,
-          status: isEnabled ? "SUPPORTED_ON" : "SUPPORTED_OFF",
-          currentValue: item.defaultValue,
-        });
-      } else {
-        const isEnabled = item.activeValues
-          ? item.activeValues.includes(currentValue)
-          : currentValue === "1" || currentValue === "120";
         result.push({
           item,
           status: isEnabled ? "SUPPORTED_ON" : "SUPPORTED_OFF",
           currentValue,
+          resolvedReadCommand,
+        });
+        continue;
+      }
+
+      const packageMutations = extractPackageMutations(item.enableCommand);
+      if (packageMutations.length > 0) {
+        const targetPackages = [
+          ...new Set(packageMutations.map((entry) => entry.packageName)),
+        ];
+        const existingTargets = targetPackages.filter((pkg) =>
+          installedPkgs.has(pkg),
+        );
+        if (existingTargets.length === 0) {
+          result.push({
+            item,
+            status: "UNSUPPORTED",
+            reason: "Không có package mục tiêu trên ROM.",
+          });
+        } else {
+          result.push({
+            item,
+            status: existingTargets.every((pkg) => disabledPkgs.has(pkg))
+              ? "SUPPORTED_ON"
+              : "SUPPORTED_OFF",
+            currentValue: existingTargets.every((pkg) => disabledPkgs.has(pkg))
+              ? "disabled"
+              : "enabled",
+          });
+        }
+        continue;
+      }
+
+      const knownCandidate = candidates.find((candidate) =>
+        KNOWN_PLATFORM_SETTINGS.has(settingId(candidate)),
+      );
+      if (knownCandidate) {
+        result.push({
+          item,
+          status: "SUPPORTED_OFF",
+          currentValue: "default",
+          resolvedReadCommand: knownCandidate,
+          reason: "Key đang dùng giá trị mặc định của Android.",
+        });
+      } else {
+        result.push({
+          item,
+          status: "EXPERIMENTAL",
+          currentValue: "not-set",
+          resolvedReadCommand: candidates[0],
+          reason:
+            "ROM chưa có key tương ứng. Có thể thử tạo key; tool sẽ sao lưu, đọc lại và tự hoàn tác nếu ghi thất bại. Hiệu ứng thực tế phụ thuộc framework của ROM.",
         });
       }
     }
-
     return result;
   } catch (error) {
     console.error("Failed to get experience capabilities:", error);
@@ -103,246 +288,257 @@ export async function getExperienceCapabilities(
   }
 }
 
-/**
- * Đọc giá trị hiện tại của một item cụ thể
- */
 export async function readExperienceItem(
   deviceId: string,
   itemId: string,
 ): Promise<string> {
-  const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
-  if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
-
-  const cmd = `settings get ${item.readCommand.namespace} ${item.readCommand.key}`;
-  const res = await runAdbCommand(deviceId, cmd, () => {});
-  return res.trim();
+  const status = (await getExperienceCapabilities(deviceId)).find(
+    ({ item }) => item.id === itemId,
+  );
+  if (!status)
+    throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
+  if (!status.resolvedReadCommand) return "null";
+  const result = await runAdbCommandDetailed(
+    deviceId,
+    `settings get ${status.resolvedReadCommand.namespace} ${status.resolvedReadCommand.key}`,
+  );
+  if (!result.success) throw new Error(result.output);
+  return result.output.trim();
 }
 
-// ═══════════════════════════════════════════════════════════
-// CƠ CHẾ TỰ ĐỘNG KIỂM SOÁT (Auto-Verify + Fallback Engine)
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Thực thi một chuỗi lệnh (phân tách bằng &&).
- * Trả về true nếu không có lệnh con nào báo lỗi tường minh.
- */
 async function executeCommandChain(
   deviceId: string,
-  cmd: string,
+  command: string,
 ): Promise<{ success: boolean; output: string }> {
-  const subCmds = cmd.split("&&").map((s) => s.trim()).filter(Boolean);
-
-  let success = true;
-  let combinedOutput = "";
-  let successSubCmdsCount = 0;
-
-  for (const subCmd of subCmds) {
-    const output = await runAdbCommand(deviceId, subCmd, () => {});
-    const trimmed = output.trim();
-    combinedOutput += (combinedOutput ? " " : "") + trimmed;
-
-    const isPmUninstall = subCmd.includes("pm uninstall");
-    const isIgnorablePmError =
-      isPmUninstall &&
-      (trimmed.toLowerCase().includes("not installed") ||
-        trimmed.toLowerCase().includes("success"));
-
-    let subCmdFailed = false;
-    if (
-      trimmed.toLowerCase().includes("failed") ||
-      trimmed.toLowerCase().includes("failure") ||
-      trimmed.toLowerCase().includes("error") ||
-      trimmed.includes("[BLOCKED BY SAFETY LAYER]") ||
-      trimmed.toLowerCase().includes("not found") ||
-      trimmed.toLowerCase().includes("exception")
-    ) {
-      if (!isIgnorablePmError) {
-        subCmdFailed = true;
-      }
-    }
-
-    if (!subCmdFailed) {
-      successSubCmdsCount++;
-    } else if (!isPmUninstall) {
-      success = false;
-    }
+  const subCommands = command
+    .split("&&")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const logs: string[] = [];
+  for (const subCommand of subCommands) {
+    const execution = await runAdbCommandDetailed(deviceId, subCommand);
+    logs.push(execution.output.trim() || "OK");
+    if (!execution.success) return { success: false, output: logs.join("\n") };
   }
-
-  if (subCmds.every((c) => c.includes("pm uninstall"))) {
-    success = successSubCmdsCount > 0;
-  } else if (successSubCmdsCount === 0) {
-    success = false;
-  }
-
-  return { success, output: combinedOutput.trim() };
+  return { success: true, output: logs.join("\n") };
 }
 
-/**
- * Đọc lại giá trị thực tế từ thiết bị sau khi áp dụng lệnh.
- * Xác minh bằng cách so sánh với activeValues hoặc defaultValue.
- */
 async function verifyCommandEffect(
   deviceId: string,
-  item: XiaomiExperienceItem,
-  enable: boolean,
+  command: string,
 ): Promise<boolean> {
-  try {
-    // Đợi 200ms cho settings ổn định trước khi đọc lại
-    await new Promise((r) => setTimeout(r, 200));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const subCommands = command
+    .split("&&")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  let verifiedTargets = 0;
 
-    const cmd = `settings get ${item.readCommand.namespace} ${item.readCommand.key}`;
-    const raw = await runAdbCommand(deviceId, cmd, () => {});
-    const currentValue = raw.trim();
-
-    // Xác minh thực tế cho lệnh pm (uninstall/disable) thay vì bỏ qua
-    if (
-      item.enableCommand.startsWith("pm ") ||
-      item.disableCommand.startsWith("pm ")
-    ) {
-      const installedPkgs = await getInstalledPackageSet(deviceId);
-      const targetPkg = item.detectStrategy.packages?.[0] || "";
-      if (!targetPkg) return true;
-
-      // Nếu đang bật (enable): ứng dụng quảng cáo phải được gỡ bỏ (không còn trong installedPkgs)
-      // Nếu đang tắt (disable/restore): ứng dụng quảng cáo phải được khôi phục (nằm trong installedPkgs)
-      return enable ? !installedPkgs.has(targetPkg) : installedPkgs.has(targetPkg);
+  for (const subCommand of subCommands) {
+    const put = subCommand.match(
+      /^settings put (global|secure|system) ([a-zA-Z0-9_.-]+) ([a-zA-Z0-9_.,:+*\-/=]+)$/,
+    );
+    if (put) {
+      const result = await runAdbCommandDetailed(
+        deviceId,
+        `settings get ${put[1]} ${put[2]}`,
+      );
+      if (!result.success || result.output.trim() !== put[3]) return false;
+      verifiedTargets++;
+      continue;
     }
-
-    // Giá trị "null" từ settings get = key chưa tồn tại
-    if (currentValue === "null" || currentValue === "") {
-      // Nếu đang bật mà key chưa tồn tại → lệnh chưa tác dụng
-      return !enable;
+    const deletion = subCommand.match(
+      /^settings delete (global|secure|system) ([a-zA-Z0-9_.-]+)$/,
+    );
+    if (deletion) {
+      const result = await runAdbCommandDetailed(
+        deviceId,
+        `settings get ${deletion[1]} ${deletion[2]}`,
+      );
+      if (!result.success || !["", "null"].includes(result.output.trim()))
+        return false;
+      verifiedTargets++;
+      continue;
     }
-
-    if (enable) {
-      // Khi bật: giá trị phải nằm trong activeValues
-      if (item.activeValues) {
-        return item.activeValues.includes(currentValue);
-      }
-      return currentValue === "1";
-    } else {
-      // Khi tắt: giá trị phải trùng defaultValue hoặc KHÔNG nằm trong activeValues
-      if (item.activeValues) {
-        return !item.activeValues.includes(currentValue);
-      }
-      return currentValue === item.defaultValue || currentValue === "0";
-    }
-  } catch {
-    // Nếu không đọc được (thiết bị ngắt kết nối...) → coi như chưa xác minh
-    return false;
   }
+
+  const packageMutations = extractPackageMutations(command);
+  if (packageMutations.length > 0) {
+    const [installedResult, disabledResult] = await Promise.all([
+      runAdbCommandDetailed(deviceId, "pm list packages --user 0"),
+      runAdbCommandDetailed(deviceId, "pm list packages --user 0 -d"),
+    ]);
+    if (!installedResult.success || !disabledResult.success) return false;
+    const installed = exactPackageSet(installedResult.output);
+    const disabled = exactPackageSet(disabledResult.output);
+    for (const mutation of packageMutations) {
+      const valid =
+        mutation.verb === "uninstall"
+          ? !installed.has(mutation.packageName)
+          : mutation.verb === "disable-user"
+            ? disabled.has(mutation.packageName)
+            : installed.has(mutation.packageName) &&
+              !disabled.has(mutation.packageName);
+      if (!valid) return false;
+      verifiedTargets++;
+    }
+  }
+  return verifiedTargets > 0;
 }
 
-/**
- * Áp dụng cấu hình bật/tắt cho item tùy biến trải nghiệm.
- *
- * Cơ chế hoạt động (Execute → Verify → Fallback):
- * 1. Chạy lệnh chính
- * 2. Đọc lại giá trị từ thiết bị để xác minh thực sự có tác dụng
- * 3. Nếu chưa tác dụng → tự động chuyển sang lệnh fallback tiếp theo
- * 4. Lặp lại bước 2-3 cho đến khi thành công hoặc hết fallback
- */
+async function assertSettingsReadable(
+  deviceId: string,
+  commands: string[],
+): Promise<{ success: boolean; error?: string }> {
+  const targets = extractSnapshotTargets(commands).settings;
+  for (const target of targets) {
+    const result = await runAdbCommandDetailed(
+      deviceId,
+      `settings get ${target.namespace} ${target.key}`,
+    );
+    if (!result.success) {
+      return {
+        success: false,
+        error: `Không đọc được namespace ${target.namespace} trước khi ghi key ${target.key}.`,
+      };
+    }
+  }
+  return { success: true };
+}
+
 export async function applyExperienceItem(
   deviceId: string,
   itemId: string,
   enable: boolean,
 ): Promise<XiaomiApplyResult> {
-  const item = XIAOMI_EXPERIENCE_ITEMS.find((i) => i.id === itemId);
+  const item = XIAOMI_EXPERIENCE_ITEMS.find(
+    (candidate) => candidate.id === itemId,
+  );
   if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
 
-  // Kiểm tra tính tương thích của thiết bị trước khi thực thi
-  const profile = await getDeviceProfile(deviceId);
-  const { brand, minSdk, packages } = item.detectStrategy;
-
-  if (brand && brand.length > 0) {
-    const brandMatch = brand.some((b) =>
-      profile.brand.toUpperCase().includes(b.toUpperCase()),
-    );
-    if (!brandMatch) {
-      return {
-        success: false,
-        output: `[UNSUPPORTED] Thiết bị thuộc thương hiệu "${profile.brand}" không hỗ trợ tính năng này (Yêu cầu: ${brand.join(", ")}).`,
-        usedFallback: false,
-      };
-    }
-  }
-
-  if (minSdk && profile.sdk < minSdk) {
+  const [profile, capabilities] = await Promise.all([
+    getDeviceProfile(deviceId),
+    getExperienceCapabilities(deviceId),
+  ]);
+  const capability = capabilities.find(
+    ({ item: value }) => value.id === itemId,
+  );
+  if (
+    !capability ||
+    ["UNSUPPORTED", "UNKNOWN", "ERROR"].includes(capability.status)
+  ) {
     return {
       success: false,
-      output: `[UNSUPPORTED] Phiên bản Android hiện tại (SDK ${profile.sdk}) thấp hơn mức yêu cầu của tính năng này (Yêu cầu: SDK ${minSdk}).`,
+      output: `[UNSUPPORTED] ${capability?.reason ?? "Không xác minh được capability trên thiết bị."}`,
       usedFallback: false,
     };
   }
 
-  if (packages && packages.length > 0) {
-    const installedPkgs = await getInstalledPackageSet(deviceId);
-    const pkgsInstalled = packages.every((pkg) => installedPkgs.has(pkg));
-    if (!pkgsInstalled) {
+  const rawCommands = [
+    enable ? item.enableCommand : item.disableCommand,
+    ...(enable
+      ? (item.fallbackEnableCommands ?? [])
+      : (item.fallbackDisableCommands ?? [])),
+  ];
+  const materialized = await Promise.all(
+    rawCommands.map((command) => materializeCommand(deviceId, command)),
+  );
+  const materializeError = materialized.find((entry) => !entry.success);
+  if (materializeError) {
+    return {
+      success: false,
+      output: `[BLOCKED] ${materializeError.error}`,
+      usedFallback: false,
+    };
+  }
+  const commands = materialized.map((entry) => entry.command);
+
+  const preflight = await assertSettingsReadable(deviceId, [commands[0]]);
+  if (!preflight.success) {
+    return {
+      success: false,
+      output: `[UNSUPPORTED] ${preflight.error}`,
+      usedFallback: false,
+    };
+  }
+
+  const deviceIdentity = buildSnapshotDeviceIdentity(profile);
+  const snapshot = await captureMutationSnapshot({
+    deviceIdentity,
+    scope: "xiaomi-experience",
+    actionId: item.id,
+    commands,
+    execute: (command) => runAdbCommandDetailed(deviceId, command),
+  });
+  if (!snapshot.success) {
+    return {
+      success: false,
+      output: `[BLOCKED] ${snapshot.error}`,
+      usedFallback: false,
+    };
+  }
+
+  const logs: string[] = [];
+  for (let index = 0; index < commands.length; index++) {
+    const commandPreflight = await assertSettingsReadable(deviceId, [
+      commands[index],
+    ]);
+    if (!commandPreflight.success) {
+      logs.push(
+        `[${index === 0 ? "Primary" : `Fallback ${index}`}] Bỏ qua: ${commandPreflight.error}`,
+      );
+      continue;
+    }
+    const execution = await executeCommandChain(deviceId, commands[index]);
+    logs.push(
+      `[${index === 0 ? "Primary" : `Fallback ${index}`}] ${execution.output}`,
+    );
+    if (
+      execution.success &&
+      (await verifyCommandEffect(deviceId, commands[index]))
+    ) {
+      logs.push("[VERIFY] Đã xác minh toàn bộ giá trị/package bị tác động.");
       return {
-        success: false,
-        output: `[UNSUPPORTED] Không tìm thấy các gói ứng dụng hệ thống bắt buộc: ${packages.join(", ")}.`,
-        usedFallback: false,
+        success: true,
+        output: logs.join("\n"),
+        usedFallback: index > 0,
       };
     }
   }
 
-  let fullLog = "";
-
-  // ── Bước 1: Thử lệnh chính ──
-  const primaryCmd = enable ? item.enableCommand : item.disableCommand;
-  const primaryResult = await executeCommandChain(deviceId, primaryCmd);
-  fullLog += `[Primary] ${primaryResult.output}`;
-
-  if (primaryResult.success) {
-    // Xác minh lệnh chính có thực sự tác dụng
-    const verified = await verifyCommandEffect(deviceId, item, enable);
-    if (verified) {
-      return { success: true, output: fullLog.trim(), usedFallback: false };
-    }
-    fullLog += "\n[Verify] Lệnh chính đã chạy nhưng giá trị chưa thay đổi trên thiết bị.";
-  } else {
-    fullLog += "\n[Primary] Lệnh chính thất bại.";
+  const rollback = await restoreMutationSnapshot({
+    deviceIdentity,
+    scope: "xiaomi-experience",
+    actionId: item.id,
+    execute: (command) => runAdbCommandDetailed(deviceId, command),
+  });
+  if (rollback.success) {
+    deleteMutationSnapshot(deviceIdentity, "xiaomi-experience", item.id);
   }
-
-  // ── Bước 2: Tự động thử từng lệnh fallback ──
-  const fallbacks = enable
-    ? item.fallbackEnableCommands
-    : item.fallbackDisableCommands;
-
-  if (fallbacks && fallbacks.length > 0) {
-    for (let i = 0; i < fallbacks.length; i++) {
-      const fallbackCmd = fallbacks[i];
-      fullLog += `\n[Fallback ${i + 1}/${fallbacks.length}] Đang thử: ${fallbackCmd}`;
-
-      const fallbackResult = await executeCommandChain(deviceId, fallbackCmd);
-      fullLog += `\n[Fallback ${i + 1}] ${fallbackResult.output}`;
-
-      if (fallbackResult.success) {
-        // Xác minh fallback có thực sự tác dụng
-        const verified = await verifyCommandEffect(deviceId, item, enable);
-        if (verified) {
-          fullLog += `\n[Verify] ✓ Fallback ${i + 1} đã xác minh thành công.`;
-          return { success: true, output: fullLog.trim(), usedFallback: true };
-        }
-        fullLog += `\n[Verify] Fallback ${i + 1} đã chạy nhưng giá trị chưa thay đổi, thử lệnh tiếp...`;
-      } else {
-        fullLog += `\n[Fallback ${i + 1}] Thất bại, thử lệnh tiếp...`;
-      }
-    }
-  }
-
-  // ── Bước 3: Tất cả đều thất bại ──
-  fullLog += "\n[Result] ✗ Tất cả lệnh (chính + fallback) đều không tác dụng trên thiết bị này.";
-  return { success: false, output: fullLog.trim(), usedFallback: true };
+  logs.push(
+    "[FAIL-SAFE] Không xác minh được tác dụng; đã chạy hoàn tác tự động.",
+  );
+  logs.push(rollback.output);
+  return {
+    success: false,
+    output: logs.join("\n"),
+    usedFallback: commands.length > 1,
+  };
 }
 
-/**
- * Khôi phục cấu hình mặc định (Rollback) của tùy chỉnh
- */
 export async function rollbackExperienceItem(
   deviceId: string,
   itemId: string,
 ): Promise<{ success: boolean; output: string }> {
-  return applyExperienceItem(deviceId, itemId, false);
+  const item = XIAOMI_EXPERIENCE_ITEMS.find(
+    (candidate) => candidate.id === itemId,
+  );
+  if (!item) throw new Error(`Không tìm thấy item tùy chỉnh với ID: ${itemId}`);
+  const profile = await getDeviceProfile(deviceId);
+  return restoreMutationSnapshot({
+    deviceIdentity: buildSnapshotDeviceIdentity(profile),
+    scope: "xiaomi-experience",
+    actionId: item.id,
+    execute: (command) => runAdbCommandDetailed(deviceId, command),
+  });
 }

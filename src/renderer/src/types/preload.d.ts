@@ -91,7 +91,12 @@ export interface IADBAPI {
     tweakId: string,
     enable: boolean,
   ) => Promise<any>;
-  fixAllNotifications: (deviceId: string) => Promise<{ success: boolean; count: number; message: string }>;
+  fixAllNotifications: (
+    deviceId: string,
+  ) => Promise<{ success: boolean; count: number; message: string }>;
+  restoreAllNotifications: (
+    deviceId: string,
+  ) => Promise<{ success: boolean; count: number; message: string }>;
   onFixNotificationsProgress: (
     cb: (data: { current: number; total: number; pkgName: string }) => void,
   ) => () => void;
@@ -131,6 +136,9 @@ export interface IADBAPI {
   ) => Promise<XiaomiRollbackResult>;
 
   // Advanced ADB
+  getAdvancedCommands: () => Promise<
+    import("../features/advanced-adb/types").AdvancedCommandDefinition[]
+  >;
   getProps: (
     deviceId: string,
   ) => Promise<Array<{ key: string; value: string }>>;
@@ -143,6 +151,7 @@ export interface IADBAPI {
     deviceId: string,
     commandId: string,
     params: Record<string, string | number>,
+    action: "read" | "apply" | "rollback",
   ) => Promise<AdbCommandResult>;
   executeRawShell: (
     deviceId: string,
@@ -164,16 +173,22 @@ export interface IADBAPI {
   }>;
   downloadAndInstallUpdate: (downloadUrl: string) => Promise<void>;
   onUpdateProgress: (cb: (progress: number) => void) => () => void;
-  onUpdateAvailable: (cb: (info: {
-    available: boolean;
-    version: string;
-    changelog: string;
-    downloadUrl: string | null;
-  }) => void) => () => void;
+  onUpdateAvailable: (
+    cb: (info: {
+      available: boolean;
+      version: string;
+      changelog: string;
+      downloadUrl: string | null;
+    }) => void,
+  ) => () => void;
 
   // Quick Cleaner API
   cleanerScan: (deviceId: string) => Promise<any>;
-  cleanerExecute: (deviceId: string, options: any, whitelist: string[]) => Promise<any>;
+  cleanerExecute: (
+    deviceId: string,
+    options: any,
+    whitelist: string[],
+  ) => Promise<any>;
   onCleanerProgress: (cb: (data: any) => void) => () => void;
   getCleanerWhitelist: () => Promise<string[]>;
   saveCleanerWhitelist: (whitelist: string[]) => Promise<boolean>;

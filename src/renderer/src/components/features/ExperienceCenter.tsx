@@ -37,10 +37,7 @@ import {
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
-import {
-  validateDpi,
-  validateResolution,
-} from "../../utils/validation";
+import { validateDpi, validateResolution } from "../../utils/validation";
 
 type SectionId =
   | "overview"
@@ -55,9 +52,16 @@ type ActionSource = "experience" | "system";
 type ActionState =
   | "SUPPORTED_ON"
   | "SUPPORTED_OFF"
+  | "EXPERIMENTAL"
   | "UNSUPPORTED"
   | "UNKNOWN"
   | "ERROR";
+
+const ACTIONABLE_STATES = new Set<ActionState>([
+  "SUPPORTED_ON",
+  "SUPPORTED_OFF",
+  "EXPERIMENTAL",
+]);
 
 interface XiaomiExperienceItem {
   id: string;
@@ -89,6 +93,7 @@ interface ExperienceItemStatus {
   item: XiaomiExperienceItem;
   status: ActionState;
   currentValue?: string;
+  reason?: string;
 }
 
 interface SystemTweak {
@@ -98,6 +103,13 @@ interface SystemTweak {
   category: "performance" | "privacy" | "display" | "battery";
   risk: "SAFE" | "RISKY" | "KEEP";
   defaultEnabled: boolean;
+  brands?: string[];
+}
+
+interface SystemTweakStatus {
+  status: ActionState;
+  currentValue?: string;
+  reason?: string;
 }
 
 interface UnifiedAction {
@@ -109,6 +121,7 @@ interface UnifiedAction {
   risk: RiskLevel;
   status: ActionState;
   currentValue?: string;
+  reason?: string;
   icon: React.ReactNode;
   systemTweak?: SystemTweak;
   experienceStatus?: ExperienceItemStatus;
@@ -182,8 +195,6 @@ const riskRank: Record<RiskLevel, number> = {
   DANGEROUS: 3,
   KEEP: 4,
 };
-
-
 
 const notificationTweakId = "system:xiaomi_notification_fix";
 
@@ -265,7 +276,9 @@ export function ExperienceCenter() {
     ExperienceItemStatus[]
   >([]);
   const [systemTweaks, setSystemTweaks] = useState<SystemTweak[]>([]);
-  const [systemStatus, setSystemStatus] = useState<Record<string, boolean>>({});
+  const [systemStatus, setSystemStatus] = useState<
+    Record<string, SystemTweakStatus>
+  >({});
   const [deviceDpi, setDeviceDpi] = useState<number | null>(null);
   const [customDpi, setCustomDpi] = useState(440);
   const [deviceResolution, setDeviceResolution] = useState<{
@@ -310,8 +323,6 @@ export function ExperienceCenter() {
     observer.observe(workspace);
     return () => observer.disconnect();
   }, []);
-
-
 
   useEffect(() => {
     if (activeSection === "overview") setActiveSection("interface");
@@ -548,7 +559,7 @@ export function ExperienceCenter() {
 
       setSystemStatus(
         tweakStatusResult.status === "fulfilled"
-          ? (tweakStatusResult.value as Record<string, boolean>)
+          ? (tweakStatusResult.value as Record<string, SystemTweakStatus>)
           : {},
       );
 
@@ -571,8 +582,6 @@ export function ExperienceCenter() {
       } else {
         setDeviceResolution(null);
       }
-
-
 
       // Map DNS States
       if (
@@ -613,8 +622,6 @@ export function ExperienceCenter() {
     void verifyNotificationFix();
   }, [verifyNotificationFix]);
 
-
-
   const unifiedActions = useMemo<UnifiedAction[]>(() => {
     const experienceActions = experienceStatuses.map((status) => ({
       id: `experience:${status.item.id}`,
@@ -625,12 +632,16 @@ export function ExperienceCenter() {
       risk: status.item.risk,
       status: status.status,
       currentValue: status.currentValue,
+      reason: status.reason,
       icon: getExperienceIcon(status.item.category),
       experienceStatus: status,
     }));
 
     const systemActions = systemTweaks.map((tweak) => {
-      const enabled = Boolean(systemStatus[tweak.id]);
+      const detected = systemStatus[tweak.id] ?? {
+        status: "ERROR" as const,
+        reason: "Chưa nhận được kết quả quét.",
+      };
       return {
         id: `system:${tweak.id}`,
         source: "system" as const,
@@ -638,8 +649,9 @@ export function ExperienceCenter() {
         title: tweak.label,
         description: tweak.description,
         risk: tweak.risk,
-        status: enabled ? "SUPPORTED_ON" : "SUPPORTED_OFF",
-        currentValue: enabled ? "enabled" : "default",
+        status: detected.status,
+        currentValue: detected.currentValue,
+        reason: detected.reason,
         icon: getSystemIcon(tweak.category),
         systemTweak: tweak,
       } satisfies UnifiedAction;
@@ -654,22 +666,23 @@ export function ExperienceCenter() {
     });
   }, [experienceStatuses, systemStatus, systemTweaks]);
 
-
-
   const sectionCounts = useMemo(() => {
     const counts: Record<SectionId, number> = {
       overview: unifiedActions.filter(
-        (action) => action.status !== "UNSUPPORTED" && action.risk === "SAFE",
+        (action) =>
+          ACTIONABLE_STATES.has(action.status) && action.risk === "SAFE",
       ).length,
       interface: 0,
       performance: 0,
       privacy: 0,
       display: 0,
-      dns: 0,
+      dns: 1,
     };
 
     unifiedActions.forEach((action) => {
-      counts[action.section] += 1;
+      if (ACTIONABLE_STATES.has(action.status)) {
+        counts[action.section] += 1;
+      }
     });
 
     return counts;
@@ -677,7 +690,13 @@ export function ExperienceCenter() {
 
   const visibleActions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    let actions = unifiedActions;
+    let actions =
+      activeSection === "overview"
+        ? unifiedActions.filter(
+            (action) =>
+              ACTIONABLE_STATES.has(action.status) && action.risk === "SAFE",
+          )
+        : unifiedActions.filter((action) => action.section === activeSection);
 
     if (normalizedQuery) {
       actions = actions.filter(
@@ -687,42 +706,37 @@ export function ExperienceCenter() {
           action.currentValue?.toLowerCase().includes(normalizedQuery) ||
           action.section.toLowerCase().includes(normalizedQuery),
       );
-    } else {
-      actions =
-        activeSection === "overview"
-          ? actions.filter(
-              (action) =>
-                action.status !== "UNSUPPORTED" && action.risk === "SAFE",
-            )
-          : actions.filter((action) => action.section === activeSection);
     }
 
     if (brandFilter !== "all") {
       actions = actions.filter((action) => {
-        const brandList = action.experienceStatus?.item.detectStrategy?.brand;
-        const lowerTitle = (action.title + " " + action.id + " " + (action.description || "")).toLowerCase();
+        const brandList =
+          action.experienceStatus?.item.detectStrategy?.brand ??
+          action.systemTweak?.brands;
         if (brandFilter === "xiaomi") {
-          return (
-            (brandList && brandList.some((b) => ["xiaomi", "redmi", "poco"].includes(b.toLowerCase()))) ||
-            lowerTitle.includes("xiaomi") || lowerTitle.includes("miui") || lowerTitle.includes("hyperos")
+          return Boolean(
+            brandList?.some((b) =>
+              ["xiaomi", "redmi", "poco"].includes(b.toLowerCase()),
+            ),
           );
         }
         if (brandFilter === "samsung") {
-          return (
-            (brandList && brandList.some((b) => b.toLowerCase().includes("samsung"))) ||
-            lowerTitle.includes("samsung") || lowerTitle.includes("oneui")
+          return Boolean(
+            brandList?.some((b) => b.toLowerCase().includes("samsung")),
           );
         }
         if (brandFilter === "oppo") {
-          return (
-            (brandList && brandList.some((b) => ["oppo", "realme", "coloros"].includes(b.toLowerCase()))) ||
-            lowerTitle.includes("oppo") || lowerTitle.includes("realme") || lowerTitle.includes("coloros")
+          return Boolean(
+            brandList?.some((b) =>
+              ["oppo", "realme", "coloros"].includes(b.toLowerCase()),
+            ),
           );
         }
         if (brandFilter === "vivo") {
-          return (
-            (brandList && brandList.some((b) => ["vivo", "funtouch", "origin"].includes(b.toLowerCase()))) ||
-            lowerTitle.includes("vivo") || lowerTitle.includes("funtouch")
+          return Boolean(
+            brandList?.some((b) =>
+              ["vivo", "funtouch", "origin"].includes(b.toLowerCase()),
+            ),
           );
         }
         return true;
@@ -749,8 +763,6 @@ export function ExperienceCenter() {
     const nextAction = preferredAction ?? visibleActions[0];
     if (nextAction) setSelectedActionId(nextAction.id);
   }, [activeSection, selectedActionId, visibleActions]);
-
-
 
   const profileLine = deviceProfile
     ? [
@@ -832,10 +844,13 @@ export function ExperienceCenter() {
 
     void runTrackedAction({
       key: "notification:optimize-all-apps",
-      title: "Tối ưu thông báo toàn bộ ứng dụng",
-      detail: "Doze whitelist, AppOps và WakeLock cho ứng dụng người dùng",
+      title: "Tối ưu thông báo ứng dụng được hỗ trợ",
+      detail: "Doze whitelist và AppOps cho danh sách app nhắn tin định danh",
       source: "system",
-      risk: "SAFE",
+      risk: "RISKY",
+      confirm: true,
+      confirmMessage:
+        "Thao tác chỉ áp dụng cho GMS và các ứng dụng nhắn tin được định danh, đồng thời lưu snapshot từng package. Có thể làm tăng hao pin. Tiếp tục?",
       execute: async () => {
         try {
           const result = await window.api.fixAllNotifications(activeDevice);
@@ -864,6 +879,39 @@ export function ExperienceCenter() {
     verifyNotificationFix,
   ]);
 
+  const handleRestoreAllAppNotifications = useCallback(() => {
+    if (!activeDevice || !isDeviceReady) return;
+    void runTrackedAction({
+      key: "notification:restore-all-apps",
+      title: "Hoàn tác tối ưu thông báo",
+      detail: "Khôi phục whitelist và AppOps từ snapshot từng package",
+      source: "system",
+      risk: "MEDIUM",
+      confirm: true,
+      confirmMessage:
+        "Chỉ các package đã có snapshot hợp lệ mới được khôi phục. Tiếp tục?",
+      execute: async () => {
+        const result = await window.api.restoreAllNotifications(activeDevice);
+        return {
+          success: Boolean(result.success),
+          output: result.message,
+        };
+      },
+      onSuccess: async () => {
+        setNotificationBatchStatus("idle");
+        setNotificationBatchProgress(null);
+        await loadWorkspace();
+        await verifyNotificationFix();
+      },
+    });
+  }, [
+    activeDevice,
+    isDeviceReady,
+    loadWorkspace,
+    runTrackedAction,
+    verifyNotificationFix,
+  ]);
+
   const handleToggleAction = (action: UnifiedAction) => {
     if (!activeDevice) return;
     const nextEnable = action.status !== "SUPPORTED_ON";
@@ -877,9 +925,11 @@ export function ExperienceCenter() {
         detail: `Experience item: ${item.id}`,
         source: "experience",
         risk: action.risk,
-        confirm: action.risk !== "SAFE",
+        confirm: action.risk !== "SAFE" || action.status === "EXPERIMENTAL",
         confirmMessage:
-          "Tùy chọn này có thể thay đổi hành vi sâu của ROM hoặc launcher.",
+          action.status === "EXPERIMENTAL"
+            ? "ROM chưa có sẵn key này. Tool sẽ tạo key thử nghiệm, xác minh giá trị đọc lại và lưu snapshot để hoàn tác. Việc framework thực sự kích hoạt hiệu ứng còn phụ thuộc ROM. Tiếp tục?"
+            : "Tùy chọn này có thể thay đổi hành vi sâu của ROM hoặc launcher.",
         execute: async () => {
           const res = await window.api.applyXiaomiItem(
             activeDevice,
@@ -904,7 +954,11 @@ export function ExperienceCenter() {
         detail: `System tweak: ${tweak.id}`,
         source: "system",
         risk: action.risk,
-        confirm: action.risk !== "SAFE",
+        confirm: action.risk !== "SAFE" || action.status === "EXPERIMENTAL",
+        confirmMessage:
+          action.status === "EXPERIMENTAL"
+            ? "ROM chưa có sẵn key này. Tool sẽ tạo key thử nghiệm và lưu snapshot để hoàn tác. Tiếp tục?"
+            : undefined,
         execute: async () => {
           const res = await window.api.applyTweak(
             activeDevice,
@@ -924,11 +978,12 @@ export function ExperienceCenter() {
     void runTrackedAction({
       key: `rollback:${item.id}`,
       title: `Khôi phục ${action.title}`,
-      detail: `Default value: ${item.defaultValue}`,
+      detail: "Khôi phục snapshot trước lần thay đổi đầu tiên",
       source: "experience",
       risk: "MEDIUM",
       confirm: true,
-      confirmMessage: "Khôi phục sẽ đưa tùy chọn về giá trị mặc định của ROM.",
+      confirmMessage:
+        "Ứng dụng sẽ khôi phục đúng giá trị/package đã sao lưu trước khi thay đổi. Nếu chưa có snapshot, thao tác sẽ bị từ chối.",
       execute: async () => {
         const res = await window.api.rollbackXiaomiItem(activeDevice, item.id);
         return { success: res.success, output: res.output };
@@ -936,8 +991,6 @@ export function ExperienceCenter() {
       onSuccess: refreshAfterAction,
     });
   };
-
-
 
   const handleApplyDpi = () => {
     if (!activeDevice) return;
@@ -1091,8 +1144,6 @@ export function ExperienceCenter() {
     });
   };
 
-
-
   const notificationNeedsAttention =
     !notificationVerification.loading &&
     ![
@@ -1119,8 +1170,6 @@ export function ExperienceCenter() {
       ? "176px minmax(0, 1fr)"
       : "minmax(0, 1fr)";
 
-
-
   return (
     <>
       <div
@@ -1140,8 +1189,6 @@ export function ExperienceCenter() {
           )}
 
           <div className="flex min-h-0 min-w-0 flex-col bg-white">
-
-
             {!showCategoryRail && (
               <div className="border-b border-slate-200 px-4 py-2">
                 <MobileSectionTabs
@@ -1290,7 +1337,9 @@ export function ExperienceCenter() {
                 action={selectedAction}
                 verification={notificationVerification}
                 busy={busyKey === "notification:apply-and-verify"}
-                busyAction={busyKey === `${selectedAction.source}:${selectedAction.id}`}
+                busyAction={
+                  busyKey === `${selectedAction.source}:${selectedAction.id}`
+                }
                 bulkBusy={busyKey === "notification:optimize-all-apps"}
                 bulkProgress={notificationBatchProgress}
                 bulkStatus={notificationBatchStatus}
@@ -1298,6 +1347,7 @@ export function ExperienceCenter() {
                 onToggle={handleToggleAction}
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
+                onRestoreAllNotifications={handleRestoreAllAppNotifications}
               />
             </div>
           )}
@@ -1316,7 +1366,9 @@ export function ExperienceCenter() {
                 action={selectedAction}
                 verification={notificationVerification}
                 busy={busyKey === "notification:apply-and-verify"}
-                busyAction={busyKey === `${selectedAction.source}:${selectedAction.id}`}
+                busyAction={
+                  busyKey === `${selectedAction.source}:${selectedAction.id}`
+                }
                 bulkBusy={busyKey === "notification:optimize-all-apps"}
                 bulkProgress={notificationBatchProgress}
                 bulkStatus={notificationBatchStatus}
@@ -1324,6 +1376,7 @@ export function ExperienceCenter() {
                 onToggle={handleToggleAction}
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
+                onRestoreAllNotifications={handleRestoreAllAppNotifications}
               />
             </div>
           </div>
@@ -1430,8 +1483,6 @@ function MobileSectionTabs({
   );
 }
 
-
-
 function ActionInspector({
   action,
   verification,
@@ -1444,6 +1495,7 @@ function ActionInspector({
   onToggle,
   onApplyNotification,
   onOptimizeAllNotifications,
+  onRestoreAllNotifications,
 }: {
   action: UnifiedAction;
   verification: NotificationVerification;
@@ -1460,6 +1512,7 @@ function ActionInspector({
   onToggle: (action: UnifiedAction) => void;
   onApplyNotification: () => void;
   onOptimizeAllNotifications: () => void;
+  onRestoreAllNotifications: () => void;
 }) {
   const isNotification = action.id === notificationTweakId;
   const notificationVerified = [
@@ -1613,19 +1666,30 @@ function ActionInspector({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={onOptimizeAllNotifications}
-              disabled={bulkBusy || busy || verification.loading}
-              className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-[10px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
-            >
-              {bulkBusy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Bell className="h-3.5 w-3.5 text-cyan-300" />
-              )}
-              Tối ưu thông báo tất cả ứng dụng
-            </button>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onOptimizeAllNotifications}
+                disabled={bulkBusy || busy || verification.loading}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-[10px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+              >
+                {bulkBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Bell className="h-3.5 w-3.5 text-cyan-300" />
+                )}
+                Tối ưu app hỗ trợ
+              </button>
+              <button
+                type="button"
+                onClick={onRestoreAllNotifications}
+                disabled={bulkBusy || busy || verification.loading}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Hoàn tác snapshot
+              </button>
+            </div>
           </div>
 
           <div className="mt-6">
@@ -1676,7 +1740,9 @@ function ActionInspector({
                       ? "bg-emerald-500"
                       : action.status === "SUPPORTED_OFF"
                         ? "bg-slate-400"
-                        : "bg-rose-500"
+                        : action.status === "EXPERIMENTAL"
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
                   }`}
                 />
                 <span className="text-[11px] font-black text-slate-700">
@@ -1684,13 +1750,18 @@ function ActionInspector({
                     ? "Đang bật"
                     : action.status === "SUPPORTED_OFF"
                       ? "Đang tắt"
-                      : "Không hỗ trợ"}
+                      : action.status === "EXPERIMENTAL"
+                        ? "Có thể thử"
+                        : "Không hỗ trợ"}
                 </span>
               </div>
 
               <button
                 type="button"
-                disabled={action.status === "UNSUPPORTED" || busyAction}
+                disabled={
+                  ["UNSUPPORTED", "UNKNOWN", "ERROR"].includes(action.status) ||
+                  busyAction
+                }
                 onClick={() => onToggle(action)}
                 className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-xl px-4 text-[11px] font-black shadow-md transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   action.status === "SUPPORTED_ON"
@@ -1718,20 +1789,26 @@ function ActionInspector({
           <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-[11px]">
             <InspectorValue
               label="Nguồn"
-              value={action.source === "system" ? "Cấu hình hệ thống" : "Trung Tâm Trải Nghiệm (UX)"}
+              value={
+                action.source === "system"
+                  ? "Cấu hình hệ thống"
+                  : "Trung Tâm Trải Nghiệm (UX)"
+              }
             />
             <InspectorValue
               label="Mức rủi ro"
               value={
-                <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
-                  action.risk === "SAFE"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : action.risk === "MEDIUM"
-                      ? "bg-amber-100 text-amber-800"
-                      : action.risk === "RISKY"
-                        ? "bg-orange-100 text-orange-800"
-                        : "bg-rose-100 text-rose-800"
-                }`}>
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+                    action.risk === "SAFE"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : action.risk === "MEDIUM"
+                        ? "bg-amber-100 text-amber-800"
+                        : action.risk === "RISKY"
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-rose-100 text-rose-800"
+                  }`}
+                >
                   {action.risk}
                 </span>
               }
@@ -1747,7 +1824,9 @@ function ActionInspector({
                   label="Hãng áp dụng"
                   value={
                     action.experienceStatus.item.detectStrategy?.brand
-                      ? action.experienceStatus.item.detectStrategy.brand.join(" / ")
+                      ? action.experienceStatus.item.detectStrategy.brand.join(
+                          " / ",
+                        )
                       : "Chung (Mọi hãng AOSP)"
                   }
                 />
@@ -1763,18 +1842,28 @@ function ActionInspector({
                   <InspectorValue
                     label="Yêu cầu Android"
                     value={`Android ${
-                      action.experienceStatus.item.detectStrategy.minSdk >= 35 ? "15+" :
-                      action.experienceStatus.item.detectStrategy.minSdk === 34 ? "14+" :
-                      action.experienceStatus.item.detectStrategy.minSdk === 33 ? "13+" :
-                      action.experienceStatus.item.detectStrategy.minSdk === 31 ? "12+" :
-                      action.experienceStatus.item.detectStrategy.minSdk === 29 ? "10+" : "9+"
+                      action.experienceStatus.item.detectStrategy.minSdk >= 35
+                        ? "15+"
+                        : action.experienceStatus.item.detectStrategy.minSdk ===
+                            34
+                          ? "14+"
+                          : action.experienceStatus.item.detectStrategy
+                                .minSdk === 33
+                            ? "13+"
+                            : action.experienceStatus.item.detectStrategy
+                                  .minSdk === 31
+                              ? "12+"
+                              : action.experienceStatus.item.detectStrategy
+                                    .minSdk === 29
+                                ? "10+"
+                                : "9+"
                     } (SDK ${action.experienceStatus.item.detectStrategy.minSdk}+)`}
                   />
                 )}
 
                 <InspectorValue
                   label="Giá trị chuẩn"
-                  value={`Mặc định: ${action.experienceStatus.item.defaultValue || "null"} | Kích hoạt: ${action.experienceStatus.item.activeValues ? action.experienceStatus.item.activeValues.join(", ") : "1"}`}
+                  value={`Preset tắt: ${action.experienceStatus.item.defaultValue || "null"} | Kích hoạt: ${action.experienceStatus.item.activeValues ? action.experienceStatus.item.activeValues.join(", ") : "1"} | Rollback dùng snapshot thật`}
                 />
               </>
             )}
@@ -1832,11 +1921,19 @@ function VerificationRow({
   );
 }
 
-function InspectorValue({ label, value }: { label: string; value: React.ReactNode }) {
+function InspectorValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2.5 last:border-0 last:pb-0">
       <span className="shrink-0 font-semibold text-slate-500">{label}</span>
-      <span className="text-right font-extrabold text-slate-800 break-all">{value}</span>
+      <span className="text-right font-extrabold text-slate-800 break-all">
+        {value}
+      </span>
     </div>
   );
 }
@@ -2067,38 +2164,6 @@ function DisplayControlPanel({
   );
 }
 
-function getUnsupportedReason(strategy: {
-  brand?: string[];
-  minSdk?: number;
-  packages?: string[];
-}): string {
-  const reasons: string[] = [];
-  if (strategy.brand && strategy.brand.length > 0) {
-    reasons.push(`Chỉ hỗ trợ ${strategy.brand.join(", ")}`);
-  }
-  if (strategy.minSdk) {
-    const androidVer =
-      strategy.minSdk === 34
-        ? "14 (HyperOS 1.0+)"
-        : strategy.minSdk === 31
-          ? "12"
-          : strategy.minSdk === 30
-            ? "11"
-            : strategy.minSdk === 29
-              ? "10"
-              : strategy.minSdk === 28
-                ? "9"
-                : strategy.minSdk === 26
-                  ? "8"
-                  : "cũ hơn";
-    reasons.push(`Yêu cầu Android ${androidVer}+`);
-  }
-  if (strategy.packages && strategy.packages.length > 0) {
-    reasons.push(`Yêu cầu ứng dụng hệ thống: ${strategy.packages.join(", ")}`);
-  }
-  return reasons.join(" | ") || "Không đáp ứng cấu hình thiết bị";
-}
-
 function ActionRow({
   action,
   busy,
@@ -2117,6 +2182,7 @@ function ActionRow({
   onRollback: (action: UnifiedAction) => void;
 }) {
   const isOn = action.status === "SUPPORTED_ON";
+  const isExperimental = action.status === "EXPERIMENTAL";
   const isUnsupported = action.status === "UNSUPPORTED";
   const isUnknown = action.status === "UNKNOWN" || action.status === "ERROR";
 
@@ -2131,9 +2197,11 @@ function ActionRow({
       className={`group w-full max-w-full overflow-hidden border-b border-slate-200 px-4 py-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
         isUnsupported
           ? "bg-slate-50/70 opacity-70"
-          : selected
-            ? "bg-blue-50/75"
-            : "bg-white hover:bg-slate-50/80"
+          : isExperimental
+            ? "bg-amber-50/45"
+            : selected
+              ? "bg-blue-50/75"
+              : "bg-white hover:bg-slate-50/80"
       }`}
     >
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
@@ -2161,12 +2229,15 @@ function ActionRow({
           <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
             {action.description}
           </p>
-          {isUnsupported && action.experienceStatus?.item.detectStrategy && (
-            <p className="mt-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100/60 rounded-lg px-2.5 py-1">
-              ⚠️ Không tương thích:{" "}
-              {getUnsupportedReason(
-                action.experienceStatus.item.detectStrategy,
-              )}
+          {(isExperimental || isUnsupported || isUnknown) && action.reason && (
+            <p
+              className={`mt-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold ${
+                isExperimental
+                  ? "border-amber-200/70 bg-amber-50 text-amber-700"
+                  : "border-rose-100/60 bg-rose-50 text-rose-600"
+              }`}
+            >
+              ⚠️ {action.reason}
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
@@ -2181,9 +2252,9 @@ function ActionRow({
         </div>
 
         <div className="flex items-center gap-2">
-          {action.source === "experience" && !isUnsupported && (
+          {action.source === "experience" && !isUnsupported && !isUnknown && (
             <IconButton
-              title="Khôi phục mặc định"
+              title="Khôi phục trạng thái đã sao lưu"
               onClick={() => onRollback(action)}
               icon={<Undo2 className="h-4 w-4" />}
             />
@@ -2204,12 +2275,17 @@ function BrandBadge({ action }: { action: UnifiedAction }) {
   let brandName = "Chung";
   let badgeStyle = "border-slate-200 bg-slate-100 text-slate-600";
 
-  const brandList = action.experienceStatus?.item.detectStrategy?.brand;
-  const lowerTitle = (action.title + " " + action.id + " " + (action.description || "")).toLowerCase();
+  const brandList =
+    action.experienceStatus?.item.detectStrategy?.brand ??
+    action.systemTweak?.brands;
 
   if (brandList && brandList.length > 0) {
     const mainBrand = brandList[0].toLowerCase();
-    if (mainBrand.includes("xiaomi") || mainBrand.includes("redmi") || mainBrand.includes("poco")) {
+    if (
+      mainBrand.includes("xiaomi") ||
+      mainBrand.includes("redmi") ||
+      mainBrand.includes("poco")
+    ) {
       brandName = "Xiaomi";
       badgeStyle = "border-orange-200 bg-orange-50 text-orange-600";
     } else if (mainBrand.includes("samsung")) {
@@ -2219,20 +2295,6 @@ function BrandBadge({ action }: { action: UnifiedAction }) {
       brandName = "Oppo";
       badgeStyle = "border-emerald-200 bg-emerald-50 text-emerald-600";
     } else if (mainBrand.includes("vivo")) {
-      brandName = "Vivo";
-      badgeStyle = "border-sky-200 bg-sky-50 text-sky-600";
-    }
-  } else {
-    if (lowerTitle.includes("xiaomi") || lowerTitle.includes("miui") || lowerTitle.includes("hyperos")) {
-      brandName = "Xiaomi";
-      badgeStyle = "border-orange-200 bg-orange-50 text-orange-600";
-    } else if (lowerTitle.includes("samsung") || lowerTitle.includes("oneui")) {
-      brandName = "Samsung";
-      badgeStyle = "border-indigo-200 bg-indigo-50 text-indigo-600";
-    } else if (lowerTitle.includes("oppo") || lowerTitle.includes("realme") || lowerTitle.includes("coloros")) {
-      brandName = "Oppo";
-      badgeStyle = "border-emerald-200 bg-emerald-50 text-emerald-600";
-    } else if (lowerTitle.includes("vivo") || lowerTitle.includes("funtouch")) {
       brandName = "Vivo";
       badgeStyle = "border-sky-200 bg-sky-50 text-sky-600";
     }
@@ -2300,11 +2362,13 @@ function StatusBadge({
       ? ["Đang bật", "bg-emerald-100 text-emerald-700"]
       : status === "SUPPORTED_OFF"
         ? ["Đang tắt", "bg-rose-100 text-rose-700"]
-        : status === "UNSUPPORTED"
-          ? ["Không hỗ trợ", "bg-rose-100 text-rose-700"]
-          : status === "ERROR"
-            ? ["Lỗi đọc", "bg-rose-100 text-rose-700"]
-            : ["Chưa quét", "bg-amber-100 text-amber-700"];
+        : status === "EXPERIMENTAL"
+          ? ["Có thể thử", "bg-amber-100 text-amber-700"]
+          : status === "UNSUPPORTED"
+            ? ["Không hỗ trợ", "bg-rose-100 text-rose-700"]
+            : status === "ERROR"
+              ? ["Lỗi đọc", "bg-rose-100 text-rose-700"]
+              : ["Không xác định", "bg-amber-100 text-amber-700"];
 
   return (
     <span className={`rounded-lg px-2 py-1 text-[10px] ${content[1]}`}>
@@ -2369,8 +2433,6 @@ function IconButton({
     </button>
   );
 }
-
-
 
 function ConfirmDialog({
   state,

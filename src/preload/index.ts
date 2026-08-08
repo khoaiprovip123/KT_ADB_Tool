@@ -30,7 +30,13 @@ const api = {
     ipcRenderer.invoke("adb:get-info", deviceId),
   getDevices: () => ipcRenderer.invoke("adb:get-devices"),
   fastbootReboot: (deviceId: string, target?: "bootloader" | "recovery") => {
-    if (!deviceId || typeof deviceId !== "string" || deviceId.includes(";") || deviceId.includes("|") || deviceId.includes("&")) {
+    if (
+      !deviceId ||
+      typeof deviceId !== "string" ||
+      deviceId.includes(";") ||
+      deviceId.includes("|") ||
+      deviceId.includes("&")
+    ) {
       return Promise.reject(new Error("Invalid device ID"));
     }
     return ipcRenderer.invoke("fastboot:reboot", { deviceId, target });
@@ -108,7 +114,8 @@ const api = {
     ipcRenderer.invoke("adb:get-file-base64", { deviceId, remotePath }),
   getStoragePoints: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-storage-points", { deviceId }),
-  getBloatwareDb: (brand?: string) => ipcRenderer.invoke("adb:get-bloatware-db", brand),
+  getBloatwareDb: (brand?: string) =>
+    ipcRenderer.invoke("adb:get-bloatware-db", brand),
   getBloatwareWithStatus: (deviceId: string, brand?: string) =>
     ipcRenderer.invoke("adb:get-bloatware-with-status", deviceId, brand),
   debloatPackage: (
@@ -145,6 +152,8 @@ const api = {
     ipcRenderer.invoke("adb:apply-tweak", deviceId, tweakId, enable),
   fixAllNotifications: (deviceId: string) =>
     ipcRenderer.invoke("adb:fix-all-notifications", deviceId),
+  restoreAllNotifications: (deviceId: string) =>
+    ipcRenderer.invoke("adb:restore-all-notifications", deviceId),
   onFixNotificationsProgress: (
     cb: (data: { current: number; total: number; pkgName: string }) => void,
   ) => {
@@ -220,6 +229,8 @@ const api = {
     ipcRenderer.invoke("xiaomi:rollback-experience-item", { deviceId, itemId }),
 
   // Advanced ADB
+  getAdvancedCommands: () =>
+    ipcRenderer.invoke("advanced-adb:get-command-catalog"),
   getProps: (deviceId: string) =>
     ipcRenderer.invoke("advanced-adb:get-props", deviceId),
   getSettings: (deviceId: string, namespace: string) =>
@@ -230,12 +241,14 @@ const api = {
     deviceId: string,
     commandId: string,
     params: Record<string, string | number>,
+    action: "read" | "apply" | "rollback",
   ) =>
     ipcRenderer.invoke(
       "advanced-adb:execute-preset",
       deviceId,
       commandId,
       params,
+      action,
     ),
   executeRawShell: (deviceId: string, command: string) =>
     ipcRenderer.invoke("advanced-adb:execute-raw", deviceId, command),
@@ -263,7 +276,8 @@ const api = {
   },
 
   // Quick Cleaner API
-  cleanerScan: (deviceId: string) => ipcRenderer.invoke("cleaner:scan", deviceId),
+  cleanerScan: (deviceId: string) =>
+    ipcRenderer.invoke("cleaner:scan", deviceId),
   cleanerExecute: (deviceId: string, options: any, whitelist: string[]) =>
     ipcRenderer.invoke("cleaner:execute", { deviceId, options, whitelist }),
   onCleanerProgress: (cb: (data: any) => void) => {

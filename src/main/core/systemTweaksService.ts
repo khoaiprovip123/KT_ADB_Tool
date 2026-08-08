@@ -1,14 +1,22 @@
 import * as fs from "fs";
 import * as path from "path";
 import { app } from "electron";
-import { execAdb } from "./adbCore";
+import { execAdb, execAdbDetailed, isAdbFailureOutput } from "./adbCore";
 import { validatePackageName } from "./adbSafety";
+import { CapabilityState, getDeviceProfile } from "./deviceProfileService";
+import {
+  buildSnapshotDeviceIdentity,
+  captureMutationSnapshot,
+  extractSnapshotTargets,
+  getMutationSnapshot,
+  restoreMutationSnapshot,
+} from "./adbMutationSnapshot";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 export type RiskLevel = "SAFE" | "RISKY" | "KEEP";
 export type DebloatAction = "uninstall" | "disable" | "restore";
-export type PkgStatus = "installed" | "disabled" | "uninstalled";
+export type PkgStatus = "installed" | "disabled" | "uninstalled" | "unknown";
 export type TweakType =
   | "settings_global"
   | "settings_system"
@@ -40,6 +48,13 @@ export interface SystemTweak {
   readCmd?: string;
   enabledValue?: string;
   defaultEnabled: boolean;
+  brands?: string[];
+}
+
+export interface SystemTweakStatus {
+  status: CapabilityState;
+  currentValue?: string;
+  reason?: string;
 }
 
 // ─── BLOATWARE DATABASE ───────────────────────────────────────────────────────
@@ -50,9 +65,17 @@ export function getBloatwareDb(brand?: string): BloatwareEntry[] {
 
   if (lowerBrand.includes("samsung")) {
     jsonFileName = "samsung_bloatware.json";
-  } else if (lowerBrand.includes("oppo") || lowerBrand.includes("realme") || lowerBrand.includes("coloros")) {
+  } else if (
+    lowerBrand.includes("oppo") ||
+    lowerBrand.includes("realme") ||
+    lowerBrand.includes("coloros")
+  ) {
     jsonFileName = "coloros_bloatware.json";
-  } else if (lowerBrand.includes("vivo") || lowerBrand.includes("funtouch") || lowerBrand.includes("origin")) {
+  } else if (
+    lowerBrand.includes("vivo") ||
+    lowerBrand.includes("funtouch") ||
+    lowerBrand.includes("origin")
+  ) {
     jsonFileName = "funtouch_bloatware.json";
   }
 
@@ -75,7 +98,11 @@ export function getBloatwareDb(brand?: string): BloatwareEntry[] {
 
         const mapped: BloatwareEntry[] = packages.map((e: any) => {
           let riskVal: RiskLevel = "SAFE";
-          if (e.classification === "RISKY" || e.recommendation === "Khuyên dùng") riskVal = "RISKY";
+          if (
+            e.classification === "RISKY" ||
+            e.recommendation === "Khuyên dùng"
+          )
+            riskVal = "RISKY";
           if (e.classification === "KEEP") riskVal = "KEEP";
           return {
             package: e.package,
@@ -83,7 +110,8 @@ export function getBloatwareDb(brand?: string): BloatwareEntry[] {
             description: e.side_effects || e.description || "",
             risk: riskVal,
             category: e.group || e.category || "Bloatware",
-            preferDisable: e.method === "disable" || e.preferDisable || e.safeToRemove,
+            preferDisable:
+              e.method === "disable" || e.preferDisable || e.safeToRemove,
           };
         });
 
@@ -106,16 +134,18 @@ export async function getPackageStatus(
   }
 
   try {
-    const [allOut, disabledOut] = await Promise.all([
-      execAdb(deviceId, `shell pm list packages ${packageName}`),
-      execAdb(deviceId, `shell pm list packages -d ${packageName}`),
+    const [allResult, disabledResult] = await Promise.all([
+      execAdbDetailed(deviceId, `shell pm list packages ${packageName}`),
+      execAdbDetailed(deviceId, `shell pm list packages -d ${packageName}`),
     ]);
 
-    if (disabledOut.includes(packageName)) return "disabled";
-    if (allOut.includes(packageName)) return "installed";
+    if (!allResult.success || !disabledResult.success) return "unknown";
+
+    if (disabledResult.output.includes(packageName)) return "disabled";
+    if (allResult.output.includes(packageName)) return "installed";
     return "uninstalled";
   } catch {
-    return "uninstalled";
+    return "unknown";
   }
 }
 
@@ -168,6 +198,15 @@ const PROTECTED_PACKAGES = new Set([
   "com.qualcomm.qti.telephony.vodafoneplugin",
 ]);
 
+const KNOWN_PLATFORM_SETTING_KEYS = new Set([
+  "global:window_animation_scale",
+  "global:transition_animation_scale",
+  "global:animator_duration_scale",
+  "global:background_process_limit",
+  "secure:screensaver_enabled",
+  "system:show_refresh_rate",
+]);
+
 export async function debloatPackage(
   deviceId: string,
   packageName: string,
@@ -204,7 +243,8 @@ export async function debloatPackage(
         break;
     }
 
-    let output = await execAdb(deviceId, cmd);
+    let execution = await execAdbDetailed(deviceId, cmd);
+    let output = execution.output;
     if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
       return { success: false, message: output.trim() };
     }
@@ -212,10 +252,12 @@ export async function debloatPackage(
     // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException (Android 14+ / HyperOS), tự động chạy pm uninstall --user 0
     if (
       (action === "uninstall" || action === "disable") &&
-      (output.includes("SecurityException") || output.includes("Cannot disable"))
+      (output.includes("SecurityException") ||
+        output.includes("Cannot disable"))
     ) {
       const fallbackCmd = `shell pm uninstall --user 0 ${packageName}`;
-      output = await execAdb(deviceId, fallbackCmd);
+      execution = await execAdbDetailed(deviceId, fallbackCmd);
+      output = execution.output;
     }
 
     const outLower = output.toLowerCase();
@@ -226,17 +268,29 @@ export async function debloatPackage(
 
     if (isUnknown) {
       return {
-        success: true,
+        success: action !== "restore",
         message: `Hiện tại không tìm thấy ứng dụng ${packageName} trong hệ thống của bạn, vui lòng kiểm tra lại.`,
       };
     }
 
-    const success =
-      output.includes("Success") ||
-      output.includes("success") ||
-      action === "restore";
+    if (!execution.success) {
+      return { success: false, message: output.trim() };
+    }
 
-    return { success, message: output.trim() };
+    const status = await getPackageStatus(deviceId, packageName);
+    const success =
+      action === "restore"
+        ? status === "installed"
+        : action === "disable" || preferDisable
+          ? status === "disabled" || status === "uninstalled"
+          : status === "uninstalled";
+
+    return {
+      success,
+      message: success
+        ? output.trim() || `Đã xác minh trạng thái: ${status}`
+        : `${output.trim()}\nKhông xác minh được trạng thái mong muốn (hiện tại: ${status}).`.trim(),
+    };
   } catch (err: any) {
     return { success: false, message: err.message ?? "Unknown error" };
   }
@@ -313,13 +367,15 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     readCmd: "shell settings get secure miui_optimization",
     enabledValue: "0",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "force_gpu",
     label: "Force GPU Rendering",
-    description: "Ép toàn bộ 2D render qua GPU thay vì CPU",
+    description:
+      "Thử tạo key force_hw_ui để yêu cầu ROM ưu tiên GPU cho kết xuất 2D.",
     category: "performance",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell settings put system force_hw_ui 1",
     disableCmd: "shell settings put system force_hw_ui 0",
     readCmd: "shell settings get system force_hw_ui",
@@ -344,31 +400,34 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     description:
       "Tắt package thu thập dữ liệu com.miui.analytics qua pm disable",
     category: "privacy",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell pm disable-user --user 0 com.miui.analytics",
-    disableCmd: "shell pm install-existing --user 0 com.miui.analytics",
+    disableCmd: "shell pm enable com.miui.analytics",
     readCmd: "shell pm list packages -d com.miui.analytics",
     enabledValue: "package:com.miui.analytics",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "disable_msa",
     label: "Vô hiệu hóa MSA (MIUI System Ads)",
     description: "Tắt dịch vụ quảng cáo hệ thống MIUI",
     category: "privacy",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell pm disable-user --user 0 com.miui.msa.global",
-    disableCmd: "shell pm install-existing --user 0 com.miui.msa.global",
+    disableCmd: "shell pm enable com.miui.msa.global",
     readCmd: "shell pm list packages -d com.miui.msa.global",
     enabledValue: "package:com.miui.msa.global",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "ad_id_limit",
     label: "Giới hạn Ad ID Tracking",
-    description: "Bật giới hạn theo dõi quảng cáo (limit_ad_tracking)",
+    description:
+      "Thử bật key limit_ad_tracking; hiệu lực phụ thuộc dịch vụ quảng cáo của ROM.",
     category: "privacy",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell settings put secure limit_ad_tracking 1",
     disableCmd: "shell settings put secure limit_ad_tracking 0",
     readCmd: "shell settings get secure limit_ad_tracking",
@@ -383,22 +442,24 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     category: "performance",
     risk: "RISKY",
     enableCmd: "shell pm disable-user --user 0 com.xiaomi.joyose",
-    disableCmd: "shell pm install-existing --user 0 com.xiaomi.joyose",
+    disableCmd: "shell pm enable com.xiaomi.joyose",
     readCmd: "shell pm list packages -d com.xiaomi.joyose",
     enabledValue: "package:com.xiaomi.joyose",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "disable_daemon",
     label: "Tắt MIUI Daemon",
     description: "Tắt System Daemon (phân tích dữ liệu nền, không cần thiết)",
     category: "privacy",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell pm disable-user --user 0 com.miui.daemon",
-    disableCmd: "shell pm install-existing --user 0 com.miui.daemon",
+    disableCmd: "shell pm enable com.miui.daemon",
     readCmd: "shell pm list packages -d com.miui.daemon",
     enabledValue: "package:com.miui.daemon",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "disable_quickapp",
@@ -406,12 +467,13 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
     description:
       "Tắt framework Quick App — nguồn gốc nhiều quảng cáo trong app system",
     category: "privacy",
-    risk: "SAFE",
+    risk: "RISKY",
     enableCmd: "shell pm disable-user --user 0 com.miui.hybrid",
-    disableCmd: "shell pm install-existing --user 0 com.miui.hybrid",
+    disableCmd: "shell pm enable com.miui.hybrid",
     readCmd: "shell pm list packages -d com.miui.hybrid",
     enabledValue: "package:com.miui.hybrid",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
   {
     id: "fps_overlay",
@@ -440,37 +502,152 @@ export const SYSTEM_TWEAKS: SystemTweak[] = [
   {
     id: "xiaomi_notification_fix",
     label: "Thông báo ứng dụng (HyperOS/MIUI)",
-    description: "Quản lý tập trung nền tảng FCM và quyền chạy nền để ứng dụng nhận thông báo kịp thời khi tắt màn hình.",
+    description:
+      "Quản lý tập trung nền tảng FCM và quyền chạy nền để ứng dụng nhận thông báo kịp thời khi tắt màn hình.",
     category: "performance",
-    risk: "SAFE",
-    enableCmd: "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
-    disableCmd: "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
+    risk: "RISKY",
+    enableCmd:
+      "shell dumpsys deviceidle whitelist +com.google.android.gms ## shell dumpsys deviceidle whitelist +com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK allow ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND allow ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND allow",
+    disableCmd:
+      "shell dumpsys deviceidle whitelist -com.google.android.gms ## shell dumpsys deviceidle whitelist -com.google.android.gsf ## shell cmd appops set com.google.android.gms WAKE_LOCK default ## shell cmd appops set com.google.android.gms RUN_ANY_IN_BACKGROUND default ## shell cmd appops set com.google.android.gsf RUN_ANY_IN_BACKGROUND default",
     readCmd: "shell dumpsys deviceidle whitelist",
     enabledValue: "whitelist",
     defaultEnabled: false,
+    brands: ["XIAOMI", "REDMI", "POCO"],
   },
 ];
 
 export async function getTweakStatus(
   deviceId: string,
   tweak: SystemTweak,
-): Promise<boolean> {
-  if (!tweak.readCmd) return tweak.defaultEnabled;
+): Promise<SystemTweakStatus> {
+  if (!tweak.readCmd) {
+    return {
+      status: "UNKNOWN",
+      reason: "Tweak không có lệnh xác minh trạng thái.",
+    };
+  }
   try {
-    const output = (await execAdb(deviceId, tweak.readCmd)).trim();
-    if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
-      return tweak.defaultEnabled;
-    }
     if (tweak.id === "xiaomi_notification_fix") {
-      return (
-        output.includes("com.google.android.gms") ||
-        output.includes("com.google.android.gsf")
-      );
+      const [gms, gsf, whitelist, wakeLock, gmsBackground, gsfBackground] =
+        await Promise.all([
+          execAdbDetailed(
+            deviceId,
+            "shell pm list packages com.google.android.gms",
+          ),
+          execAdbDetailed(
+            deviceId,
+            "shell pm list packages com.google.android.gsf",
+          ),
+          execAdbDetailed(deviceId, "shell dumpsys deviceidle whitelist"),
+          execAdbDetailed(
+            deviceId,
+            "shell cmd appops get com.google.android.gms WAKE_LOCK",
+          ),
+          execAdbDetailed(
+            deviceId,
+            "shell cmd appops get com.google.android.gms RUN_ANY_IN_BACKGROUND",
+          ),
+          execAdbDetailed(
+            deviceId,
+            "shell cmd appops get com.google.android.gsf RUN_ANY_IN_BACKGROUND",
+          ),
+        ]);
+      if (
+        !gms.success ||
+        !gsf.success ||
+        !gms.output.includes("com.google.android.gms") ||
+        !gsf.output.includes("com.google.android.gsf")
+      ) {
+        return {
+          status: "UNSUPPORTED",
+          reason: "Thiết bị không có đầy đủ GMS/GSF.",
+        };
+      }
+      const checks = [whitelist, wakeLock, gmsBackground, gsfBackground];
+      if (checks.some((result) => !result.success)) {
+        return {
+          status: "ERROR",
+          reason: "Không đọc được whitelist hoặc AppOps.",
+        };
+      }
+      const enabled =
+        whitelist.output.includes("com.google.android.gms") &&
+        whitelist.output.includes("com.google.android.gsf") &&
+        [wakeLock, gmsBackground, gsfBackground].every((result) =>
+          /:\s*allow\b/i.test(result.output),
+        );
+      return enabled
+        ? { status: "SUPPORTED_ON", currentValue: "verified" }
+        : { status: "SUPPORTED_OFF", currentValue: "not-fully-applied" };
     }
-    return output === tweak.enabledValue;
+
+    const packageMatch = tweak.enableCmd.match(
+      /pm\s+(?:disable-user|uninstall)\b[^\n\r]*?\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)/,
+    );
+    if (packageMatch) {
+      const packageName = packageMatch[1];
+      const systemImage = await execAdbDetailed(
+        deviceId,
+        `shell pm list packages -u ${packageName}`,
+      );
+      if (!systemImage.success) {
+        return { status: "ERROR", reason: "Không đọc được package hệ thống." };
+      }
+      if (!systemImage.output.includes(`package:${packageName}`)) {
+        return {
+          status: "UNSUPPORTED",
+          reason: "Package không tồn tại trong system image.",
+        };
+      }
+      const packageStatus = await getPackageStatus(deviceId, packageName);
+      if (packageStatus === "unknown") {
+        return {
+          status: "ERROR",
+          reason: "Không xác minh được trạng thái package.",
+        };
+      }
+      return {
+        status:
+          packageStatus === "disabled" || packageStatus === "uninstalled"
+            ? "SUPPORTED_ON"
+            : "SUPPORTED_OFF",
+        currentValue: packageStatus,
+      };
+    }
+
+    const result = await execAdbDetailed(deviceId, tweak.readCmd);
+    if (!result.success) {
+      return { status: "ERROR", reason: result.output.trim() };
+    }
+    const output = result.output.trim();
+    const settingMatch = tweak.readCmd.match(
+      /settings\s+get\s+(global|system|secure)\s+([a-zA-Z0-9_.-]+)/,
+    );
+    if (["", "null"].includes(output)) {
+      const id = settingMatch ? `${settingMatch[1]}:${settingMatch[2]}` : "";
+      return KNOWN_PLATFORM_SETTING_KEYS.has(id)
+        ? { status: "SUPPORTED_OFF", currentValue: "default" }
+        : {
+            status: "EXPERIMENTAL",
+            currentValue: "not-set",
+            reason:
+              "ROM chưa có settings key này. Có thể thử tạo key với snapshot và xác minh read-back.",
+          };
+    }
+    return {
+      status: output === tweak.enabledValue ? "SUPPORTED_ON" : "SUPPORTED_OFF",
+      currentValue: output,
+    };
   } catch (err: any) {
-    console.error(`Error in getTweakStatus for tweak ${tweak.id}:`, err.message || err);
-    return tweak.defaultEnabled;
+    console.error(
+      `Error in getTweakStatus for tweak ${tweak.id}:`,
+      err.message || err,
+    );
+    return {
+      status: "ERROR",
+      reason: err.message || "Không đọc được trạng thái.",
+    };
   }
 }
 
@@ -480,110 +657,149 @@ export async function applyTweak(
   enable: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cmd = enable ? tweak.enableCmd : tweak.disableCmd;
-    if (cmd.includes(" ## ")) {
-      const subCmds = cmd.split(" ## ");
-      let lastOutput = "";
-      for (const subCmd of subCmds) {
-        lastOutput = await execAdb(deviceId, subCmd);
-        if (lastOutput.includes("[BLOCKED BY SAFETY LAYER]")) {
-          return { success: false, message: lastOutput.trim() };
-        }
-      }
-      return { success: true, message: lastOutput.trim() || "OK" };
+    const status = await getTweakStatus(deviceId, tweak);
+    if (["UNSUPPORTED", "UNKNOWN", "ERROR"].includes(status.status)) {
+      return {
+        success: false,
+        message: `[BLOCKED] ${status.reason ?? "Không xác minh được capability."}`,
+      };
     }
 
-    let output = await execAdb(deviceId, cmd);
-    if (output.includes("[BLOCKED BY SAFETY LAYER]")) {
-      return { success: false, message: output.trim() };
-    }
-    const lowerOutput = output.toLowerCase();
-
-    // Lấy tên package nếu lệnh là pm
-    const pmMatch = cmd.match(/pm\s+(?:disable-user|uninstall|install-existing)[^\n\r]*?\s+([a-zA-Z0-9._-]+)/);
-    const targetPkg = pmMatch ? pmMatch[1] : null;
-
-    if (targetPkg) {
-      // Auto-fallback: Nếu disable-user bị chặn bởi SecurityException, tự động chạy uninstall --user 0
-      if (
-        (lowerOutput.includes("securityexception") || lowerOutput.includes("cannot disable")) &&
-        cmd.includes("disable-user")
-      ) {
-        const fallbackCmd = `shell pm uninstall --user 0 ${targetPkg}`;
-        output = await execAdb(deviceId, fallbackCmd);
-      }
-
-      // Check success again after fallback
-      const finalLower = output.toLowerCase();
-      const success =
-        finalLower.includes("success") ||
-        cmd.includes("install-existing");
-
-      if (!success && (
-        finalLower.includes("unknown package") ||
-        finalLower.includes("not installed")
-      )) {
-        return { success: true, message: "Gói ứng dụng không tồn tại trên thiết bị, tự động bỏ qua." };
-      }
-
-      if (!success && (
-        finalLower.includes("failed") ||
-        finalLower.includes("failure") ||
-        finalLower.includes("error") ||
-        finalLower.includes("exception")
-      )) {
-        return { success: false, message: output.trim() };
-      }
-
-      return { success: true, message: output.trim() || "OK" };
+    const profile = await getDeviceProfile(deviceId);
+    const deviceIdentity = buildSnapshotDeviceIdentity(profile);
+    const scope = "system-tweak";
+    const existingSnapshot = getMutationSnapshot(
+      deviceIdentity,
+      scope,
+      tweak.id,
+    );
+    if (!enable && existingSnapshot) {
+      const rollback = await restoreMutationSnapshot({
+        deviceIdentity,
+        scope,
+        actionId: tweak.id,
+        execute: (command) => execAdbDetailed(deviceId, command),
+      });
+      return { success: rollback.success, message: rollback.output };
     }
 
-    // Đối với các lệnh không phải pm (settings get/put, wm...)
-    if (
-      lowerOutput.includes("failed") ||
-      lowerOutput.includes("failure") ||
-      lowerOutput.includes("error") ||
-      lowerOutput.includes("exception")
-    ) {
-      return { success: false, message: output.trim() };
+    const command = enable ? tweak.enableCmd : tweak.disableCmd;
+    const allMutationCommands = [tweak.enableCmd, tweak.disableCmd];
+    const targets = extractSnapshotTargets([command]);
+    for (const target of targets.settings) {
+      const before = await execAdbDetailed(
+        deviceId,
+        `settings get ${target.namespace} ${target.key}`,
+      );
+      if (!before.success)
+        return { success: false, message: before.output.trim() };
     }
 
-    return { success: true, message: output.trim() || "OK" };
+    const snapshot = await captureMutationSnapshot({
+      deviceIdentity,
+      scope,
+      actionId: tweak.id,
+      commands: allMutationCommands,
+      execute: (value) => execAdbDetailed(deviceId, value),
+    });
+    if (!snapshot.success) {
+      return { success: false, message: `[BLOCKED] ${snapshot.error}` };
+    }
+
+    const logs: string[] = [];
+    for (const subCommand of command
+      .split(" ## ")
+      .map((value) => value.trim())) {
+      const execution = await execAdbDetailed(deviceId, subCommand);
+      logs.push(execution.output.trim() || "OK");
+      if (!execution.success || isAdbFailureOutput(execution.output)) {
+        const rollback = await restoreMutationSnapshot({
+          deviceIdentity,
+          scope,
+          actionId: tweak.id,
+          execute: (value) => execAdbDetailed(deviceId, value),
+        });
+        return {
+          success: false,
+          message: `${logs.join("\n")}\n[FAIL-SAFE] ${rollback.output}`,
+        };
+      }
+    }
+
+    const verified = await getTweakStatus(deviceId, tweak);
+    const expected = enable ? "SUPPORTED_ON" : "SUPPORTED_OFF";
+    if (verified.status !== expected) {
+      const rollback = await restoreMutationSnapshot({
+        deviceIdentity,
+        scope,
+        actionId: tweak.id,
+        execute: (value) => execAdbDetailed(deviceId, value),
+      });
+      return {
+        success: false,
+        message: `${logs.join("\n")}\n[VERIFY FAILED] ${rollback.output}`,
+      };
+    }
+    return {
+      success: true,
+      message: `${logs.join("\n")}\n[VERIFY] Đã xác minh trạng thái sau thao tác.`,
+    };
   } catch (err: any) {
     return { success: false, message: err.message || "Unknown error" };
   }
 }
 
-async function addToXiaomiSystemSetting(
-  safeExec: (cmd: string) => Promise<string>,
-  key: string,
+const NOTIFICATION_TARGET_PACKAGES = [
+  "com.google.android.gms",
+  "com.zing.zalo",
+  "com.facebook.orca",
+  "org.telegram.messenger",
+  "org.telegram.plus",
+  "com.whatsapp",
+  "com.instagram.android",
+  "com.discord",
+  "com.viber.voip",
+  "jp.naver.line.android",
+  "com.tencent.mm",
+  "com.skype.raider",
+];
+
+function notificationCommands(packageName: string): string[] {
+  return [
+    `shell dumpsys deviceidle whitelist +${packageName}`,
+    `shell cmd appops set ${packageName} RUN_IN_BACKGROUND allow`,
+    `shell cmd appops set ${packageName} RUN_ANY_IN_BACKGROUND allow`,
+    `shell cmd appops set ${packageName} WAKE_LOCK allow`,
+  ];
+}
+
+async function verifyNotificationPackage(
+  deviceId: string,
   packageName: string,
-) {
-  try {
-    const currentRaw = (await safeExec(`shell settings get system ${key}`)).trim();
-    if (!currentRaw || currentRaw === "null" || currentRaw.includes("Command failed") || currentRaw.includes("Error")) {
-      return;
-    }
-
-    const isMilletWhite = key.toLowerCase() === "millet_white";
-    const delimiter = isMilletWhite ? ";" : currentRaw.includes(";") ? ";" : currentRaw.includes(":") ? ":" : ",";
-
-    const existingList = currentRaw
-      .split(/[;,:\s]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && s !== "null");
-
-    if (!existingList.includes(packageName)) {
-      existingList.push(packageName);
-      const newValue =
-        delimiter === ";"
-          ? existingList.join(";") + ";"
-          : existingList.join(delimiter);
-      await safeExec(`shell settings put system ${key} "${newValue}"`);
-    }
-  } catch {
-    // Bỏ qua nếu ROM không hỗ trợ key hệ thống này
-  }
+): Promise<boolean> {
+  const [whitelist, runBackground, runAnyBackground, wakeLock] =
+    await Promise.all([
+      execAdbDetailed(deviceId, "shell dumpsys deviceidle whitelist"),
+      execAdbDetailed(
+        deviceId,
+        `shell cmd appops get ${packageName} RUN_IN_BACKGROUND`,
+      ),
+      execAdbDetailed(
+        deviceId,
+        `shell cmd appops get ${packageName} RUN_ANY_IN_BACKGROUND`,
+      ),
+      execAdbDetailed(
+        deviceId,
+        `shell cmd appops get ${packageName} WAKE_LOCK`,
+      ),
+    ]);
+  return (
+    whitelist.success &&
+    whitelist.output.includes(packageName) &&
+    [runBackground, runAnyBackground, wakeLock].every(
+      (result) => result.success && /:\s*allow\b/i.test(result.output),
+    )
+  );
 }
 
 export async function fixAllNotifications(
@@ -591,9 +807,9 @@ export async function fixAllNotifications(
   onProgress?: (current: number, total: number, pkgName: string) => void,
 ): Promise<{ success: boolean; count: number; message: string }> {
   try {
-    const [rawUser0, raw3] = await Promise.all([
+    const [rawUser0, profile] = await Promise.all([
       execAdb(deviceId, "shell pm list packages --user 0"),
-      execAdb(deviceId, "shell pm list packages -3 --user 0"),
+      getDeviceProfile(deviceId),
     ]);
 
     const installedUser0 = new Set(
@@ -603,55 +819,10 @@ export async function fixAllNotifications(
         .filter(Boolean),
     );
 
-    const pkgs3 = raw3
-      .split("\n")
-      .map((l) => l.replace("package:", "").trim())
-      .filter((p) => installedUser0.has(p));
-
-    const essentialPkgs = [
-      // Google Services Core
-      "com.google.android.gms",
-      "com.google.android.gsf",
-      // Social & Messaging (Fix-Noti-Xiaomi CDN Preset)
-      "com.zing.zalo",
-      "com.facebook.orca",
-      "com.facebook.katana",
-      "org.telegram.messenger",
-      "org.telegram.plus",
-      "com.whatsapp",
-      "com.instagram.android",
-      "com.instagram.barcelona",
-      "com.zhiliaoapp.musically",
-      "com.ss.android.ugc.trill",
-      "com.locket.Locket",
-      "com.discord",
-      "com.viber.voip",
-      "jp.naver.line.android",
-      "com.tencent.mm",
-      "com.twitter.android",
-      "com.skype.raider",
-      // Banking & E-Wallets (Vietnam & Global)
-      "com.mservice.momotransfer",
-      "com.mbmobile",
-      "com.vietcombank.phone",
-      "vn.com.techcombank.bb.app",
-      "com.vpb.neo",
-      "com.vnpay.bidv",
-      "com.vietinbank.ipay",
-      "com.vnpay.agribank3g",
-      "com.acb.mobile",
-      "com.tpb.mb.gprsauto",
-      "com.sacombank.mbanking",
-      "com.msb.mb",
-      "com.vib.myvib2",
-      "vn.cake.app",
-      "vn.vnpay.vnpaywallet",
-      "vn.com.vng.zalopay",
-      "com.bplus.vtpay",
-      "com.airpay.consumer",
-    ].filter((p) => installedUser0.has(p));
-
-    const allTargets = Array.from(new Set([...essentialPkgs, ...pkgs3]));
+    const allTargets = NOTIFICATION_TARGET_PACKAGES.filter((packageName) =>
+      installedUser0.has(packageName),
+    );
+    const deviceIdentity = buildSnapshotDeviceIdentity(profile);
 
     let count = 0;
     for (let i = 0; i < allTargets.length; i++) {
@@ -661,52 +832,97 @@ export async function fixAllNotifications(
       onProgress?.(i + 1, allTargets.length, pkg);
 
       try {
-        const safeExec = async (cmd: string) => {
-          try {
-            const res = await execAdb(deviceId, cmd);
-            if (typeof res === "string" && (res.includes("Command failed:") || res.includes("Error:") || res.includes("No UID"))) {
-              return "";
-            }
-            return res;
-          } catch {
-            return "";
+        const requiredCommands = notificationCommands(pkg);
+        const snapshot = await captureMutationSnapshot({
+          deviceIdentity,
+          scope: "notification-batch",
+          actionId: pkg,
+          commands: requiredCommands,
+          execute: (command) => execAdbDetailed(deviceId, command),
+        });
+        if (!snapshot.success) continue;
+
+        let requiredSucceeded = true;
+        for (const command of requiredCommands) {
+          const result = await execAdbDetailed(deviceId, command);
+          if (!result.success || isAdbFailureOutput(result.output)) {
+            requiredSucceeded = false;
+            break;
           }
-        };
+        }
 
-        // 1. DeviceIdle Doze Whitelist
-        await safeExec(`shell dumpsys deviceidle whitelist +${pkg}`);
-        // 2. Set App Standby Bucket to ACTIVE (Mức ưu tiên tài nguyên cao nhất - 10)
-        await safeExec(`shell am set-standby-bucket ${pkg} active`);
-        // 3. Cấp quyền AppOps chạy nền & WakeLock
-        await safeExec(`shell cmd appops set ${pkg} RUN_IN_BACKGROUND allow`);
-        await safeExec(`shell cmd appops set ${pkg} RUN_ANY_IN_BACKGROUND allow`);
-        await safeExec(`shell cmd appops set ${pkg} WAKE_LOCK allow`);
-        // 4. Chống hệ thống tự động tước quyền ứng dụng không dùng
-        await safeExec(`shell appops set --user 0 ${pkg} AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore`);
-        // 5. Đảm bảo ứng dụng không ở trạng thái inactive
-        await safeExec(`shell am set-inactive ${pkg} false`);
-
-        // 6. Tích hợp Xiaomi MIUI / HyperOS Millet Freezing Engine Whitelists
-        await addToXiaomiSystemSetting(safeExec, "millet_white", pkg);
-        await addToXiaomiSystemSetting(safeExec, "cloud_lowlatency_whitelist", pkg);
-        await addToXiaomiSystemSetting(safeExec, "MILLET_NO_RESTRICT_APP", pkg);
-
-        count++;
+        const verified =
+          requiredSucceeded && (await verifyNotificationPackage(deviceId, pkg));
+        if (verified) {
+          count++;
+        } else {
+          await restoreMutationSnapshot({
+            deviceIdentity,
+            scope: "notification-batch",
+            actionId: pkg,
+            execute: (command) => execAdbDetailed(deviceId, command),
+          });
+        }
       } catch (e) {
         console.warn(`Lỗi bỏ qua cho ${pkg}:`, e);
       }
     }
 
     return {
-      success: true,
+      success: count > 0,
       count,
-      message: `Đã tối ưu thông báo tức thì đa tầng cho ${count} ứng dụng hợp lệ trên User 0!`,
+      message:
+        count > 0
+          ? `Đã áp dụng có snapshot và xác minh ${count}/${allTargets.length} ứng dụng nhắn tin được hỗ trợ.`
+          : "Không có ứng dụng nhắn tin hỗ trợ nào được tối ưu thành công.",
     };
   } catch (err: any) {
     return {
-      success: true,
+      success: false,
       count: 0,
-      message: "Đã hoàn tất tiến trình tối ưu thông báo.",
+      message: err.message || "Tối ưu thông báo thất bại.",
+    };
+  }
+}
+
+export async function restoreAllNotifications(
+  deviceId: string,
+): Promise<{ success: boolean; count: number; message: string }> {
+  try {
+    const profile = await getDeviceProfile(deviceId);
+    const deviceIdentity = buildSnapshotDeviceIdentity(profile);
+    let restored = 0;
+    const failures: string[] = [];
+
+    for (const packageName of NOTIFICATION_TARGET_PACKAGES) {
+      if (
+        !getMutationSnapshot(deviceIdentity, "notification-batch", packageName)
+      ) {
+        continue;
+      }
+      const result = await restoreMutationSnapshot({
+        deviceIdentity,
+        scope: "notification-batch",
+        actionId: packageName,
+        execute: (command) => execAdbDetailed(deviceId, command),
+      });
+      if (result.success) restored++;
+      else failures.push(packageName);
+    }
+
+    return {
+      success: failures.length === 0,
+      count: restored,
+      message:
+        failures.length === 0
+          ? `Đã khôi phục và xác minh ${restored} snapshot thông báo.`
+          : `Khôi phục chưa hoàn tất cho: ${failures.join(", ")}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      count: 0,
+      message: err.message || "Khôi phục thông báo thất bại.",
     };
   }
 }
@@ -749,8 +965,20 @@ export async function setDpi(
     return { success: false, message: "DPI phải nằm trong khoảng 160–640" };
   }
   try {
-    await execAdb(deviceId, `shell wm density ${dpi}`);
-    return { success: true, message: `DPI đã đặt thành ${dpi}` };
+    const execution = await execAdbDetailed(
+      deviceId,
+      `shell wm density ${dpi}`,
+    );
+    if (!execution.success) {
+      return { success: false, message: execution.output };
+    }
+    const actual = await getCurrentDpi(deviceId);
+    return actual === dpi
+      ? { success: true, message: `DPI đã đặt và xác minh ở ${dpi}` }
+      : {
+          success: false,
+          message: `DPI đọc lại là ${actual ?? "không xác định"}, không khớp ${dpi}.`,
+        };
   } catch (err: any) {
     return { success: false, message: err.message };
   }
@@ -760,8 +988,10 @@ export async function resetDpi(
   deviceId: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    await execAdb(deviceId, "shell wm density reset");
-    return { success: true, message: "DPI đã khôi phục về mặc định" };
+    const execution = await execAdbDetailed(deviceId, "shell wm density reset");
+    return execution.success
+      ? { success: true, message: "DPI đã khôi phục về mặc định" }
+      : { success: false, message: execution.output };
   } catch (err: any) {
     return { success: false, message: err.message };
   }
@@ -784,11 +1014,23 @@ export async function setResolution(
   }
 
   try {
-    await execAdb(deviceId, `shell wm size ${width}x${height}`);
-    return {
-      success: true,
-      message: `Độ phân giải đặt thành ${width}x${height}`,
-    };
+    const execution = await execAdbDetailed(
+      deviceId,
+      `shell wm size ${width}x${height}`,
+    );
+    if (!execution.success) {
+      return { success: false, message: execution.output };
+    }
+    const actual = await getCurrentResolution(deviceId);
+    return actual?.width === width && actual?.height === height
+      ? {
+          success: true,
+          message: `Độ phân giải đã đặt và xác minh ở ${width}x${height}`,
+        }
+      : {
+          success: false,
+          message: `Độ phân giải đọc lại là ${actual ? `${actual.width}x${actual.height}` : "không xác định"}.`,
+        };
   } catch (err: any) {
     return { success: false, message: err.message };
   }
@@ -798,8 +1040,10 @@ export async function resetResolution(
   deviceId: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    await execAdb(deviceId, "shell wm size reset");
-    return { success: true, message: "Độ phân giải đã khôi phục về mặc định" };
+    const execution = await execAdbDetailed(deviceId, "shell wm size reset");
+    return execution.success
+      ? { success: true, message: "Độ phân giải đã khôi phục về mặc định" }
+      : { success: false, message: execution.output };
   } catch (err: any) {
     return { success: false, message: err.message };
   }
@@ -808,17 +1052,30 @@ export async function resetResolution(
 export async function setAnimationScale(
   deviceId: string,
   scale: 0 | 0.5 | 1.0,
-): Promise<void> {
+): Promise<{ success: boolean; message: string }> {
   const keys = [
     "window_animation_scale",
     "transition_animation_scale",
     "animator_duration_scale",
   ];
-  await Promise.all(
+  const executions = await Promise.all(
     keys.map((k) =>
-      execAdb(deviceId, `shell settings put global ${k} ${scale}`),
+      execAdbDetailed(deviceId, `shell settings put global ${k} ${scale}`),
     ),
   );
+  const failed = executions.find((result) => !result.success);
+  if (failed) return { success: false, message: failed.output };
+
+  const reads = await Promise.all(
+    keys.map((k) => execAdb(deviceId, `shell settings get global ${k}`)),
+  );
+  const expected = String(scale);
+  const verified = reads.every(
+    (value) => Number(value.trim()) === Number(expected),
+  );
+  return verified
+    ? { success: true, message: `Đã đặt và xác minh hoạt ảnh ${scale}x` }
+    : { success: false, message: "Giá trị hoạt ảnh đọc lại không khớp." };
 }
 
 // ─── BUILT-IN BLOATWARE DB (Fallback) ────────────────────────────────────────
@@ -1001,7 +1258,8 @@ const BUILTIN_BLOATWARE_DB: BloatwareEntry[] = [
   {
     package: "com.miui.browser",
     name: "Mi Browser",
-    description: "Trình duyệt mặc định Xiaomi bảo mật kém, chứa quảng cáo. Hãy cài sẵn Chrome/Edge trước khi gỡ.",
+    description:
+      "Trình duyệt mặc định Xiaomi bảo mật kém, chứa quảng cáo. Hãy cài sẵn Chrome/Edge trước khi gỡ.",
     risk: "RISKY",
     category: "Browser",
   },

@@ -220,9 +220,9 @@ export const QuickCleanerTab: React.FC = () => {
               <HardDrive className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-xs text-slate-400 font-medium block">Ước Tính Bộ Nhớ Rác</span>
+              <span className="text-xs text-slate-400 font-medium block">Phạm Vi Quét Cache</span>
               <span className="text-lg font-extrabold text-slate-800 dark:text-slate-100">
-                ~{scanResult.cache.estimatedCacheMb} MB Cache
+                {scanResult.cache.totalPackagesCount} ứng dụng
               </span>
             </div>
           </div>

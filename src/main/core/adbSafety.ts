@@ -114,9 +114,84 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     };
   }
 
+  if (trimmed.startsWith("settings delete ")) {
+    const parts = trimmed.split(/\s+/);
+    if (
+      parts.length === 4 &&
+      ["global", "system", "secure"].includes(parts[2]) &&
+      validateSettingsKey(parts[3])
+    ) {
+      return { allowed: true, risk: "MEDIUM", mode: "WRITE_SETTING" };
+    }
+    return {
+      allowed: false,
+      risk: "DANGEROUS",
+      mode: "WRITE_SETTING",
+      reason: "Sai định dạng settings delete.",
+    };
+  }
+
   // 3. Phân loại READ_ONLY Settings (Đọc cài đặt)
   if (trimmed.startsWith("settings get ")) {
     return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
+  }
+
+  // Device Idle whitelist có cả lệnh đọc và ghi; phải phân loại trước dumpsys chung.
+  if (trimmed === "dumpsys deviceidle whitelist") {
+    return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
+  }
+  const whitelistMutation = trimmed.match(
+    /^dumpsys deviceidle whitelist ([+-])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)$/,
+  );
+  if (whitelistMutation) {
+    return { allowed: true, risk: "RISKY", mode: "PACKAGE_OP" };
+  }
+  if (trimmed.startsWith("dumpsys deviceidle whitelist ")) {
+    return {
+      allowed: false,
+      risk: "DANGEROUS",
+      mode: "PACKAGE_OP",
+      reason: "Sai định dạng Device Idle whitelist.",
+    };
+  }
+
+  // Chỉ cho phép đọc hoặc đặt một AppOp cụ thể với mode hữu hạn.
+  if (
+    /^cmd appops get [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ [A-Z][A-Z0-9_]{1,63}$/.test(
+      trimmed,
+    )
+  ) {
+    return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
+  }
+  if (
+    /^cmd appops set [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ [A-Z][A-Z0-9_]{1,63} (?:allow|deny|ignore|default|foreground)$/.test(
+      trimmed,
+    )
+  ) {
+    return { allowed: true, risk: "RISKY", mode: "PACKAGE_OP" };
+  }
+  if (trimmed.startsWith("cmd appops ")) {
+    return {
+      allowed: false,
+      risk: "DANGEROUS",
+      mode: "PACKAGE_OP",
+      reason: "Sai định dạng hoặc AppOps mode không được phép.",
+    };
+  }
+
+  if (trimmed === "cmd uimode night") {
+    return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
+  }
+  if (/^cmd uimode night (?:yes|no|auto|custom)$/.test(trimmed)) {
+    return { allowed: true, risk: "MEDIUM", mode: "WRITE_SETTING" };
+  }
+  if (trimmed.startsWith("cmd uimode")) {
+    return {
+      allowed: false,
+      risk: "DANGEROUS",
+      mode: "RAW_SHELL",
+      reason: "Sai định dạng cmd uimode.",
+    };
   }
 
   // 3b. Các lệnh đọc-only an toàn (getprop, dumpsys, cat, ls, wm, df, getenforce, which, id, ...)
@@ -129,6 +204,8 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "wm size",
     "wm density",
     "df",
+    "du ",
+    "ps ",
     "ip ",
     "netstat ",
     "ss ",
@@ -154,6 +231,10 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "am start",
     "am broadcast",
     "am force-stop",
+    "am kill ",
+    "am kill-all",
+    "am send-trim-memory ",
+    "am compact ",
     "am set-standby-bucket ",
     "cmd activity",
     "cmd package list",
@@ -161,8 +242,6 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     "cmd device_config",
     "cmd settings",
     "cmd power",
-    "cmd appops ",
-    "cmd uimode",
     "svc power",
     "svc wifi",
     "svc data",
@@ -206,7 +285,9 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     // Chặn các tác vụ nguy hại hoặc can thiệp lõi nếu không thuộc whitelist
     if (trimmed.includes("disable-user") || trimmed.includes("uninstall")) {
       // Tìm chuỗi khớp định dạng Package Name trong câu lệnh
-      const match = trimmed.match(/(?:disable-user|uninstall)(?:\s+-[a-zA-Z0-9-]+|\s+--[a-zA-Z0-9-]+|\s+\d+)*\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)/);
+      const match = trimmed.match(
+        /(?:disable-user|uninstall)(?:\s+-[a-zA-Z0-9-]+|\s+--[a-zA-Z0-9-]+|\s+\d+)*\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)/,
+      );
       if (!match) {
         return {
           allowed: false,
@@ -258,12 +339,18 @@ export function evaluateCommand(cmd: string): EvaluationResult {
       }
       if (hasRecursive) {
         for (const p of paths) {
-          if (p.startsWith("/") && !p.startsWith("/sdcard") && !p.startsWith("/storage")) {
+          const isApprovedRoot = [
+            "/sdcard",
+            "/storage",
+            "/data/local/tmp",
+          ].some((root) => p === root || p.startsWith(`${root}/`));
+          if (!isApprovedRoot) {
             return {
               allowed: false,
               risk: "DANGEROUS",
               mode: "FILE_OP",
-              reason: "Cấm xóa phân vùng hệ thống root hoặc thư mục hệ thống.",
+              reason:
+                "Lệnh xóa đệ quy chỉ được phép trong /sdcard, /storage hoặc /data/local/tmp.",
             };
           }
         }
@@ -347,5 +434,8 @@ export function buildShellCommand(
  * Làm sạch tất cả các tiền tố "adb shell", "shell", "adb" lặp lại dư thừa ở đầu câu lệnh.
  */
 export function cleanAdbPrefix(cmd: string): string {
-  return cmd.trim().replace(/^(adb\s+shell\s+|shell\s+|adb\s+)+/i, "").trim();
+  return cmd
+    .trim()
+    .replace(/^(adb\s+shell\s+|shell\s+|adb\s+)+/i, "")
+    .trim();
 }

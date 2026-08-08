@@ -38,8 +38,8 @@ export function SystemOptimization() {
   // Column 1: Hiệu ứng & Cảm ứng
   const [optAnimDuration, setOptAnimDuration] = useState<number>(650);
   const [optAnimDurationEnabled, setOptAnimDurationEnabled] =
-    useState<boolean>(true);
-  const [optMultiTouch, setOptMultiTouch] = useState<boolean>(true);
+    useState<boolean>(false);
+  const [optMultiTouch, setOptMultiTouch] = useState<boolean>(false);
   const [optLongPress, setOptLongPress] = useState<number>(400);
   const [optLongPressEnabled, setOptLongPressEnabled] = useState<boolean>(true);
   const [optTransitionScale, setOptTransitionScale] = useState<number>(0.95);
@@ -55,16 +55,16 @@ export function SystemOptimization() {
     useState<boolean>(true);
 
   // Column 2: Dọn dẹp & Tối ưu Pin
-  const [optBattery, setOptBattery] = useState<boolean>(true);
-  const [optCleanTelegram, setOptCleanTelegram] = useState<boolean>(true);
+  const [optBattery, setOptBattery] = useState<boolean>(false);
+  const [optCleanTelegram, setOptCleanTelegram] = useState<boolean>(false);
   const [optClearAllCache, setOptClearAllCache] = useState<boolean>(true);
-  const [optOverclock, setOptOverclock] = useState<boolean>(true);
-  const [optCleanArt, setOptCleanArt] = useState<boolean>(true);
+  const [optOverclock, setOptOverclock] = useState<boolean>(false);
+  const [optCleanArt, setOptCleanArt] = useState<boolean>(false);
 
   // Column 3: Tối ưu Biên dịch & Hệ thống
   const [optCompileEverything, setOptCompileEverything] =
     useState<boolean>(false);
-  const [optCompileAll, setOptCompileAll] = useState<boolean>(true);
+  const [optCompileAll, setOptCompileAll] = useState<boolean>(false);
   const [optCompileDaily, setOptCompileDaily] = useState<boolean>(true);
   const [optCompileBoot, setOptCompileBoot] = useState<boolean>(false);
   const [optCompileOta, setOptCompileOta] = useState<boolean>(false);
@@ -151,7 +151,7 @@ export function SystemOptimization() {
 
     let totalSteps = 0;
     if (optAnimDurationEnabled) totalSteps++;
-    if (optMultiTouch) totalSteps++;
+    if (optMultiTouch) totalSteps += 2;
     if (optLongPressEnabled) totalSteps++;
     if (optTransitionScaleEnabled) totalSteps++;
     if (optAnimatorDurationScaleEnabled) totalSteps++;
@@ -207,22 +207,14 @@ export function SystemOptimization() {
     };
 
     try {
-      if (optAnimDurationEnabled) {
-        const scaleVal = (optAnimDuration / 1000).toFixed(2);
-        await runStep(
-          `Tối ưu độ mượt hiệu ứng (animator_duration_scale): ${optAnimDuration}ms`,
-          `settings put system animator_duration_scale ${scaleVal}`,
-        );
-      }
-
       if (optMultiTouch) {
         await runStep(
-          "Kích hoạt tối ưu phản hồi đa chạm",
-          `settings put system multi_touch_enabled 1`,
+          "Thử tạo key phản hồi đa chạm",
+          "settings put system multi_touch_enabled 1",
         );
-        await window.api.runAdbCommand(
-          activeDevice!,
-          `settings put system touch_responsiveness 1`,
+        await runStep(
+          "Thử tạo key tăng độ nhạy cảm ứng",
+          "settings put system touch_responsiveness 1",
         );
       }
 
@@ -254,6 +246,14 @@ export function SystemOptimization() {
         );
       }
 
+      if (optAnimDurationEnabled) {
+        const scaleValue = Math.max(0, optAnimDuration / 1000).toFixed(2);
+        await runStep(
+          `Preset thời lượng hiệu ứng: ${optAnimDuration}ms`,
+          `settings put global animator_duration_scale ${scaleValue}`,
+        );
+      }
+
       if (optBattery) {
         await runStep(
           "Kích hoạt tối ưu hóa Pin hệ thống",
@@ -277,8 +277,8 @@ export function SystemOptimization() {
 
       if (optOverclock) {
         await runStep(
-          "Kích hoạt Performance Mode",
-          `settings put global performance_mode 1`,
+          "Thử kích hoạt Performance Mode cộng đồng",
+          "settings put global performance_mode 1",
         );
       }
 
@@ -292,15 +292,20 @@ export function SystemOptimization() {
           );
           if (!res.success || res.output?.includes("Unknown command")) {
             logAndPush(
-              "  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt --all",
+              "  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt -a",
             );
             const fbRes = await window.api.runAdbCommand(
               activeDevice!,
-              "cmd package compile -r bg-dexopt --all",
+              "cmd package compile -r bg-dexopt -a",
             );
-            logAndPush(
-              `  ✓ OK${fbRes.output ? ": " + fbRes.output.trim().slice(0, 80) : ""}`,
-            );
+            if (fbRes.success) {
+              logAndPush(
+                `  ✓ OK${fbRes.output ? ": " + fbRes.output.trim().slice(0, 80) : ""}`,
+              );
+            } else {
+              logAndPush(`  ❌ [FAIL] ${fbRes.output || "Fallback thất bại"}`);
+              failedSteps++;
+            }
           } else {
             logAndPush(
               `  ✓ OK${res.output ? ": " + res.output.trim().slice(0, 80) : ""}`,
@@ -357,8 +362,8 @@ export function SystemOptimization() {
 
       if (optSmoothSystemUI) {
         await runStep(
-          "Tăng độ ưu tiên rendering SystemUI",
-          `service call activity 134 i32 1`,
+          "Thử ưu tiên rendering SystemUI",
+          "service call activity 134 i32 1",
         );
       }
 
@@ -367,49 +372,6 @@ export function SystemOptimization() {
           "Cấu hình Việt hóa hệ thống (Rom China)",
           `settings put system system_locales vi-VN`,
         );
-        try {
-          await Promise.all([
-            window.api.runAdbCommand(
-              activeDevice!,
-              "settings put secure system_locales vi-VN",
-            ),
-            window.api.runAdbCommand(
-              activeDevice!,
-              "settings put global system_locales vi-VN",
-            ),
-            window.api.runAdbCommand(
-              activeDevice!,
-              "setprop persist.sys.locale vi-VN",
-            ),
-            window.api.runAdbCommand(
-              activeDevice!,
-              "setprop persist.sys.language vi",
-            ),
-            window.api.runAdbCommand(
-              activeDevice!,
-              "setprop persist.sys.country VN",
-            ),
-          ]);
-          await window.api.runAdbCommand(
-            activeDevice!,
-            "am broadcast -a android.intent.action.LOCALE_CHANGED",
-          );
-        } catch (e) {
-          console.error("Lỗi bổ trợ locale:", e);
-        }
-      }
-
-      // Tổng kết
-      if (failedSteps === 0) {
-        logAndPush(
-          `✅ [SUCCESS] Hoàn tất ${completedSteps}/${totalSteps} bước — tất cả thành công!`,
-        );
-        setModalStatus("success");
-      } else {
-        logAndPush(
-          `⚠️ [PARTIAL] Hoàn tất ${completedSteps}/${totalSteps} bước — ${failedSteps} bước thất bại. Xem log phía trên để biết chi tiết.`,
-        );
-        setModalStatus("failed");
       }
 
       // Reboot: chỉ thực hiện nếu không có lỗi
@@ -420,10 +382,21 @@ export function SystemOptimization() {
           );
           stepDone();
         } else {
-          logAndPush("🔄 [REBOOT] Đang khởi động lại thiết bị...");
-          await window.api.runAdbCommand(activeDevice!, `reboot`);
-          stepDone();
+          await runStep("Khởi động lại thiết bị", "reboot");
         }
+      }
+
+      // Tổng kết sau khi tất cả bước, kể cả reboot, đã được kiểm tra kết quả.
+      if (failedSteps === 0) {
+        logAndPush(
+          `✅ [SUCCESS] Hoàn tất ${completedSteps}/${totalSteps} bước — tất cả thành công!`,
+        );
+        setModalStatus("success");
+      } else {
+        logAndPush(
+          `⚠️ [PARTIAL] Hoàn tất ${completedSteps}/${totalSteps} bước — ${failedSteps} bước thất bại. Xem log phía trên để biết chi tiết.`,
+        );
+        setModalStatus("failed");
       }
     } catch (e: any) {
       logAndPush(`❌ [CRITICAL] Lỗi nghiêm trọng: ${e.message}`);
@@ -462,8 +435,8 @@ export function SystemOptimization() {
             Siêu tối ưu hóa hệ thống
           </h4>
           <p className="text-xs text-slate-400 font-semibold mt-0.5">
-            Tăng tốc phần cứng, dọn dẹp phân mảnh ART compiler và tối ưu hiệu
-            năng toàn diện.
+            Điều chỉnh các thiết lập Android có thể kiểm chứng và tối ưu ART có
+            kiểm soát.
           </p>
         </div>
       </div>
@@ -478,26 +451,31 @@ export function SystemOptimization() {
               Hiệu ứng & Cảm ứng
             </h5>
             <div className="flex flex-col divide-y divide-slate-100">
-              {/* Tối ưu độ mượt hiệu ứng */}
+              {/* Preset thời lượng hiệu ứng cộng đồng */}
               <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">
                     Tối ưu độ mượt hiệu ứng
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Điều chỉnh thời gian chuyển cảnh (ms)
+                    Điều chỉnh thời lượng hiệu ứng chuyển cảnh
                   </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <input
                     type="number"
+                    min={0}
+                    max={2000}
                     value={optAnimDuration}
-                    onChange={(e) => setOptAnimDuration(Number(e.target.value))}
+                    onChange={(event) =>
+                      setOptAnimDuration(Number(event.target.value))
+                    }
                     className="w-16 px-2 py-1 bg-white border border-slate-200 text-center text-xs font-bold rounded-lg outline-none focus:border-indigo-500"
                   />
                   <button
+                    type="button"
                     onClick={() =>
-                      setOptAnimDurationEnabled(!optAnimDurationEnabled)
+                      setOptAnimDurationEnabled((current) => !current)
                     }
                     className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${optAnimDurationEnabled ? "bg-indigo-600" : "bg-slate-200"}`}
                   >
@@ -508,18 +486,19 @@ export function SystemOptimization() {
                 </div>
               </div>
 
-              {/* Tăng tốc độ phản hồi đa chạm */}
+              {/* Các key phản hồi cảm ứng cộng đồng */}
               <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">
                     Tốc độ phản hồi đa chạm
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Giảm độ trễ chạm màn hình
+                    Tăng độ nhạy và khả năng nhận nhiều điểm chạm
                   </span>
                 </div>
                 <button
-                  onClick={() => setOptMultiTouch(!optMultiTouch)}
+                  type="button"
+                  onClick={() => setOptMultiTouch((current) => !current)}
                   className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optMultiTouch ? "bg-indigo-600" : "bg-slate-200"}`}
                 >
                   <div
@@ -695,7 +674,7 @@ export function SystemOptimization() {
                     Dọn dẹp Cache Telegram
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Xóa file đệm Telegram để giải phóng RAM
+                    Xóa file đệm Telegram để giải phóng dung lượng lưu trữ
                   </span>
                 </div>
                 <button
@@ -728,18 +707,19 @@ export function SystemOptimization() {
                 </button>
               </div>
 
-              {/* Ép xung & Tăng cường đa nhiệm */}
+              {/* Performance Mode cộng đồng */}
               <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">
                     Chế độ hiệu năng cao
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Tối đa hóa tài nguyên CPU & đa nhiệm
+                    Ưu tiên hiệu năng CPU, GPU và khả năng đa nhiệm
                   </span>
                 </div>
                 <button
-                  onClick={() => setOptOverclock(!optOverclock)}
+                  type="button"
+                  onClick={() => setOptOverclock((current) => !current)}
                   className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optOverclock ? "bg-indigo-600" : "bg-slate-200"}`}
                 >
                   <div
@@ -899,18 +879,19 @@ export function SystemOptimization() {
                 </button>
               </div>
 
-              {/* Làm mượt giao diện (SystemUI) */}
+              {/* Ưu tiên rendering SystemUI cộng đồng */}
               <div className="flex items-center justify-between gap-4 py-3 min-h-[56px]">
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-xs font-semibold text-slate-700 truncate leading-relaxed">
                     Làm mượt giao diện SystemUI
                   </span>
                   <span className="text-[10px] text-slate-400 leading-normal">
-                    Ưu tiên đồ họa SystemUI giảm lag launcher
+                    Tăng độ ưu tiên xử lý giao diện hệ thống và launcher
                   </span>
                 </div>
                 <button
-                  onClick={() => setOptSmoothSystemUI(!optSmoothSystemUI)}
+                  type="button"
+                  onClick={() => setOptSmoothSystemUI((current) => !current)}
                   className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shrink-0 ${optSmoothSystemUI ? "bg-indigo-600" : "bg-slate-200"}`}
                 >
                   <div

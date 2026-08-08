@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipc";
 import { cleanupAllProcesses } from "./core/deviceService";
@@ -37,7 +37,7 @@ process.on("uncaughtException", (error) => {
   console.error("[Uncaught Exception Alert]:", error);
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng",
-    `Ứng dụng gặp lỗi không mong muốn:\n${error.stack || error.message}`
+    `Ứng dụng gặp lỗi không mong muốn:\n${error.stack || error.message}`,
   );
 });
 
@@ -47,10 +47,11 @@ process.on("unhandledRejection", (reason: any) => {
     return;
   }
   console.error("[Unhandled Rejection Alert]:", reason);
-  const errMsg = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  const errMsg =
+    reason instanceof Error ? reason.stack || reason.message : String(reason);
   dialog.showErrorBox(
     "Lỗi hệ thống nghiêm trọng (Promise Rejection)",
-    `Xảy ra lỗi bất đồng bộ chưa được xử lý:\n${errMsg}`
+    `Xảy ra lỗi bất đồng bộ chưa được xử lý:\n${errMsg}`,
   );
 });
 
@@ -72,6 +73,23 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "https:" && parsed.hostname === "github.com") {
+        void shell.openExternal(parsed.toString());
+      }
+    } catch {
+      // URL không hợp lệ luôn bị từ chối.
+    }
+    return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, targetUrl) => {
+    const currentUrl = mainWindow.webContents.getURL();
+    if (targetUrl !== currentUrl) event.preventDefault();
   });
 
   mainWindow.on("ready-to-show", () => {
@@ -98,12 +116,11 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
-  mainWindow.webContents.on(
-    "console-message",
-    (_event, level, message, line, sourceId) => {
-      console.log(`[Renderer][${level}] ${message} (${sourceId}:${line})`);
-    },
-  );
+  mainWindow.webContents.on("console-message", (details) => {
+    console.log(
+      `[Renderer][${details.level}] ${details.message} (${details.sourceId}:${details.lineNumber})`,
+    );
+  });
 
   // Đăng ký toàn bộ IPC listener
   registerIpcHandlers(mainWindow);

@@ -148,7 +148,7 @@ export default function AdbPreferences() {
                 <span>Bật Chế độ Tùy chọn Nâng cao (Nâng cao ADB)</span>
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl">
-                Khi kích hoạt, menu <strong>"Nâng cao ADB"</strong> (Property Inspector, Command Catalog, Raw Shell Runner) sẽ hiển thị trên thanh menu điều hướng chính.
+                Khi kích hoạt, menu <strong>&quot;Nâng cao ADB&quot;</strong> (Property Inspector, Command Catalog, Raw Shell Runner) sẽ hiển thị trên thanh menu điều hướng chính.
               </p>
             </div>
 

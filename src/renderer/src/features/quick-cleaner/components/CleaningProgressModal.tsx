@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { CheckCircle2, Loader2, Terminal, X, Zap, HardDrive, Cpu } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Terminal, X, Zap, HardDrive, Cpu } from "lucide-react";
 import { CleanProgressData } from "@shared/types";
 
 interface CleaningProgressModalProps {
@@ -26,6 +26,7 @@ export const CleaningProgressModal: React.FC<CleaningProgressModalProps> = ({
   if (!isOpen) return null;
 
   const isComplete = progressData?.isComplete ?? false;
+  const hasFailures = (progressData?.summary?.failedTasksCount ?? 0) > 0;
   const percentage = progressData?.percentage || 0;
 
   return (
@@ -34,12 +35,12 @@ export const CleaningProgressModal: React.FC<CleaningProgressModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isComplete ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-600/10 text-blue-600'}`}>
-              {isComplete ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Loader2 className="w-5 h-5 animate-spin text-blue-600" />}
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isComplete ? hasFailures ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-600/10 text-blue-600'}`}>
+              {isComplete ? hasFailures ? <AlertTriangle className="w-5 h-5 text-amber-500" /> : <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Loader2 className="w-5 h-5 animate-spin text-blue-600" />}
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                {isComplete ? "Hoàn Tất Dọn Dẹp" : "Đang Tiến Hành Dọn Dẹp..."}
+                {isComplete ? hasFailures ? "Dọn Dẹp Hoàn Tất Một Phần" : "Hoàn Tất Dọn Dẹp" : "Đang Tiến Hành Dọn Dẹp..."}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {progressData?.message || "Đang kết nối tới thiết bị ADB..."}

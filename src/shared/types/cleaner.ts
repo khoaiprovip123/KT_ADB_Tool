@@ -45,6 +45,8 @@ export interface CleanProgressData {
     freedRamMb: number;
     freedStorageMb: number;
     closedAppsCount: number;
+    completedTasksCount: number;
+    failedTasksCount: number;
   };
 }
 

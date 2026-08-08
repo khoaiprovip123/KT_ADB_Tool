@@ -15,6 +15,7 @@ import {
   resetResolution,
   setAnimationScale,
   fixAllNotifications,
+  restoreAllNotifications,
 } from "../core/systemTweaksService";
 import {
   assertValidAnimationScale,
@@ -117,7 +118,10 @@ export function registerSystemTweaksHandlers(
     } catch {
       return {};
     }
-    const results: Record<string, boolean> = {};
+    const results: Record<
+      string,
+      Awaited<ReturnType<typeof getTweakStatus>>
+    > = {};
     await Promise.all(
       SYSTEM_TWEAKS.map(async (tweak) => {
         results[tweak.id] = await getTweakStatus(deviceId, tweak);
@@ -152,15 +156,18 @@ export function registerSystemTweaksHandlers(
     if (!isValidDeviceId(deviceId)) return null;
     return getCurrentResolution(deviceId);
   });
-  ipcMain.handle("adb:set-dpi", async (_event, deviceId: string, dpi: number) => {
-    try {
-      assertValidDeviceId(deviceId);
-      assertValidDpi(dpi);
-      return setDpi(deviceId, dpi);
-    } catch (err: any) {
-      return { success: false, message: err.message };
-    }
-  });
+  ipcMain.handle(
+    "adb:set-dpi",
+    async (_event, deviceId: string, dpi: number) => {
+      try {
+        assertValidDeviceId(deviceId);
+        assertValidDpi(dpi);
+        return setDpi(deviceId, dpi);
+      } catch (err: any) {
+        return { success: false, message: err.message };
+      }
+    },
+  );
   ipcMain.handle("adb:reset-dpi", async (_event, deviceId: string) => {
     if (!isValidDeviceId(deviceId))
       return { success: false, message: "Invalid deviceId" };
@@ -189,28 +196,42 @@ export function registerSystemTweaksHandlers(
       try {
         assertValidDeviceId(deviceId);
         assertValidAnimationScale(scale);
-        await setAnimationScale(deviceId, scale);
-        return { success: true, message: "OK" };
+        return await setAnimationScale(deviceId, scale);
       } catch (err: any) {
         return { success: false, message: err.message };
       }
     },
   );
 
-  ipcMain.handle("adb:fix-all-notifications", async (_event, deviceId: string) => {
-    try {
-      assertValidDeviceId(deviceId);
-      return fixAllNotifications(deviceId, (current, total, pkgName) => {
-        if (!mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("adb:fix-notifications-progress", {
-            current,
-            total,
-            pkgName,
-          });
-        }
-      });
-    } catch (err: any) {
-      return { success: false, count: 0, message: err.message };
-    }
-  });
+  ipcMain.handle(
+    "adb:fix-all-notifications",
+    async (_event, deviceId: string) => {
+      try {
+        assertValidDeviceId(deviceId);
+        return fixAllNotifications(deviceId, (current, total, pkgName) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("adb:fix-notifications-progress", {
+              current,
+              total,
+              pkgName,
+            });
+          }
+        });
+      } catch (err: any) {
+        return { success: false, count: 0, message: err.message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:restore-all-notifications",
+    async (_event, deviceId: string) => {
+      try {
+        assertValidDeviceId(deviceId);
+        return restoreAllNotifications(deviceId);
+      } catch (err: any) {
+        return { success: false, count: 0, message: err.message };
+      }
+    },
+  );
 }

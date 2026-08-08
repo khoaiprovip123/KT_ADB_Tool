@@ -1,6 +1,9 @@
 import { adbState } from "./adbCore";
+import { createHash } from "crypto";
 
 export interface DeviceProfile {
+  /** Mã băm cục bộ, không làm lộ serial thật của thiết bị. */
+  identity?: string;
   brand: string;
   manufacturer: string;
   model: string;
@@ -16,6 +19,7 @@ export interface DeviceProfile {
 export type CapabilityState =
   | "SUPPORTED_ON"
   | "SUPPORTED_OFF"
+  | "EXPERIMENTAL"
   | "UNSUPPORTED"
   | "UNKNOWN"
   | "ERROR";
@@ -52,7 +56,6 @@ async function execShell(deviceId: string, command: string): Promise<string> {
   });
 }
 
-
 /**
  * Lấy profile chi tiết của thiết bị Android qua getprop
  */
@@ -84,8 +87,16 @@ export async function getDeviceProfile(
       getPropValue("ro.mi.os.version.name") || undefined;
     const incremental =
       getPropValue("ro.build.version.incremental") || "Unknown";
+    const rawIdentity =
+      getPropValue("ro.serialno") ||
+      getPropValue("ro.boot.serialno") ||
+      // Fail safe: ưu tiên ID phiên ADB thay vì ghép model/build, vì hai thiết
+      // bị cùng mẫu có thể trùng nhau và tuyệt đối không được dùng chung snapshot.
+      deviceId;
+    const identity = createHash("sha256").update(rawIdentity).digest("hex");
 
     return {
+      identity,
       brand,
       manufacturer,
       model,

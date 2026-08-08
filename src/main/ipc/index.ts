@@ -1,5 +1,5 @@
 import { ipcMain, app, dialog } from "electron";
-import { initAdb, watchDevices, runAdbCommand } from "../core/adbCore";
+import { initAdb, watchDevices, runAdbCommandDetailed } from "../core/adbCore";
 import { registerDeviceHandlers } from "./deviceHandlers";
 import { registerAppHandlers } from "./appHandlers";
 import { registerFileHandlers } from "./fileHandlers";
@@ -50,19 +50,13 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     try {
       assertValidDeviceId(deviceId);
       assertValidShellCommand(command);
-      const output = (await runAdbCommand(deviceId, command, (log) => {
-        if (!mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("adb:log-stream", log);
-        }
-      })) as string;
-      const isError =
-        output.startsWith("ERROR:") ||
-        output.startsWith("CRITICAL ERROR:") ||
-        output === "FAILED" ||
-        output.startsWith("[BLOCKED BY SAFETY LAYER]");
+      const result = await runAdbCommandDetailed(deviceId, command);
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("adb:log-stream", result.output);
+      }
       return {
-        success: !isError,
-        output: output,
+        success: result.success,
+        output: result.output,
       };
     } catch (err: any) {
       return { success: false, output: err.message };

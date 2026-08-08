@@ -13,6 +13,42 @@ export const adbState = {
 
 export let currentAdbExe = "adb";
 
+export interface AdbCommandExecution {
+  success: boolean;
+  output: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
+
+export function isAdbFailureOutput(output: string): boolean {
+  const normalized = output.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.startsWith("error:") ||
+    normalized.startsWith("critical error:") ||
+    normalized === "failed" ||
+    normalized.startsWith("[blocked by safety layer]") ||
+    /(^|\n)(unknown command|failure\b|failed\b|securityexception\b|permission denied\b|not found:|.*inaccessible or not found)/i.test(
+      normalized,
+    )
+  );
+}
+
+function failedExecution(error: any): AdbCommandExecution {
+  const stdout = String(error?.stdout ?? "");
+  const stderr = String(error?.stderr ?? "");
+  const detail = `${stdout}${stderr}`.trim() || error?.message || "ADB command failed";
+  const output = `ERROR: ${detail}`;
+  const exitCode =
+    typeof error?.code === "number"
+      ? error.code
+      : typeof error?.exitCode === "number"
+        ? error.exitCode
+        : null;
+  return { success: false, output, stdout, stderr, exitCode };
+}
+
 export async function killAdbServer(): Promise<boolean> {
   return new Promise((resolve) => {
     const cmd =
@@ -216,39 +252,49 @@ export async function runAdbCommand(
   command: string,
   onLog: (log: string) => void,
 ): Promise<string> {
+  const result = await runAdbCommandDetailed(deviceId, command);
+  onLog(result.output);
+  return result.output;
+}
+
+export async function runAdbCommandDetailed(
+  deviceId: string,
+  command: string,
+): Promise<AdbCommandExecution> {
   try {
     const shellCommand = cleanAdbPrefix(command);
 
     const safety = evaluateCommand(shellCommand);
     if (!safety.allowed) {
       const blockedMsg = `[BLOCKED BY SAFETY LAYER] Lệnh bị chặn vì lý do bảo mật: ${safety.reason || "Không an toàn"}`;
-      onLog(blockedMsg);
-      return blockedMsg;
+      return {
+        success: false,
+        output: blockedMsg,
+        stdout: "",
+        stderr: blockedMsg,
+        exitCode: null,
+      };
     }
 
-    let stdout = "";
-    let stderr = "";
-    if (shellCommand.includes("service call")) {
-      const res = await execFilePromise(currentAdbExe, ["-s", deviceId, "shell", shellCommand]);
-      stdout = res.stdout;
-      stderr = res.stderr;
-    } else {
-      const res = await execPromise(`"${currentAdbExe}" -s ${deviceId} shell ${shellCommand}`);
-      stdout = res.stdout;
-      stderr = res.stderr;
-    }
-    const output = stdout || stderr || "";
-    onLog(output);
-    return output;
+    const res = await execFilePromise(
+      currentAdbExe,
+      ["-s", deviceId, "shell", shellCommand],
+      { windowsHide: true, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+    );
+    const stdout = String(res.stdout ?? "");
+    const stderr = String(res.stderr ?? "");
+    const output = [stdout.trimEnd(), stderr.trimEnd()]
+      .filter(Boolean)
+      .join("\n");
+    return {
+      success: !isAdbFailureOutput(output),
+      output,
+      stdout,
+      stderr,
+      exitCode: 0,
+    };
   } catch (error: any) {
-    // exec rejects when exit code != 0, but stderr may contain useful output
-    if (error.stdout || error.stderr) {
-      const output = (error.stdout || "") + (error.stderr || "");
-      onLog(output);
-      return output;
-    }
-    onLog(`CRITICAL ERROR: ${error.message}`);
-    return "FAILED";
+    return failedExecution(error);
   }
 }
 
@@ -260,6 +306,13 @@ export async function execAdb(
   deviceId: string,
   command: string,
 ): Promise<string> {
+  return (await execAdbDetailed(deviceId, command)).output;
+}
+
+export async function execAdbDetailed(
+  deviceId: string,
+  command: string,
+): Promise<AdbCommandExecution> {
   let cleanCmd = command;
   if (cleanCmd.startsWith("shell ")) {
     cleanCmd = cleanCmd.substring(6);
@@ -269,29 +322,38 @@ export async function execAdb(
   if (cleanCmd) {
     const safety = evaluateCommand(cleanCmd);
     if (!safety.allowed) {
-      return `[BLOCKED BY SAFETY LAYER] ${safety.reason || "Lệnh không được phép thực thi."} [${safety.risk}]`;
+      const output = `[BLOCKED BY SAFETY LAYER] ${safety.reason || "Lệnh không được phép thực thi."} [${safety.risk}]`;
+      return {
+        success: false,
+        output,
+        stdout: "",
+        stderr: output,
+        exitCode: null,
+      };
     }
   }
 
-  const maxRetries = 2;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (cleanCmd.includes("service call")) {
-        const { stdout, stderr } = await execFilePromise(
-          currentAdbExe,
-          ["-s", deviceId, "shell", cleanCmd]
-        );
-        return stdout || stderr || "";
-      }
-      const { stdout } = await execPromise(
-        `"${currentAdbExe}" -s ${deviceId} shell ${cleanCmd}`
-      );
-      return stdout;
-    } catch (error: any) {
-      return (error.stdout || "") + (error.stderr || "") || error.message || "";
-    }
+  try {
+    const res = await execFilePromise(
+      currentAdbExe,
+      ["-s", deviceId, "shell", cleanCmd],
+      { windowsHide: true, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+    );
+    const stdout = String(res.stdout ?? "");
+    const stderr = String(res.stderr ?? "");
+    const output = [stdout.trimEnd(), stderr.trimEnd()]
+      .filter(Boolean)
+      .join("\n");
+    return {
+      success: !isAdbFailureOutput(output),
+      output,
+      stdout,
+      stderr,
+      exitCode: 0,
+    };
+  } catch (error: any) {
+    return failedExecution(error);
   }
-  return "";
 }
 
 /**

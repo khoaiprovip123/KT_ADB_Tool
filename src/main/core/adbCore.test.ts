@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import util from "util";
 
 vi.mock("adbkit", () => {
@@ -49,13 +49,17 @@ vi.mock("child_process", () => {
   };
 });
 
-import { runAdbCommand, execAdb } from "./adbCore";
+import {
+  runAdbCommand,
+  runAdbCommandDetailed,
+  execAdb,
+} from "./adbCore";
 
 describe("adbCore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default implementation for the custom promisifier
-    vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+    vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
       stdout: "mock output",
       stderr: "",
     });
@@ -67,12 +71,12 @@ describe("adbCore", () => {
       const result = await runAdbCommand("device-1", "rm -rf /data", onLog);
       expect(result).toContain("[BLOCKED BY SAFETY LAYER]");
       expect(onLog).toHaveBeenCalledWith(expect.stringContaining("[BLOCKED BY SAFETY LAYER]"));
-      expect((exec as any)[util.promisify.custom]).not.toHaveBeenCalled();
+      expect((execFile as any)[util.promisify.custom]).not.toHaveBeenCalled();
     });
 
     it("should clean command prefix and execute safe commands successfully", async () => {
       const onLog = vi.fn();
-      vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+      vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
         stdout: "mock output",
         stderr: "",
       });
@@ -80,20 +84,39 @@ describe("adbCore", () => {
       const result = await runAdbCommand("device-1", "adb shell getprop ro.product.model", onLog);
       expect(result).toBe("mock output");
       expect(onLog).toHaveBeenCalledWith("mock output");
-      expect((exec as any)[util.promisify.custom]).toHaveBeenCalledWith(
-        expect.stringContaining("getprop ro.product.model")
+      expect((execFile as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        "adb",
+        ["-s", "device-1", "shell", "getprop ro.product.model"],
+        expect.objectContaining({ timeout: 30_000 }),
       );
     });
 
-    it("should return FAILED when command execution fails", async () => {
+    it("should preserve command failure details", async () => {
       const onLog = vi.fn();
-      vi.mocked((exec as any)[util.promisify.custom]).mockRejectedValue(
-        new Error("Command execution failed")
-      );
+      vi.mocked((execFile as any)[util.promisify.custom]).mockRejectedValue({
+        code: 13,
+        stdout: "",
+        stderr: "SecurityException: denied",
+      });
       
       const result = await runAdbCommand("device-1", "getprop", onLog);
-      expect(result).toBe("FAILED");
-      expect(onLog).toHaveBeenCalledWith(expect.stringContaining("CRITICAL ERROR"));
+      expect(result).toBe("ERROR: SecurityException: denied");
+      expect(onLog).toHaveBeenCalledWith(result);
+    });
+
+    it("should treat semantic ADB failures as failed even with exit code 0", async () => {
+      vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
+        stdout: "Failure [DELETE_FAILED_INTERNAL_ERROR]\n",
+        stderr: "",
+      });
+
+      const result = await runAdbCommandDetailed(
+        "device-1",
+        "pm clear com.example.app",
+      );
+      expect(result.success).toBe(false);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("DELETE_FAILED_INTERNAL_ERROR");
     });
   });
 
@@ -101,24 +124,26 @@ describe("adbCore", () => {
     it("should block unsafe commands and return block message", async () => {
       const result = await execAdb("device-1", "rm -rf /");
       expect(result).toContain("[BLOCKED BY SAFETY LAYER]");
-      expect((exec as any)[util.promisify.custom]).not.toHaveBeenCalled();
+      expect((execFile as any)[util.promisify.custom]).not.toHaveBeenCalled();
     });
 
     it("should execute safe shell command and resolve with output", async () => {
-      vi.mocked((exec as any)[util.promisify.custom]).mockResolvedValue({
+      vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
         stdout: "shell output",
         stderr: "",
       });
 
       const result = await execAdb("device-1", "shell pm list packages");
       expect(result).toBe("shell output");
-      expect((exec as any)[util.promisify.custom]).toHaveBeenCalledWith(
-        expect.stringContaining("pm list packages")
+      expect((execFile as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        "adb",
+        ["-s", "device-1", "shell", "pm list packages"],
+        expect.objectContaining({ timeout: 30_000 }),
       );
     });
 
     it("should return error output string when command fails on all attempts", async () => {
-      vi.mocked((exec as any)[util.promisify.custom]).mockRejectedValue(
+      vi.mocked((execFile as any)[util.promisify.custom]).mockRejectedValue(
         new Error("Command failed")
       );
 
