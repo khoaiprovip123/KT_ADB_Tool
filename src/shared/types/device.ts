@@ -39,6 +39,12 @@ export interface DeviceInfo {
   board: string;
   cpuName: string;
   buildId: string;
+  imei: string;
+  serial?: string;
+  wifiMac?: string;
+  securityPatch?: string;
+  kernelVer?: string;
+  fingerprint?: string;
 }
 
 export interface StorageStats {

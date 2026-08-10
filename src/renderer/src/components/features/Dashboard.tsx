@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   Zap,
   RefreshCw,
+  Fingerprint,
+  Copy,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
@@ -46,7 +48,7 @@ export function Dashboard() {
   const activeDeviceObj = devices.find((d) => d.id === activeDevice);
   const isReady = activeDeviceObj?.type === "device";
 
-  const handleFastbootReboot = async (target?: "bootloader" | "recovery") => {
+  const handleFastbootReboot = async (target?: "bootloader" | "recovery" | "edl") => {
     if (!activeDevice) return;
     try {
       const res = await window.api.fastbootReboot(activeDevice, target);
@@ -56,7 +58,9 @@ export function Dashboard() {
             ? "Đang khởi động lại vào Fastboot..."
             : target === "recovery"
               ? "Đang khởi động lại vào Recovery..."
-              : "Đang khởi động lại thiết bị..."
+              : target === "edl"
+                ? "Đang chuyển sang chế độ khẩn cấp EDL (9008)..."
+                : "Đang khởi động lại thiết bị..."
         );
       } else {
         toast.error(`Lỗi: ${res.message}`);
@@ -66,9 +70,25 @@ export function Dashboard() {
     }
   };
 
+  const handleFastbootBypassFrp = async () => {
+    if (!activeDevice) return;
+    try {
+      toast.info("Đang thực thi lệnh xóa phân vùng FRP qua Fastboot...");
+      const res = await window.api.fastbootBypassFrp(activeDevice);
+      if (res.success) {
+        toast.success(`Kết quả xóa FRP:\n${res.message}`);
+      } else {
+        toast.error(`Lỗi Bypass FRP: ${res.message}`);
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi thực thi: ${err.message}`);
+    }
+  };
+
   const [info, setInfo] = useState<DeviceInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [showBatteryModal, setShowBatteryModal] = useState(false);
+  const [showImeiModal, setShowImeiModal] = useState(false);
 
   const loadInfo = () => {
     if (!activeDevice || !isReady) {
@@ -119,33 +139,59 @@ export function Dashboard() {
           <p className="text-slate-400 max-w-md mx-auto mb-8 text-xs font-semibold leading-relaxed">
             Thiết bị đang ở chế độ Fastboot. Hầu hết các tính năng ADB sẽ không khả dụng. Bạn có thể sử dụng các lệnh điều khiển nhanh dưới đây.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl">
             <button
               onClick={() => handleFastbootReboot()}
-              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+              className="px-5 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
             >
               <RefreshCw className="text-green-400 w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
               <span className="text-xs font-black uppercase tracking-wider text-slate-200">Khởi động lại</span>
-              <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào Android thường</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào Android</span>
             </button>
             <button
-              onClick={() => handleFastbootReboot("bootloader")}
-              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+              onClick={() => handleFastbootReboot("edl")}
+              className="px-5 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
             >
-              <Zap className="text-cyan-400 w-6 h-6 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Vào lại Fastboot</span>
-              <span className="text-[10px] text-slate-500 font-semibold">Khởi động lại vào Fastboot</span>
+              <Zap className="text-purple-400 w-6 h-6 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Chuyển qua EDL</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào EDL 9008</span>
+            </button>
+            <button
+              onClick={() => handleFastbootBypassFrp()}
+              className="px-5 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+            >
+              <ShieldAlert className="text-red-400 w-6 h-6" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-200">Bypass FRP</span>
+              <span className="text-[10px] text-slate-500 font-semibold">Xóa phân vùng Google Lock</span>
             </button>
             <button
               onClick={() => handleFastbootReboot("recovery")}
-              className="px-6 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
+              className="px-5 py-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded-2xl border border-slate-700/50 flex flex-col items-center gap-2 group"
             >
               <ShieldAlert className="text-amber-400 w-6 h-6" />
               <span className="text-xs font-black uppercase tracking-wider text-slate-200">Vào Recovery</span>
               <span className="text-[10px] text-slate-500 font-semibold">Khởi động vào Recovery</span>
             </button>
           </div>
-          <div className="mt-8 text-[10px] text-slate-500 font-medium bg-slate-950/50 px-4 py-2 rounded-full border border-slate-800/80">
+          {/* Cảnh báo an toàn & Ghi chú can thiệp */}
+          <div className="mt-6 max-w-2xl w-full bg-slate-950/80 border border-amber-500/30 rounded-2xl p-4 text-left flex gap-3.5 items-start text-xs shadow-lg">
+            <ShieldAlert className="text-amber-400 w-5 h-5 shrink-0 mt-0.5 animate-pulse" />
+            <div className="space-y-1.5 text-slate-300 font-medium leading-relaxed">
+              <div className="font-bold text-amber-400 uppercase tracking-wider text-[11px]">
+                ⚠️ Cảnh báo rủi ro & Ghi chú kỹ thuật khi can thiệp:
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-300">
+                <li>
+                  <strong className="text-cyan-300">Chế độ Fastboot:</strong> Lệnh xóa phân vùng FRP/Config yêu cầu Bootloader ở trạng thái <span className="text-emerald-400 font-bold">Unlocked</span>. Nếu Bootloader bị <span className="text-rose-400 font-bold">Locked</span>, hệ thống sẽ chặn lệnh để bảo mật.
+                </li>
+                <li>
+                  <strong className="text-purple-300">Chế độ EDL (Emergency 9008):</strong> Là chế độ cứu gạch cấp phần cứng (Low-level). Tuyệt đối không ngắt cáp USB giữa chừng để tránh nguy cơ hỏng chip nhớ UFS/eMMC hoặc mất IMEI.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-4 text-[10px] text-slate-500 font-medium bg-slate-950/50 px-4 py-1.5 rounded-full border border-slate-800/80">
             ID thiết bị: {activeDevice}
           </div>
         </div>
@@ -218,9 +264,25 @@ export function Dashboard() {
                   <div className="text-sm font-bold text-orange-600 tracking-wide mt-0.5">
                     {info.customOs}
                   </div>
-                  <div className="flex items-center gap-2 text-blue-600 font-medium mt-1">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                    Đã kết nối qua ADB
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                      Chế độ ADB
+                    </span>
+                    <button
+                      onClick={() => handleFastbootReboot("bootloader")}
+                      className="px-3 py-1 bg-slate-50 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 text-slate-700 border border-slate-200 rounded-full text-xs font-bold flex items-center gap-1 transition-all shadow-sm"
+                      title="Chuyển thiết bị sang chế độ Fastboot"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-cyan-500" /> Vào Fastboot
+                    </button>
+                    <button
+                      onClick={() => handleFastbootReboot("edl")}
+                      className="px-3 py-1 bg-slate-50 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 text-slate-700 border border-slate-200 rounded-full text-xs font-bold flex items-center gap-1 transition-all shadow-sm"
+                      title="Chuyển thiết bị sang chế độ khẩn cấp EDL (9008)"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Vào EDL
+                    </button>
                   </div>
                 </div>
               </div>
@@ -299,6 +361,16 @@ export function Dashboard() {
                     style={{ width: `${info.storagePercent}%` }}
                   ></div>
                 </div>
+              </div>
+
+              {/* Nút Xem thêm ngoài thẻ dung lượng */}
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={() => setShowImeiModal(true)}
+                  className="px-4 py-2 text-xs font-bold text-cyan-600 hover:text-white bg-white hover:bg-cyan-600 border border-cyan-200/80 hover:border-cyan-600 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-cyan-200 flex items-center gap-2"
+                >
+                  <Fingerprint className="w-4 h-4" /> Xem thêm
+                </button>
               </div>
             </div>
           </div>
@@ -547,6 +619,139 @@ export function Dashboard() {
                 <button
                   onClick={() => setShowBatteryModal(false)}
                   className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all text-sm shadow-md shadow-indigo-500/20"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hardware & Device Detail Modal */}
+      {showImeiModal && info && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 border border-white shadow-2xl shadow-cyan-950/20 max-w-lg w-full relative overflow-hidden transform scale-100 transition-all duration-300 max-h-[88vh] flex flex-col">
+            {/* Background Gradients */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full -translate-y-1/3 translate-x-1/3 blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-2xl"></div>
+
+            <div className="relative z-10 flex flex-col h-full overflow-hidden">
+              <div className="flex justify-between items-center mb-4 shrink-0">
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <Fingerprint className="w-6 h-6 text-cyan-500 animate-pulse" />
+                  Thông tin chi tiết
+                </h3>
+                <button
+                  onClick={() => setShowImeiModal(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors font-bold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-y-auto pr-1 space-y-3 custom-scrollbar flex-1">
+                {/* Device Model Top Overview Banner */}
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50/50 p-4 rounded-2xl border border-cyan-100/50 text-center shrink-0">
+                  <div className="text-xs font-bold text-cyan-800 uppercase tracking-wider mb-1">
+                    Tên thiết bị (Model)
+                  </div>
+                  <div className="text-2xl font-black text-cyan-600 tracking-tight">
+                    {info.model}
+                  </div>
+                  <div className="text-xs font-medium text-slate-500 mt-1">
+                    {info.brand} • Mã định danh: <span className="font-bold text-slate-700">{info.codename}</span>
+                  </div>
+                </div>
+
+                {/* Extended Specs List */}
+                <div className="space-y-2.5">
+                  <SpecRow label="Thương hiệu (Brand)" value={info.brand} />
+                  <SpecRow label="Mã định danh (Codename)" value={info.codename} />
+                  <SpecRow label="Mã Seri (Serial No)" value={info.serial || "Không xác định"} />
+                  <SpecRow label="Vi xử lý (CPU)" value={info.cpuName} />
+                  <SpecRow label="Kiến trúc phần cứng" value={info.cpuAbi} />
+                  <SpecRow label="Bo mạch (Board)" value={info.board} />
+                  <SpecRow label="Hệ điều hành / Firmware" value={info.customOs || info.osVer} />
+                  <SpecRow label="Phiên bản Kernel" value={info.kernelVer || "Linux Kernel"} />
+                  <SpecRow label="Bản vá bảo mật" value={info.securityPatch || "Không xác định"} />
+                  <SpecRow
+                    label="Trạng thái Bootloader"
+                    value={info.bootloaderStatus === "Unlocked" ? "Đã mở khóa (Unlocked)" : info.bootloaderStatus}
+                    isHighlight={info.bootloaderStatus === "Unlocked"}
+                  />
+                  <SpecRow label="Mã bản dựng (Build ID)" value={info.buildId} />
+                  <SpecRow label="Địa chỉ MAC Wi-Fi" value={info.wifiMac || "Không xác định"} />
+                  <SpecRow
+                    label="Địa chỉ IP kết nối"
+                    value={info.ipAddr}
+                    isHighlight={info.ipAddr !== "Not Connected"}
+                  />
+                </div>
+
+                {/* IMEI Bottom Banner */}
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50/50 p-4 rounded-2xl border border-cyan-100/50 text-center shrink-0 mt-3">
+                  <div className="text-xs font-bold text-cyan-800 uppercase tracking-wider mb-2">
+                    Mã IMEI phần cứng (Hardware IMEI)
+                  </div>
+                  {info.imei && info.imei.includes("/") ? (
+                    <div className="flex flex-col gap-2">
+                      {info.imei.split("/").map((item, idx) => {
+                        const trimmed = item.trim();
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between bg-white/90 px-3.5 py-2 rounded-xl border border-cyan-200/60 shadow-sm"
+                          >
+                            <span className="text-xs font-bold text-slate-500 uppercase">
+                              IMEI {idx + 1}
+                            </span>
+                            <span className="text-base font-black text-cyan-700 font-mono select-all">
+                              {trimmed}
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(trimmed);
+                                toast.success(`Đã sao chép IMEI ${idx + 1}`);
+                              }}
+                              className="p-1 px-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg border border-cyan-200 transition-all text-xs flex items-center gap-1 font-bold"
+                              title={`Sao chép IMEI ${idx + 1}`}
+                            >
+                              <Copy className="w-3 h-3" /> Copy
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 my-1">
+                      <span className="text-2xl font-black text-cyan-600 tracking-tight font-mono select-all">
+                        {info.imei || "Không xác định"}
+                      </span>
+                      {info.imei && info.imei !== "Không thể lấy" && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(info.imei);
+                            toast.success("Đã sao chép IMEI vào bộ nhớ tạm");
+                          }}
+                          className="p-1.5 bg-white hover:bg-cyan-100 text-cyan-700 rounded-lg border border-cyan-200 transition-all text-xs flex items-center gap-1 font-bold shadow-sm"
+                          title="Sao chép IMEI"
+                        >
+                          <Copy className="w-3.5 h-3.5" /> Copy
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs font-medium text-slate-500 mt-2">
+                    Mã số định danh duy nhất của thiết bị trên mạng viễn thông
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-2 border-t border-slate-100 flex gap-3 shrink-0">
+                <button
+                  onClick={() => setShowImeiModal(false)}
+                  className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-2xl transition-all text-sm shadow-md shadow-cyan-500/20"
                 >
                   Đóng
                 </button>

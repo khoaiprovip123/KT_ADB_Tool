@@ -1,5 +1,26 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.5] - 2026-08-10
+
+### Thêm mới (Added)
+- **Nhận diện chính xác Mã định danh phần cứng (Hardware Codename Resolution)**:
+  - Tối ưu hóa thứ tự ưu tiên đọc `getprop`: Ưu tiên đọc thuộc tính phần cứng thực từ phân vùng vendor/odm (`ro.product.vendor.device`, `ro.vendor.product.device`, `ro.product.odm.device`, `ro.boot.hardware`) trước các thuộc tính phần mềm ROM (`ro.product.mod_device`, `ro.product.device`).
+  - Khắc phục hoàn toàn lỗi nhận diện sai mã codename (`flourite_xiaomieu`) khi người dùng cài Port ROM hoặc Custom ROM Xiaomi.eu từ máy khác (vẫn nhận diện chính xác mã phần cứng thực ví dụ `lisa` cho Xiaomi 11 Lite 5G NE).
+  - Tự động làm sạch các hậu tố ROM tùy biến (`_xiaomieu`, `_global`, `_eea`, `_cn`, `_in`, `_ru`, `_id`, `_tr`, `_tw`, `_jp`, `_kr`, `_la`, `_mx`, `_pro`, `_pre`, `_demo`, `_dev`, `_beta`, `_alpha`, `_test`).
+  - Tinh chỉnh giao diện hiển thị Mã định danh ngắn gọn duy nhất.
+- **Truy xuất & Hiển thị Dual IMEI (Dual SIM Hardware IMEI)**:
+  - Tự động quét và trích xuất cả 2 mã IMEI (IMEI 1 & IMEI 2 - Dual SIM) qua `getprop` (`gsm.baseband.imei1/2`, `persist.radio.imei1/2`) và các khe `dumpsys iphonesubinfo`.
+  - Tích hợp nút **Xem thêm** nằm tách biệt ngoài thẻ Dung lượng bộ nhớ để mở bảng chi tiết.
+- **Nâng cấp Bảng Thông Tin Chi Tiết (Hardware & System Detail Modal)**:
+  - Đổi tiêu đề popup thành **Thông tin chi tiết** sang trọng, hiện đại.
+  - Thiết kế Banner trung tâm hiển thị **Tên thương mại thiết bị (Model)** lớn nổi bật (`Xiaomi 11 Lite 5G NE`).
+  - Hiển thị danh sách đầy đủ thông số phần cứng & hệ thống: Mã định danh (Codename), Mã Seri (Serial No), Vi xử lý (CPU), Kiến trúc CPU (ABI), Bo mạch (Board), Firmware Custom OS, Phiên bản Kernel (`uname -r`), Bản vá bảo mật (Security Patch), Trạng thái Bootloader (Unlocked/Locked), Mã bản dựng (Build ID), Địa chỉ MAC Wi-Fi, Địa chỉ IP mạng.
+  - Đưa khu vực **Mã IMEI phần cứng (Hardware IMEI)** xuống phía dưới với thiết kế dạng thẻ SIM kép độc lập, cho phép click nút **Copy** từng IMEI nhanh chóng vào clipboard.
+- **Hỗ trợ 2 Chế độ Điều Khiển & Cảnh báo an toàn (ADB & Fastboot/EDL Modes)**:
+  - Tích hợp bộ chọn 2 Chế độ hoạt động rõ ràng: **Chế độ ADB Mode** (Kết nối Gỡ lỗi USB) và **Chế độ Fastboot/EDL Mode** (Bootloader / Emergency Download 9008).
+  - Thêm bộ lệnh thao tác nhanh Fastboot/EDL: Khởi động lại Android, Chuyển sang EDL Mode (`fastboot reboot edl`), Boot Recovery, và **Bypass Google Account (Fastboot Erase FRP)** xóa các phân vùng `frp`, `config`, `persistent`.
+  - Bổ sung khung **Cảnh báo rủi ro & Ghi chú kỹ thuật** trực quan: Nhắc nhở điều kiện Unlocked Bootloader với Fastboot và lưu ý an toàn không rút cáp đối với EDL Mode 9008.
+
 ## [2.5.4] - 2026-08-06
 
 ### Thêm mới (Added)

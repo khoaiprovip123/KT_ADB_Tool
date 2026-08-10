@@ -148,22 +148,82 @@ export async function getDeviceInfo(deviceId: string) {
     const brand =
       getPropRaw.match(/\[ro\.product\.brand\]: \[(.*?)\]/)?.[1] || "Unknown";
 
-    const rawCodename =
-      getPropRaw.match(/\[ro\.boot\.device\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.product\.mod_device\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.vendor\.product\.device\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.product\.vendor\.device\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.build\.product\]: \[(.*?)\]/)?.[1] ||
-      getPropRaw.match(/\[ro\.product\.device\]: \[(.*?)\]/)?.[1] ||
-      "Unknown";
+    const vendorDevice = getPropRaw.match(/\[ro\.product\.vendor\.device\]: \[(.*?)\]/)?.[1];
+    const vendorProductDevice = getPropRaw.match(/\[ro\.vendor\.product\.device\]: \[(.*?)\]/)?.[1];
+    const odmDevice = getPropRaw.match(/\[ro\.product\.odm\.device\]: \[(.*?)\]/)?.[1];
+    const odmProductDevice = getPropRaw.match(/\[ro\.odm\.product\.device\]: \[(.*?)\]/)?.[1];
+    const vendorName = getPropRaw.match(/\[ro\.product\.vendor\.name\]: \[(.*?)\]/)?.[1];
+    const vendorProductName = getPropRaw.match(/\[ro\.vendor\.product\.name\]: \[(.*?)\]/)?.[1];
+    const bootHw =
+      getPropRaw.match(/\[ro\.boot\.product\.hardware\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.boot\.hardware\]: \[(.*?)\]/)?.[1];
+    const productDevice = getPropRaw.match(/\[ro\.product\.device\]: \[(.*?)\]/)?.[1];
+    const buildProduct = getPropRaw.match(/\[ro\.build\.product\]: \[(.*?)\]/)?.[1];
+    const systemDevice = getPropRaw.match(/\[ro\.product\.system\.device\]: \[(.*?)\]/)?.[1];
+    const bootDevice = getPropRaw.match(/\[ro\.boot\.device\]: \[(.*?)\]/)?.[1];
+    const modDevice = getPropRaw.match(/\[ro\.product\.mod_device\]: \[(.*?)\]/)?.[1];
 
-    const cleanCodename = rawCodename.trim().replace(/_(global|eea|in|ru|id|tr|tw|jp).*/i, "");
-    let friendlyName = (xiaomiCodenames as Record<string, string>)[cleanCodename];
-    if (friendlyName && friendlyName.includes("|")) {
-      friendlyName = friendlyName.split("|")[0].trim();
+    const codenameCandidates = [
+      vendorDevice,
+      vendorProductDevice,
+      odmDevice,
+      odmProductDevice,
+      vendorName,
+      vendorProductName,
+      bootHw,
+      productDevice,
+      buildProduct,
+      systemDevice,
+      bootDevice,
+      modDevice,
+    ].filter((c): c is string => Boolean(c && c.trim() && c.trim() !== "Unknown"));
+
+    const codenameDict = xiaomiCodenames as Record<string, string>;
+
+    const sanitizeCodename = (raw: string): string => {
+      let clean = raw
+        .trim()
+        .replace(/_(xiaomieu|global|eea|in|ru|id|tr|tw|jp|cn|kr|la|mx|pro|pre|demo|dev|beta|alpha|test).*/i, "");
+      if (!codenameDict[clean] && clean.includes("_")) {
+        const baseCandidate = clean.split("_")[0];
+        if (codenameDict[baseCandidate]) {
+          clean = baseCandidate;
+        }
+      }
+      return clean;
+    };
+
+    let selectedCodename = "Unknown";
+    let selectedFriendlyName = "";
+
+    // 1. Tìm candidate nào khớp trong DB (ưu tiên theo thứ tự phần cứng vendor/odm trước system)
+    for (const cand of codenameCandidates) {
+      const cleaned = sanitizeCodename(cand);
+      if (codenameDict[cleaned]) {
+        selectedCodename = cleaned;
+        selectedFriendlyName = codenameDict[cleaned];
+        break;
+      }
     }
-    const codename = cleanCodename;
-    const displayCodename = friendlyName ? `${codename} (${friendlyName})` : codename;
+
+    // 2. Fallback nếu không có candidate nào nằm trong DB
+    if (selectedCodename === "Unknown" && codenameCandidates.length > 0) {
+      selectedCodename = sanitizeCodename(codenameCandidates[0]);
+    }
+
+    let friendlyName = selectedFriendlyName;
+    if (friendlyName && friendlyName.includes("|")) {
+      const names = friendlyName.split("|").map((s) => s.trim());
+      friendlyName =
+        names.find(
+          (s) =>
+            s.toLowerCase().includes("xiaomi") ||
+            s.toLowerCase().includes("redmi") ||
+            s.toLowerCase().includes("poco"),
+        ) || names[0];
+    }
+    const codename = selectedCodename;
+    const displayCodename = codename;
 
     let model = deviceName || marketName;
     if (!model) {
@@ -555,6 +615,79 @@ export async function getDeviceInfo(deviceId: string) {
         ? parseInt(memFreeMatch[1], 10) / 1024
         : 0;
 
+    // Lấy thông tin Dual IMEI qua getprop hoặc dumpsys iphonesubinfo
+    let imei1 =
+      getPropRaw.match(/\[gsm\.baseband\.imei1?\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[persist\.radio\.imei1?\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.ril\.oem\.imei\]: \[(.*?)\]/)?.[1];
+
+    let imei2 =
+      getPropRaw.match(/\[gsm\.baseband\.imei2\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[persist\.radio\.imei2\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.ril\.oem\.imei2\]: \[(.*?)\]/)?.[1];
+
+    const imeiList: string[] = [];
+
+    if (imei1 && imei1.includes(",")) {
+      const splitList = imei1.split(",").map((s) => s.trim()).filter((s) => /^\d{14,15}$/.test(s));
+      imeiList.push(...splitList);
+    } else {
+      if (imei1 && /^\d{14,15}$/.test(imei1.trim())) imeiList.push(imei1.trim());
+      if (imei2 && /^\d{14,15}$/.test(imei2.trim())) imeiList.push(imei2.trim());
+    }
+
+    if (imeiList.length === 0) {
+      const [subInfoRaw, subInfoSlot1, subInfoSlot2] = await Promise.all([
+        safeShell("dumpsys iphonesubinfo 2>/dev/null"),
+        safeShell("dumpsys iphonesubinfo 1 2>/dev/null"),
+        safeShell("dumpsys iphonesubinfo 2 2>/dev/null"),
+      ]);
+
+      const combinedSubInfo = `${subInfoRaw}\n${subInfoSlot1}\n${subInfoSlot2}`;
+      const matches = Array.from(
+        combinedSubInfo.matchAll(/(?:Device ID|IMEI|slot\s*\d+)\s*(?:\([^)]*\))?\s*[:=]\s*(\d{14,15})/gi)
+      );
+
+      for (const m of matches) {
+        if (m[1] && !imeiList.includes(m[1])) {
+          imeiList.push(m[1]);
+        }
+      }
+
+      if (imeiList.length === 0) {
+        const digitsOnly = combinedSubInfo.match(/\b\d{14,15}\b/g);
+        if (digitsOnly) {
+          for (const d of digitsOnly) {
+            if (!imeiList.includes(d)) imeiList.push(d);
+          }
+        }
+      }
+    }
+
+    let imei = imeiList.length > 0 ? imeiList.join(" / ") : "Không thể lấy";
+
+    const serial =
+      getPropRaw.match(/\[ro\.serialno\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.boot\.serialno\]: \[(.*?)\]/)?.[1] ||
+      "Không xác định";
+
+    const securityPatch =
+      getPropRaw.match(/\[ro\.build\.version\.security_patch\]: \[(.*?)\]/)?.[1] ||
+      "Không xác định";
+
+    const fingerprint =
+      getPropRaw.match(/\[ro\.build\.fingerprint\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[ro\.vendor\.build\.fingerprint\]: \[(.*?)\]/)?.[1] ||
+      "Không xác định";
+
+    const wifiMac =
+      getPropRaw.match(/\[ro\.boot\.wifimacaddr\]: \[(.*?)\]/)?.[1] ||
+      getPropRaw.match(/\[wifi\.interface\.mac\]: \[(.*?)\]/)?.[1] ||
+      "Bảo mật Android";
+
+    const kernelVerRaw = await safeShell("uname -r 2>/dev/null");
+    const kernelVer = kernelVerRaw.trim() || "Linux Kernel";
+
     return {
       model: model,
       brand: brand.toUpperCase(),
@@ -589,6 +722,12 @@ export async function getDeviceInfo(deviceId: string) {
       board: board.toUpperCase(),
       cpuName,
       buildId,
+      imei,
+      serial,
+      securityPatch,
+      fingerprint,
+      wifiMac,
+      kernelVer,
     };
   } catch (err) {
     console.error("Failed to get device info:", err);

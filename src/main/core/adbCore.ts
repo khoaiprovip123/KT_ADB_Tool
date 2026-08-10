@@ -385,7 +385,7 @@ export async function execFastboot(
  */
 export async function fastbootReboot(
   deviceId: string,
-  target?: "bootloader" | "recovery",
+  target?: "bootloader" | "recovery" | "edl",
 ): Promise<{ success: boolean; message: string }> {
   try {
     const args = ["reboot"];
@@ -396,6 +396,35 @@ export async function fastbootReboot(
     return { success: true, message: output.trim() || "OK" };
   } catch (err: any) {
     console.error(`[FASTBOOT] reboot failed:`, err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * Thực thi xóa phân vùng FRP / Config qua Fastboot để Bypass Google Account (Yêu cầu Unlocked Bootloader).
+ */
+export async function fastbootBypassFrp(
+  deviceId: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const partitions = ["frp", "config", "persistent"];
+    const results: string[] = [];
+
+    for (const part of partitions) {
+      try {
+        await execFastboot(deviceId, ["erase", part]);
+        results.push(`• Erase ${part}: Thành công`);
+      } catch (err: any) {
+        results.push(`• Erase ${part}: ${err.message || "Thất bại (Cần Unlocked Bootloader)"}`);
+      }
+    }
+
+    return {
+      success: true,
+      message: results.join("\n"),
+    };
+  } catch (err: any) {
+    console.error(`[FASTBOOT] Bypass FRP failed:`, err);
     return { success: false, message: err.message };
   }
 }

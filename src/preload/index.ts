@@ -29,7 +29,7 @@ const api = {
   getDeviceInfo: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-info", deviceId),
   getDevices: () => ipcRenderer.invoke("adb:get-devices"),
-  fastbootReboot: (deviceId: string, target?: "bootloader" | "recovery") => {
+  fastbootReboot: (deviceId: string, target?: "bootloader" | "recovery" | "edl") => {
     if (
       !deviceId ||
       typeof deviceId !== "string" ||
@@ -40,6 +40,18 @@ const api = {
       return Promise.reject(new Error("Invalid device ID"));
     }
     return ipcRenderer.invoke("fastboot:reboot", { deviceId, target });
+  },
+  fastbootBypassFrp: (deviceId: string) => {
+    if (
+      !deviceId ||
+      typeof deviceId !== "string" ||
+      deviceId.includes(";") ||
+      deviceId.includes("|") ||
+      deviceId.includes("&")
+    ) {
+      return Promise.reject(new Error("Invalid device ID"));
+    }
+    return ipcRenderer.invoke("fastboot:bypassFrp", { deviceId });
   },
   onDeviceUpdate: (callback: (devices: any[]) => void) => {
     const listener = (_event: any, devices: any[]) => callback(devices);

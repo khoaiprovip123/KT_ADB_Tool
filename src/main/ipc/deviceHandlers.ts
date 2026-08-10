@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { getDevices, killAdbServer, initAdb, fastbootReboot } from "../core/adbCore";
+import { getDevices, killAdbServer, initAdb, fastbootReboot, fastbootBypassFrp } from "../core/adbCore";
 import {
   runScrcpy,
   connectWifi,
@@ -155,6 +155,14 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
     async (_event, { deviceId, target }) => {
       if (!isValidDeviceId(deviceId)) return { success: false, message: "Device ID không hợp lệ" };
       return await fastbootReboot(deviceId, target);
+    },
+  );
+
+  ipcMain.handle(
+    "fastboot:bypassFrp",
+    async (_event, { deviceId }) => {
+      if (!isValidDeviceId(deviceId)) return { success: false, message: "Device ID không hợp lệ" };
+      return await fastbootBypassFrp(deviceId);
     },
   );
 }
