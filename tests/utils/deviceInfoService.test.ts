@@ -36,8 +36,8 @@ describe("deviceInfoService - getDeviceInfo", () => {
 
     const info = await getDeviceInfo("test-device");
     expect(info).not.toBeNull();
-    expect(info?.codename).toBe("lisa (Mi 11 LE)");
-    expect(info?.model).toBe("Mi 11 LE");
+    expect(info?.codename).toBe("lisa");
+    expect(info?.model).toBe("Xiaomi 11 Lite 5G NE");
   });
 
   it("should parse RAM information from /proc/meminfo correctly", async () => {
@@ -79,7 +79,7 @@ describe("deviceInfoService - getDeviceInfo", () => {
 
     const info = await getDeviceInfo("test-device");
     expect(info).not.toBeNull();
-    expect(info?.codename).toBe("lisa (Mi 11 LE)");
+    expect(info?.codename).toBe("lisa");
   });
 
   it("should strip region suffix like lisa_global to match lisa", async () => {
@@ -96,6 +96,6 @@ describe("deviceInfoService - getDeviceInfo", () => {
 
     const info = await getDeviceInfo("test-device");
     expect(info).not.toBeNull();
-    expect(info?.codename).toBe("lisa (Mi 11 LE)");
+    expect(info?.codename).toBe("lisa");
   });
 });
