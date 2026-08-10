@@ -108,12 +108,13 @@ export async function downloadAndInstallUpdate(
     url: downloadUrl,
     method: "GET",
     responseType: "stream",
+    maxRedirects: 10,
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
-    timeout: 300000, // 5 phút timeout cho file lớn
+    timeout: 600000, // 10 phút timeout cho file lớn
     headers: {
       "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
-      "Accept": "application/octet-stream",
+      "Accept": "application/octet-stream, */*",
     },
   });
 
@@ -126,7 +127,7 @@ export async function downloadAndInstallUpdate(
   );
   let downloadedLength = 0;
 
-  const writer = fs.createWriteStream(destPath);
+  const writer = fs.createWriteStream(destPath, { autoClose: true });
 
   return new Promise((resolve, reject) => {
     response.data.on("data", (chunk: Buffer) => {
@@ -144,46 +145,71 @@ export async function downloadAndInstallUpdate(
     });
 
     response.data.on("error", (err: any) => {
-      writer.close();
-      fs.unlink(destPath, () => {});
-      reject(err);
+      writer.destroy();
+      if (fs.existsSync(destPath)) {
+        try {
+          fs.unlinkSync(destPath);
+        } catch (_) {}
+      }
+      reject(new Error(`Lỗi mạng khi tải bản cập nhật: ${err.message}`));
     });
 
     response.data.pipe(writer);
 
-    writer.on("finish", () => {
-      writer.close(() => {
-        onProgress(100);
-        resolve();
+    writer.on("close", () => {
+      // Kiểm tra tính toàn vẹn file installer (Integrity Check) chống lỗi NSIS Error
+      const stats = fs.existsSync(destPath) ? fs.statSync(destPath) : null;
+      const fileSize = stats ? stats.size : 0;
 
-        // Kích hoạt installer cài đặt và thoát ứng dụng
-        setTimeout(async () => {
+      if (!stats || fileSize < 5 * 1024 * 1024 || (totalLength > 0 && fileSize < totalLength)) {
+        if (fs.existsSync(destPath)) {
           try {
-            const { shell } = await import("electron");
-            await shell.openPath(destPath);
-          } catch (err: any) {
-            console.error("Lỗi khi tự động chạy installer:", err);
-            try {
-              const child = spawn(destPath, [], {
-                detached: true,
-                stdio: "ignore",
-              });
-              child.unref();
-            } catch (spawnErr) {
-              console.error("Lỗi spawn installer:", spawnErr);
-            }
-          } finally {
-            setTimeout(() => {
-              app.quit();
-            }, 1000);
+            fs.unlinkSync(destPath);
+          } catch (_) {}
+        }
+        reject(
+          new Error(
+            `Tệp cài đặt tải về chưa hoàn chỉnh (${(fileSize / 1024 / 1024).toFixed(1)}MB / ${totalLength ? (totalLength / 1024 / 1024).toFixed(1) : "?"}MB). Vui lòng thử lại.`,
+          ),
+        );
+        return;
+      }
+
+      onProgress(100);
+      resolve();
+
+      // Kích hoạt installer cài đặt và thoát ứng dụng
+      setTimeout(async () => {
+        try {
+          const { shell } = await import("electron");
+          await shell.openPath(destPath);
+        } catch (err: any) {
+          console.error("Lỗi khi tự động chạy installer:", err);
+          try {
+            const child = spawn(destPath, [], {
+              detached: true,
+              stdio: "ignore",
+            });
+            child.unref();
+          } catch (spawnErr) {
+            console.error("Lỗi spawn installer:", spawnErr);
           }
-        }, 500);
-      });
+        } finally {
+          setTimeout(() => {
+            app.quit();
+          }, 1000);
+        }
+      }, 500);
     });
 
     writer.on("error", (err) => {
-      fs.unlink(destPath, () => {});
-      reject(err);
+      writer.destroy();
+      if (fs.existsSync(destPath)) {
+        try {
+          fs.unlinkSync(destPath);
+        } catch (_) {}
+      }
+      reject(new Error(`Lỗi ghi tệp cài đặt: ${err.message}`));
     });
   });
 }
