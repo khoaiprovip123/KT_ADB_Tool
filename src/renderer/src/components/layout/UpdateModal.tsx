@@ -48,7 +48,10 @@ export function UpdateModal() {
     });
 
     try {
-      await window.api.downloadAndInstallUpdate(updateInfo.downloadUrl);
+      await window.api.downloadAndInstallUpdate(
+        updateInfo.downloadUrl,
+        (updateInfo as any).expectedSize,
+      );
       setDownloadProgress(100);
       toast.success("Tải hoàn tất! Đang khởi chạy bộ cài đặt và nâng cấp...");
     } catch (err: any) {

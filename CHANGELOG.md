@@ -1,5 +1,22 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.7] - 2026-08-11
+
+### Sửa lỗi & Cải tiến (Fixed & Improved)
+- **Khắc phục triệt để lỗi tải bản cập nhật bị lỗi "This app can't run on your PC" và "NSIS Error"**:
+  - Thay thế toàn bộ luồng tải bằng `axios stream` (có internal transformation pipeline làm lệch byte nhị phân) sang **Node.js native `https` module** — raw TCP stream không qua bất kỳ middleware nào, đảm bảo tải về byte-perfect 100%.
+  - Bổ sung xử lý tự động follow HTTP redirect nhiều lần (GitHub Releases redirect nhiều bước trước khi tới CDN thực).
+  - Dùng tên file cài đặt độc lập theo Timestamp (`KT_ADB_Tool_Setup_<timestamp>.exe`) để tránh xung đột lock file EPERM với tiến trình installer cũ còn chạy ngầm.
+  - Chuyển sang dùng `shell.openPath()` của Electron để mở cửa sổ giao diện bộ cài NSIS trực tiếp thay vì PowerShell `Start-Process -Verb RunAs` (bị từ chối trong sub-shell ngầm của Electron).
+
+## [2.5.6] - 2026-08-11
+
+### Sửa lỗi & Cải tiến (Fixed & Improved)
+- **Khắc phục triệt để lỗi NSIS Error khi nâng cấp tự động**:
+  - Bổ sung bộ kiểm tra toàn vẹn tệp cài đặt `validateInstallerFile()`: Đối soát chính xác kích thước byte so với GitHub Release API (`asset.size`) và đọc Magic Bytes `MZ` (`0x4D 0x5A`) của Windows PE Executable chống lỗi tải về bị cắt ngắn (Stream Truncation).
+  - Tối ưu hóa đóng luồng file (`writer.on("finish")`) và khoảng trễ 1.5s chờ Windows Defender/Antivirus giải phóng lock file trước khi mở bộ cài.
+  - Hỗ trợ Multi-repo Fallback tự động tìm bản cập nhật từ Repo `thanhlongts2k/KT_ADB_Tool` và `khoaiprovip123/KT_ADB_Tool`.
+
 ## [2.5.5] - 2026-08-10
 
 ### Thêm mới (Added)
