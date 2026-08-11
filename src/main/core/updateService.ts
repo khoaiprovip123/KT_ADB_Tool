@@ -157,6 +157,7 @@ export async function downloadAndInstallUpdate(
     url: downloadUrl,
     method: "GET",
     responseType: "stream",
+    decompress: false, // Tắt auto-decompression để giữ nguyên byte nhị phân file exe
     maxRedirects: 10,
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
@@ -164,6 +165,7 @@ export async function downloadAndInstallUpdate(
     headers: {
       "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
       Accept: "application/octet-stream, */*",
+      "Accept-Encoding": "identity", // Yêu cầu server không nén response
     },
   });
 
