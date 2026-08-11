@@ -2,7 +2,7 @@ import axios from "axios";
 import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
-import { spawn, exec } from "child_process";
+import { exec } from "child_process";
 
 const REPOS = ["thanhlongts2k/KT_ADB_Tool", "khoaiprovip123/KT_ADB_Tool"];
 
@@ -235,23 +235,24 @@ export async function downloadAndInstallUpdate(
   // Chờ 1.5s để hệ thống giải phóng toàn bộ luồng ghi file
   await new Promise((r) => setTimeout(r, 1500));
 
-  // Khởi chạy bộ cài bằng Windows Start Command độc lập và thoát app
+  // Khởi chạy bộ cài với quyền Admin (Verb RunAs) để ghi đè thành công vào C:\Program Files\KT ADB Tool Pro
   try {
-    exec(`start "" "${destPath}"`);
+    const psCmd = `powershell -Command "Start-Process '${destPath}' -Verb RunAs"`;
+    exec(psCmd, (error) => {
+      if (error) {
+        console.warn("RunAs failed or cancelled, falling back to standard start:", error);
+        exec(`start "" "${destPath}"`);
+      }
+    });
   } catch (err: any) {
-    console.error("Lỗi exec start installer:", err);
+    console.error("Lỗi khi chạy installer:", err);
     try {
-      const child = spawn(destPath, [], {
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
-    } catch (spawnErr) {
-      console.error("Lỗi spawn installer:", spawnErr);
-    }
+      exec(`start "" "${destPath}"`);
+    } catch (_) {}
   }
 
+  // Cho 2.5s để UAC prompt xuất hiện trước khi quit app cũ
   setTimeout(() => {
     app.quit();
-  }, 1000);
+  }, 2500);
 }
