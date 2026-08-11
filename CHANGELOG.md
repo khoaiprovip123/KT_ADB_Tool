@@ -1,5 +1,14 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.7] - 2026-08-11
+
+### Sửa lỗi & Cải tiến (Fixed & Improved)
+- **Khắc phục triệt để lỗi tải bản cập nhật bị lỗi "This app can't run on your PC" và "NSIS Error"**:
+  - Thay thế toàn bộ luồng tải bằng `axios stream` (có internal transformation pipeline làm lệch byte nhị phân) sang **Node.js native `https` module** — raw TCP stream không qua bất kỳ middleware nào, đảm bảo tải về byte-perfect 100%.
+  - Bổ sung xử lý tự động follow HTTP redirect nhiều lần (GitHub Releases redirect nhiều bước trước khi tới CDN thực).
+  - Dùng tên file cài đặt độc lập theo Timestamp (`KT_ADB_Tool_Setup_<timestamp>.exe`) để tránh xung đột lock file EPERM với tiến trình installer cũ còn chạy ngầm.
+  - Chuyển sang dùng `shell.openPath()` của Electron để mở cửa sổ giao diện bộ cài NSIS trực tiếp thay vì PowerShell `Start-Process -Verb RunAs` (bị từ chối trong sub-shell ngầm của Electron).
+
 ## [2.5.6] - 2026-08-11
 
 ### Sửa lỗi & Cải tiến (Fixed & Improved)
