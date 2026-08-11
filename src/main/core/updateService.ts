@@ -37,6 +37,8 @@ function isNewerVersion(latest: string, current: string): boolean {
 export async function checkForUpdates(): Promise<UpdateInfo> {
   const currentVersion = app.getVersion();
 
+  let bestResult: UpdateInfo | null = null;
+
   for (const repo of REPOS) {
     try {
       const url = `https://api.github.com/repos/${repo}/releases/latest`;
@@ -52,7 +54,6 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
       if (!release || !release.tag_name) continue;
 
       const latestVersion = release.tag_name.replace(/^v/, "");
-      const available = isNewerVersion(latestVersion, currentVersion);
 
       let downloadUrl: string | null = null;
       let expectedSize: number | undefined = undefined;
@@ -70,19 +71,31 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
         }
       }
 
-      return {
-        available,
+      const candidate: UpdateInfo = {
+        available: isNewerVersion(latestVersion, currentVersion),
         version: latestVersion,
         changelog: release.body || "",
         downloadUrl,
         expectedSize,
       };
+
+      // Lấy repo có version mới hơn
+      if (
+        !bestResult ||
+        isNewerVersion(latestVersion, bestResult.version)
+      ) {
+        bestResult = candidate;
+      }
     } catch (error: any) {
       console.warn(
         `Check for updates warning on ${repo}:`,
         error.message || error,
       );
     }
+  }
+
+  if (bestResult) {
+    return bestResult;
   }
 
   return {
