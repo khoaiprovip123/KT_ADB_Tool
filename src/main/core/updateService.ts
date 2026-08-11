@@ -131,22 +131,27 @@ export async function downloadAndInstallUpdate(
   onProgress: (progress: number) => void,
   expectedSize?: number,
 ): Promise<void> {
-  // Lưu tệp cài đặt vào thư mục userData/updates
+  // Thư mục lưu tệp cập nhật
   const updateDir = path.join(app.getPath("userData"), "updates");
   if (!fs.existsSync(updateDir)) {
     fs.mkdirSync(updateDir, { recursive: true });
-  }
-
-  const destPath = path.join(updateDir, "KT_ADB_Tool_Setup.exe");
-
-  // Xóa file cũ nếu đã tồn tại
-  if (fs.existsSync(destPath)) {
+  } else {
+    // Thử xóa các file installer cũ bị lock hoặc dư thừa
     try {
-      fs.unlinkSync(destPath);
-    } catch (e) {
-      console.warn("Không thể xóa file setup cũ:", e);
-    }
+      const existingFiles = fs.readdirSync(updateDir);
+      for (const f of existingFiles) {
+        if (f.endsWith(".exe")) {
+          try {
+            fs.unlinkSync(path.join(updateDir, f));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
+
+  // Tạo tên file độc lập theo Timestamp để tránh trùng file lock của tiến trình cũ (EPERM Error)
+  const uniqueName = `KT_ADB_Tool_Setup_${Date.now()}.exe`;
+  const destPath = path.join(updateDir, uniqueName);
 
   const response = await axios({
     url: downloadUrl,
