@@ -1,6 +1,5 @@
 import axios from "axios";
 import { app } from "electron";
-import * as os from "os";
 import * as path from "path";
 import * as fs from "fs";
 import { spawn } from "child_process";
@@ -132,8 +131,13 @@ export async function downloadAndInstallUpdate(
   onProgress: (progress: number) => void,
   expectedSize?: number,
 ): Promise<void> {
-  const tempDir = os.tmpdir();
-  const destPath = path.join(tempDir, "KT_ADB_Tool_Setup.exe");
+  // Đổi vị trí lưu tệp về userData để tránh lỗi Windows Memory Locking (%TEMP% - Error 998 Invalid access to memory location)
+  const updateDir = path.join(app.getPath("userData"), "updates");
+  if (!fs.existsSync(updateDir)) {
+    fs.mkdirSync(updateDir, { recursive: true });
+  }
+
+  const destPath = path.join(updateDir, "KT_ADB_Tool_Setup.exe");
 
   // Xóa file cũ nếu đã tồn tại
   if (fs.existsSync(destPath)) {
@@ -228,35 +232,28 @@ export async function downloadAndInstallUpdate(
 
   onProgress(100);
 
-  // Chờ 1.5s để Windows Antivirus / Defender nhả lock file trước khi thực thi
+  // Chờ 1.5s để hệ thống giải phóng toàn bộ luồng ghi file
   await new Promise((r) => setTimeout(r, 1500));
 
-  // Kích hoạt installer cài đặt và thoát ứng dụng
+  // Khởi chạy bộ cài bằng lệnh CMD Detached độc lập (Tránh lỗi Windows Memory Locking Error 998 khi gọi qua Electron)
   try {
-    const { shell } = await import("electron");
-    const errStr = await shell.openPath(destPath);
-    if (errStr) {
-      console.warn("shell.openPath warning:", errStr);
-      const child = spawn(destPath, [], {
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
-    }
+    const child = spawn(`"${destPath}"`, [], {
+      detached: true,
+      shell: true,
+      stdio: "ignore",
+    });
+    child.unref();
   } catch (err: any) {
-    console.error("Lỗi khi tự động chạy installer:", err);
+    console.error("Lỗi spawn installer:", err);
     try {
-      const child = spawn(destPath, [], {
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
-    } catch (spawnErr) {
-      console.error("Lỗi spawn installer:", spawnErr);
+      const { shell } = await import("electron");
+      await shell.openPath(destPath);
+    } catch (openErr) {
+      console.error("Lỗi shell openPath:", openErr);
     }
   }
 
   setTimeout(() => {
     app.quit();
-  }, 1500);
+  }, 1000);
 }
