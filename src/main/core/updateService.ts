@@ -237,27 +237,26 @@ export async function downloadAndInstallUpdate(
 
   onProgress(100);
 
-  // Chờ 1.5s để hệ thống giải phóng toàn bộ luồng ghi file
-  await new Promise((r) => setTimeout(r, 1500));
+  // Chờ 1s để hệ thống giải phóng toàn bộ luồng ghi file
+  await new Promise((r) => setTimeout(r, 1000));
 
-  // Khởi chạy bộ cài với quyền Admin (Verb RunAs) để ghi đè thành công vào C:\Program Files\KT ADB Tool Pro
+  // Khởi chạy bộ cài bằng Windows Shell Native (Bật ngay cửa sổ Installer GUI)
   try {
-    const psCmd = `powershell -Command "Start-Process '${destPath}' -Verb RunAs"`;
-    exec(psCmd, (error) => {
-      if (error) {
-        console.warn("RunAs failed or cancelled, falling back to standard start:", error);
-        exec(`start "" "${destPath}"`);
-      }
-    });
+    const { shell } = await import("electron");
+    const openErr = await shell.openPath(destPath);
+    if (openErr) {
+      console.warn("shell.openPath warning, fallback to cmd start:", openErr);
+      exec(`cmd /c start "" "${destPath}"`);
+    }
   } catch (err: any) {
     console.error("Lỗi khi chạy installer:", err);
     try {
-      exec(`start "" "${destPath}"`);
+      exec(`cmd /c start "" "${destPath}"`);
     } catch (_) {}
   }
 
-  // Cho 2.5s để UAC prompt xuất hiện trước khi quit app cũ
+  // Quát ứng dụng cũ sau 1s để nhả lock file cho installer thay thế
   setTimeout(() => {
     app.quit();
-  }, 2500);
+  }, 1000);
 }
