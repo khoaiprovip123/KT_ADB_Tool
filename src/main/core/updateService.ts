@@ -237,23 +237,18 @@ export async function downloadAndInstallUpdate(
   const updateDir = path.join(app.getPath("userData"), "updates");
   if (!fs.existsSync(updateDir)) {
     fs.mkdirSync(updateDir, { recursive: true });
-  } else {
-    // Thử xóa các file installer cũ bị lock hoặc dư thừa
-    try {
-      const existingFiles = fs.readdirSync(updateDir);
-      for (const f of existingFiles) {
-        if (f.endsWith(".exe")) {
-          try {
-            fs.unlinkSync(path.join(updateDir, f));
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
   }
 
-  // Tạo tên file độc lập theo Timestamp
-  const uniqueName = `KT_ADB_Tool_Setup_${Date.now()}.exe`;
-  const destPath = path.join(updateDir, uniqueName);
+  const destPath = path.join(updateDir, "KT_ADB_Tool_Setup.exe");
+
+  // Xóa file installer cũ nếu tồn tại
+  if (fs.existsSync(destPath)) {
+    try {
+      fs.unlinkSync(destPath);
+    } catch (e) {
+      console.warn("Không thể xóa file setup cũ:", e);
+    }
+  }
 
   // Download bằng Node.js native https — không có axios transformation layer
   await nativeDownload(
