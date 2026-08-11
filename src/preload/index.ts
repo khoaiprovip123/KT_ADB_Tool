@@ -274,8 +274,8 @@ const api = {
   // App Version & Auto-update
   getAppVersion: () => ipcRenderer.invoke("app:get-version"),
   checkForUpdates: () => ipcRenderer.invoke("app:check-for-updates"),
-  downloadAndInstallUpdate: (downloadUrl: string) =>
-    ipcRenderer.invoke("app:download-install-update", downloadUrl),
+  downloadAndInstallUpdate: (downloadUrl: string, expectedSize?: number) =>
+    ipcRenderer.invoke("app:download-install-update", downloadUrl, expectedSize),
   onUpdateProgress: (cb: (progress: number) => void) => {
     const listener = (_e: any, progress: number) => cb(progress);
     ipcRenderer.on("app:update-progress", listener);

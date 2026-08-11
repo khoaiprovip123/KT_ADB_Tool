@@ -102,6 +102,7 @@ export default function Updates() {
     version: string;
     changelog: string;
     downloadUrl: string | null;
+    expectedSize?: number;
   } | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
@@ -185,6 +186,7 @@ export default function Updates() {
           version: `v${info.version}`,
           changelog: info.changelog,
           downloadUrl: info.downloadUrl,
+          expectedSize: info.expectedSize,
         });
         setUpdateStatus("available");
         toast.success(`Phát hiện phiên bản mới: v${info.version}`);
@@ -213,7 +215,10 @@ export default function Updates() {
     });
 
     try {
-      await window.api.downloadAndInstallUpdate(latestVersionInfo.downloadUrl);
+      await window.api.downloadAndInstallUpdate(
+        latestVersionInfo.downloadUrl,
+        latestVersionInfo.expectedSize,
+      );
       setDownloadProgress(100);
       toast.success("Tải hoàn tất! Đang mở bộ cài đặt...");
     } catch (err: any) {

@@ -5,13 +5,14 @@ import * as path from "path";
 import * as fs from "fs";
 import { spawn } from "child_process";
 
-const REPO = "khoaiprovip123/KT_ADB_Tool";
+const REPOS = ["thanhlongts2k/KT_ADB_Tool", "khoaiprovip123/KT_ADB_Tool"];
 
 export interface UpdateInfo {
   available: boolean;
   version: string;
   changelog: string;
   downloadUrl: string | null;
+  expectedSize?: number;
 }
 
 function parseVersion(v: string): number[] {
@@ -33,65 +34,103 @@ function isNewerVersion(latest: string, current: string): boolean {
 
 export async function checkForUpdates(): Promise<UpdateInfo> {
   const currentVersion = app.getVersion();
-  try {
-    const url = `https://api.github.com/repos/${REPO}/releases/latest`;
-    const response = await axios.get(url, {
-      headers: {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": `KT_ADB_Tool/${currentVersion}`,
-      },
-      timeout: 10000,
-    });
 
-    const release = response.data;
-    const latestVersion = release.tag_name.replace(/^v/, "");
+  for (const repo of REPOS) {
+    try {
+      const url = `https://api.github.com/repos/${repo}/releases/latest`;
+      const response = await axios.get(url, {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": `KT_ADB_Tool/${currentVersion}`,
+        },
+        timeout: 10000,
+      });
 
-    // So sánh phiên bản bằng semver
-    const available = isNewerVersion(latestVersion, currentVersion);
+      const release = response.data;
+      if (!release || !release.tag_name) continue;
 
-    let downloadUrl: string | null = null;
-    if (release.assets && Array.isArray(release.assets)) {
-      const exeAsset =
-        release.assets.find(
-          (asset: any) =>
-            asset.name.endsWith(".exe") &&
-            !asset.name.includes("blockmap"),
-        ) ||
-        release.assets.find((asset: any) => asset.name.endsWith(".exe"));
-      if (exeAsset) {
-        downloadUrl = exeAsset.browser_download_url;
+      const latestVersion = release.tag_name.replace(/^v/, "");
+      const available = isNewerVersion(latestVersion, currentVersion);
+
+      let downloadUrl: string | null = null;
+      let expectedSize: number | undefined = undefined;
+
+      if (release.assets && Array.isArray(release.assets)) {
+        const exeAsset =
+          release.assets.find(
+            (asset: any) =>
+              asset.name.endsWith(".exe") &&
+              !asset.name.includes("blockmap"),
+          ) ||
+          release.assets.find((asset: any) => asset.name.endsWith(".exe"));
+
+        if (exeAsset) {
+          downloadUrl = exeAsset.browser_download_url;
+          expectedSize = exeAsset.size;
+        }
       }
-    }
 
-    return {
-      available,
-      version: latestVersion,
-      changelog: release.body || "",
-      downloadUrl,
-    };
-  } catch (error: any) {
-    const status = error.response?.status;
-    if (status === 404 || status === 403) {
       return {
-        available: false,
-        version: currentVersion,
-        changelog: "Bạn đang sử dụng phiên bản mới nhất.",
-        downloadUrl: null,
+        available,
+        version: latestVersion,
+        changelog: release.body || "",
+        downloadUrl,
+        expectedSize,
       };
+    } catch (error: any) {
+      console.warn(`Check for updates warning on ${repo}:`, error.message || error);
     }
-    console.warn("Check for updates warning:", error.message || error);
-    return {
-      available: false,
-      version: currentVersion,
-      changelog: "Chưa kết nối máy chủ cập nhật.",
-      downloadUrl: null,
-    };
+  }
+
+  return {
+    available: false,
+    version: currentVersion,
+    changelog: "Bạn đang sử dụng phiên bản mới nhất.",
+    downloadUrl: null,
+  };
+}
+
+/**
+ * Kiểm tra tính toàn vẹn của tệp exe cài đặt chống lỗi NSIS Error
+ */
+function validateInstallerFile(filePath: string, expectedSize?: number): void {
+  if (!fs.existsSync(filePath)) {
+    throw new Error("Không tìm thấy tệp cài đặt sau khi tải về.");
+  }
+
+  const stats = fs.statSync(filePath);
+  const fileSize = stats.size;
+
+  // 1. Kiểm tra kích thước file
+  if (expectedSize && expectedSize > 0) {
+    if (fileSize !== expectedSize) {
+      throw new Error(
+        `Tệp cài đặt tải về chưa đầy đủ (${(fileSize / 1024 / 1024).toFixed(1)}MB / ${(expectedSize / 1024 / 1024).toFixed(1)}MB). Vui lòng thử lại.`,
+      );
+    }
+  } else if (fileSize < 10 * 1024 * 1024) {
+    throw new Error(
+      `Tệp cài đặt bị hỏng hoặc kích thước quá nhỏ (${(fileSize / 1024 / 1024).toFixed(1)}MB). Vui lòng thử lại.`,
+    );
+  }
+
+  // 2. Kiểm tra Header PE Windows Executable (Magic Bytes 'MZ')
+  const fd = fs.openSync(filePath, "r");
+  const buffer = Buffer.alloc(2);
+  fs.readSync(fd, buffer, 0, 2, 0);
+  fs.closeSync(fd);
+
+  if (buffer[0] !== 0x4d || buffer[1] !== 0x5a) {
+    throw new Error(
+      "Tệp cài đặt tải về bị lỗi định dạng (không phải Windows Executable hợp lệ - NSIS Error). Vui lòng thử lại.",
+    );
   }
 }
 
 export async function downloadAndInstallUpdate(
   downloadUrl: string,
   onProgress: (progress: number) => void,
+  expectedSize?: number,
 ): Promise<void> {
   const tempDir = os.tmpdir();
   const destPath = path.join(tempDir, "KT_ADB_Tool_Setup.exe");
@@ -100,7 +139,8 @@ export async function downloadAndInstallUpdate(
   if (fs.existsSync(destPath)) {
     try {
       fs.unlinkSync(destPath);
-    } catch (e) {      console.warn("Không thể xóa file setup cũ:", e);
+    } catch (e) {
+      console.warn("Không thể xóa file setup cũ:", e);
     }
   }
 
@@ -114,22 +154,24 @@ export async function downloadAndInstallUpdate(
     timeout: 600000, // 10 phút timeout cho file lớn
     headers: {
       "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
-      "Accept": "application/octet-stream, */*",
+      Accept: "application/octet-stream, */*",
     },
   });
 
-  const contentLength =
+  const headerLength =
     response.headers["content-length"] ||
     response.headers["x-decompressed-content-length"];
-  const totalLength = parseInt(
-    typeof contentLength === "string" ? contentLength : "0",
+  const headerTotal = parseInt(
+    typeof headerLength === "string" ? headerLength : "0",
     10,
   );
+
+  const totalLength = expectedSize && expectedSize > 0 ? expectedSize : headerTotal;
   let downloadedLength = 0;
 
   const writer = fs.createWriteStream(destPath, { autoClose: true });
 
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     response.data.on("data", (chunk: Buffer) => {
       downloadedLength += chunk.length;
       if (totalLength > 0) {
@@ -139,7 +181,6 @@ export async function downloadAndInstallUpdate(
         );
         onProgress(pct);
       } else {
-        // Nếu không có header content-length, giả lập tiến trình tăng dần
         onProgress(Math.min(95, Math.floor(downloadedLength / 1024 / 1024)));
       }
     });
@@ -154,54 +195,6 @@ export async function downloadAndInstallUpdate(
       reject(new Error(`Lỗi mạng khi tải bản cập nhật: ${err.message}`));
     });
 
-    response.data.pipe(writer);
-
-    writer.on("close", () => {
-      // Kiểm tra tính toàn vẹn file installer (Integrity Check) chống lỗi NSIS Error
-      const stats = fs.existsSync(destPath) ? fs.statSync(destPath) : null;
-      const fileSize = stats ? stats.size : 0;
-
-      if (!stats || fileSize < 5 * 1024 * 1024 || (totalLength > 0 && fileSize < totalLength)) {
-        if (fs.existsSync(destPath)) {
-          try {
-            fs.unlinkSync(destPath);
-          } catch (_) {}
-        }
-        reject(
-          new Error(
-            `Tệp cài đặt tải về chưa hoàn chỉnh (${(fileSize / 1024 / 1024).toFixed(1)}MB / ${totalLength ? (totalLength / 1024 / 1024).toFixed(1) : "?"}MB). Vui lòng thử lại.`,
-          ),
-        );
-        return;
-      }
-
-      onProgress(100);
-      resolve();
-
-      // Kích hoạt installer cài đặt và thoát ứng dụng
-      setTimeout(async () => {
-        try {
-          const { shell } = await import("electron");
-          await shell.openPath(destPath);
-        } catch (err: any) {
-          console.error("Lỗi khi tự động chạy installer:", err);
-          try {
-            const child = spawn(destPath, [], {
-              detached: true,
-              stdio: "ignore",
-            });
-            child.unref();
-          } catch (spawnErr) {
-            console.error("Lỗi spawn installer:", spawnErr);
-          }
-        } finally {
-          setTimeout(() => {
-            app.quit();
-          }, 1000);
-        }
-      }, 500);
-    });
-
     writer.on("error", (err) => {
       writer.destroy();
       if (fs.existsSync(destPath)) {
@@ -211,5 +204,59 @@ export async function downloadAndInstallUpdate(
       }
       reject(new Error(`Lỗi ghi tệp cài đặt: ${err.message}`));
     });
+
+    writer.on("finish", () => {
+      writer.close(() => {
+        resolve();
+      });
+    });
+
+    response.data.pipe(writer);
   });
+
+  // Kiểm tra tính toàn vẹn tệp cài đặt trước khi kích hoạt
+  try {
+    validateInstallerFile(destPath, expectedSize);
+  } catch (valErr: any) {
+    if (fs.existsSync(destPath)) {
+      try {
+        fs.unlinkSync(destPath);
+      } catch (_) {}
+    }
+    throw valErr;
+  }
+
+  onProgress(100);
+
+  // Chờ 1.5s để Windows Antivirus / Defender nhả lock file trước khi thực thi
+  await new Promise((r) => setTimeout(r, 1500));
+
+  // Kích hoạt installer cài đặt và thoát ứng dụng
+  try {
+    const { shell } = await import("electron");
+    const errStr = await shell.openPath(destPath);
+    if (errStr) {
+      console.warn("shell.openPath warning:", errStr);
+      const child = spawn(destPath, [], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    }
+  } catch (err: any) {
+    console.error("Lỗi khi tự động chạy installer:", err);
+    try {
+      const child = spawn(destPath, [], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    } catch (spawnErr) {
+      console.error("Lỗi spawn installer:", spawnErr);
+    }
+  }
+
+  setTimeout(() => {
+    app.quit();
+  }, 1500);
 }

@@ -116,9 +116,9 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
-  mainWindow.webContents.on("console-message", (details) => {
+  mainWindow.webContents.on("console-message", (_event, level, message, lineNumber, sourceId) => {
     console.log(
-      `[Renderer][${details.level}] ${details.message} (${details.sourceId}:${details.lineNumber})`,
+      `[Renderer][${level}] ${message} (${sourceId}:${lineNumber})`,
     );
   });
 

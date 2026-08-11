@@ -1,5 +1,13 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.6] - 2026-08-11
+
+### Sửa lỗi & Cải tiến (Fixed & Improved)
+- **Khắc phục triệt để lỗi NSIS Error khi nâng cấp tự động**:
+  - Bổ sung bộ kiểm tra toàn vẹn tệp cài đặt `validateInstallerFile()`: Đối soát chính xác kích thước byte so với GitHub Release API (`asset.size`) và đọc Magic Bytes `MZ` (`0x4D 0x5A`) của Windows PE Executable chống lỗi tải về bị cắt ngắn (Stream Truncation).
+  - Tối ưu hóa đóng luồng file (`writer.on("finish")`) và khoảng trễ 1.5s chờ Windows Defender/Antivirus giải phóng lock file trước khi mở bộ cài.
+  - Hỗ trợ Multi-repo Fallback tự động tìm bản cập nhật từ Repo `thanhlongts2k/KT_ADB_Tool` và `khoaiprovip123/KT_ADB_Tool`.
+
 ## [2.5.5] - 2026-08-10
 
 ### Thêm mới (Added)

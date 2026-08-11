@@ -173,8 +173,12 @@ export interface IADBAPI {
     version: string;
     changelog: string;
     downloadUrl: string | null;
+    expectedSize?: number;
   }>;
-  downloadAndInstallUpdate: (downloadUrl: string) => Promise<void>;
+  downloadAndInstallUpdate: (
+    downloadUrl: string,
+    expectedSize?: number,
+  ) => Promise<void>;
   onUpdateProgress: (cb: (progress: number) => void) => () => void;
   onUpdateAvailable: (
     cb: (info: {

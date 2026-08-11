@@ -129,14 +129,21 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     }
   });
 
-  ipcMain.handle("app:download-install-update", async (_event, downloadUrl: string) => {
-    const { downloadAndInstallUpdate } = await import("../core/updateService");
-    return downloadAndInstallUpdate(downloadUrl, (progress) => {
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("app:update-progress", progress);
-      }
-    });
-  });
+  ipcMain.handle(
+    "app:download-install-update",
+    async (_event, downloadUrl: string, expectedSize?: number) => {
+      const { downloadAndInstallUpdate } = await import("../core/updateService");
+      return downloadAndInstallUpdate(
+        downloadUrl,
+        (progress) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("app:update-progress", progress);
+          }
+        },
+        expectedSize,
+      );
+    },
+  );
 
   ipcMain.on("app:fatal-error", (_event, { title, message }) => {
     dialog.showErrorBox(title || "Lỗi ứng dụng nghiêm trọng", message || "Lỗi không xác định");
