@@ -1,8 +1,11 @@
 import axios from "axios";
-import { app } from "electron";
+import { app, shell } from "electron";
 import * as path from "path";
 import * as fs from "fs";
+import * as https from "https";
+import * as http from "http";
 import { exec } from "child_process";
+import { URL } from "url";
 
 const REPOS = ["thanhlongts2k/KT_ADB_Tool", "khoaiprovip123/KT_ADB_Tool"];
 
@@ -58,10 +61,8 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
         const exeAsset =
           release.assets.find(
             (asset: any) =>
-              asset.name.endsWith(".exe") &&
-              !asset.name.includes("blockmap"),
-          ) ||
-          release.assets.find((asset: any) => asset.name.endsWith(".exe"));
+              asset.name.endsWith(".exe") && !asset.name.includes("blockmap"),
+          ) || release.assets.find((asset: any) => asset.name.endsWith(".exe"));
 
         if (exeAsset) {
           downloadUrl = exeAsset.browser_download_url;
@@ -77,7 +78,10 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
         expectedSize,
       };
     } catch (error: any) {
-      console.warn(`Check for updates warning on ${repo}:`, error.message || error);
+      console.warn(
+        `Check for updates warning on ${repo}:`,
+        error.message || error,
+      );
     }
   }
 
@@ -87,6 +91,104 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
     changelog: "Bạn đang sử dụng phiên bản mới nhất.",
     downloadUrl: null,
   };
+}
+
+/**
+ * Download file dùng Node.js native https/http module — đảm bảo byte-perfect, không có axios transformation layer.
+ * Hỗ trợ tự động follow redirect (GitHub Releases redirect nhiều lần).
+ */
+function nativeDownload(
+  downloadUrl: string,
+  destPath: string,
+  totalSize: number,
+  onProgress: (progress: number) => void,
+  redirectCount = 0,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 10) {
+      return reject(new Error("Quá nhiều redirect khi tải bản cập nhật."));
+    }
+
+    const parsedUrl = new URL(downloadUrl);
+    const transport = parsedUrl.protocol === "https:" ? https : http;
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === "https:" ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: "GET",
+      headers: {
+        "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
+        Accept: "application/octet-stream",
+        // Không gửi Accept-Encoding để server trả về raw binary
+      },
+    };
+
+    const req = transport.request(options, (res) => {
+      // Follow redirect (301, 302, 303, 307, 308)
+      if (
+        res.statusCode &&
+        res.statusCode >= 300 &&
+        res.statusCode < 400 &&
+        res.headers.location
+      ) {
+        res.resume(); // Drain response
+        return nativeDownload(
+          res.headers.location,
+          destPath,
+          totalSize,
+          onProgress,
+          redirectCount + 1,
+        )
+          .then(resolve)
+          .catch(reject);
+      }
+
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(
+          new Error(`Lỗi HTTP ${res.statusCode} khi tải bản cập nhật.`),
+        );
+      }
+
+      const writer = fs.createWriteStream(destPath);
+      let downloaded = 0;
+
+      res.on("data", (chunk: Buffer) => {
+        downloaded += chunk.length;
+        if (totalSize > 0) {
+          onProgress(Math.min(99, Math.round((downloaded / totalSize) * 100)));
+        }
+      });
+
+      res.on("error", (err) => {
+        writer.destroy();
+        reject(new Error(`Lỗi mạng khi tải bản cập nhật: ${err.message}`));
+      });
+
+      writer.on("error", (err) => {
+        writer.destroy();
+        reject(new Error(`Lỗi ghi tệp cài đặt: ${err.message}`));
+      });
+
+      writer.on("finish", () => {
+        resolve();
+      });
+
+      res.pipe(writer);
+    });
+
+    req.on("error", (err) => {
+      reject(new Error(`Lỗi kết nối khi tải bản cập nhật: ${err.message}`));
+    });
+
+    req.setTimeout(600000, () => {
+      req.destroy();
+      reject(new Error("Hết thời gian chờ khi tải bản cập nhật (10 phút)."));
+    });
+
+    req.end();
+  });
 }
 
 /**
@@ -149,81 +251,17 @@ export async function downloadAndInstallUpdate(
     } catch (_) {}
   }
 
-  // Tạo tên file độc lập theo Timestamp để tránh trùng file lock của tiến trình cũ (EPERM Error)
+  // Tạo tên file độc lập theo Timestamp
   const uniqueName = `KT_ADB_Tool_Setup_${Date.now()}.exe`;
   const destPath = path.join(updateDir, uniqueName);
 
-  const response = await axios({
-    url: downloadUrl,
-    method: "GET",
-    responseType: "stream",
-    decompress: false, // Tắt auto-decompression để giữ nguyên byte nhị phân file exe
-    maxRedirects: 10,
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    timeout: 600000, // 10 phút timeout cho file lớn
-    headers: {
-      "User-Agent": `KT_ADB_Tool/${app.getVersion()}`,
-      Accept: "application/octet-stream, */*",
-      "Accept-Encoding": "identity", // Yêu cầu server không nén response
-    },
-  });
-
-  const headerLength =
-    response.headers["content-length"] ||
-    response.headers["x-decompressed-content-length"];
-  const headerTotal = parseInt(
-    typeof headerLength === "string" ? headerLength : "0",
-    10,
+  // Download bằng Node.js native https — không có axios transformation layer
+  await nativeDownload(
+    downloadUrl,
+    destPath,
+    expectedSize ?? 0,
+    onProgress,
   );
-
-  const totalLength = expectedSize && expectedSize > 0 ? expectedSize : headerTotal;
-  let downloadedLength = 0;
-
-  const writer = fs.createWriteStream(destPath, { autoClose: true });
-
-  await new Promise<void>((resolve, reject) => {
-    response.data.on("data", (chunk: Buffer) => {
-      downloadedLength += chunk.length;
-      if (totalLength > 0) {
-        const pct = Math.min(
-          99,
-          Math.round((downloadedLength / totalLength) * 100),
-        );
-        onProgress(pct);
-      } else {
-        onProgress(Math.min(95, Math.floor(downloadedLength / 1024 / 1024)));
-      }
-    });
-
-    response.data.on("error", (err: any) => {
-      writer.destroy();
-      if (fs.existsSync(destPath)) {
-        try {
-          fs.unlinkSync(destPath);
-        } catch (_) {}
-      }
-      reject(new Error(`Lỗi mạng khi tải bản cập nhật: ${err.message}`));
-    });
-
-    writer.on("error", (err) => {
-      writer.destroy();
-      if (fs.existsSync(destPath)) {
-        try {
-          fs.unlinkSync(destPath);
-        } catch (_) {}
-      }
-      reject(new Error(`Lỗi ghi tệp cài đặt: ${err.message}`));
-    });
-
-    writer.on("finish", () => {
-      writer.close(() => {
-        resolve();
-      });
-    });
-
-    response.data.pipe(writer);
-  });
 
   // Kiểm tra tính toàn vẹn tệp cài đặt trước khi kích hoạt
   try {
@@ -242,12 +280,14 @@ export async function downloadAndInstallUpdate(
   // Chờ 1s để hệ thống giải phóng toàn bộ luồng ghi file
   await new Promise((r) => setTimeout(r, 1000));
 
-  // Khởi chạy bộ cài bằng Windows Shell Native (Bật ngay cửa sổ Installer GUI)
+  // Khởi chạy bộ cài bằng Electron shell.openPath (Windows Shell native)
   try {
-    const { shell } = await import("electron");
     const openErr = await shell.openPath(destPath);
     if (openErr) {
-      console.warn("shell.openPath warning, fallback to cmd start:", openErr);
+      console.warn(
+        "shell.openPath warning, fallback to cmd start:",
+        openErr,
+      );
       exec(`cmd /c start "" "${destPath}"`);
     }
   } catch (err: any) {
@@ -257,7 +297,7 @@ export async function downloadAndInstallUpdate(
     } catch (_) {}
   }
 
-  // Quát ứng dụng cũ sau 1s để nhả lock file cho installer thay thế
+  // Thoát app cũ sau 1s để nhả lock file cho installer thay thế
   setTimeout(() => {
     app.quit();
   }, 1000);
