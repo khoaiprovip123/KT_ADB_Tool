@@ -2,7 +2,7 @@ import axios from "axios";
 import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
-import { spawn } from "child_process";
+import { spawn, exec } from "child_process";
 
 const REPOS = ["thanhlongts2k/KT_ADB_Tool", "khoaiprovip123/KT_ADB_Tool"];
 
@@ -131,7 +131,7 @@ export async function downloadAndInstallUpdate(
   onProgress: (progress: number) => void,
   expectedSize?: number,
 ): Promise<void> {
-  // Đổi vị trí lưu tệp về userData để tránh lỗi Windows Memory Locking (%TEMP% - Error 998 Invalid access to memory location)
+  // Lưu tệp cài đặt vào thư mục userData/updates
   const updateDir = path.join(app.getPath("userData"), "updates");
   if (!fs.existsSync(updateDir)) {
     fs.mkdirSync(updateDir, { recursive: true });
@@ -235,21 +235,19 @@ export async function downloadAndInstallUpdate(
   // Chờ 1.5s để hệ thống giải phóng toàn bộ luồng ghi file
   await new Promise((r) => setTimeout(r, 1500));
 
-  // Khởi chạy bộ cài bằng lệnh CMD Detached độc lập (Tránh lỗi Windows Memory Locking Error 998 khi gọi qua Electron)
+  // Khởi chạy bộ cài bằng Windows Start Command độc lập và thoát app
   try {
-    const child = spawn(`"${destPath}"`, [], {
-      detached: true,
-      shell: true,
-      stdio: "ignore",
-    });
-    child.unref();
+    exec(`start "" "${destPath}"`);
   } catch (err: any) {
-    console.error("Lỗi spawn installer:", err);
+    console.error("Lỗi exec start installer:", err);
     try {
-      const { shell } = await import("electron");
-      await shell.openPath(destPath);
-    } catch (openErr) {
-      console.error("Lỗi shell openPath:", openErr);
+      const child = spawn(destPath, [], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    } catch (spawnErr) {
+      console.error("Lỗi spawn installer:", spawnErr);
     }
   }
 
