@@ -359,17 +359,20 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     return { allowed: true, risk: "RISKY", mode: "FILE_OP" };
   }
 
-  // 6. Cho phép setprop cấu hình locale/ngôn ngữ/quốc gia
-  if (
-    trimmed.startsWith("setprop persist.sys.locale ") ||
-    trimmed.startsWith("setprop persist.sys.language ") ||
-    trimmed.startsWith("setprop persist.sys.country ")
-  ) {
+  // 6. Cho phép setprop cấu hình hệ thống an toàn (persist.sys.*, persist.*, sys.*)
+  if (trimmed.startsWith("setprop ")) {
     const parts = trimmed.split(/\s+/);
     if (parts.length === 3) {
-      const val = parts[2];
-      if (/^[a-zA-Z0-9_-]+$/.test(val)) {
-        return { allowed: true, risk: "MEDIUM", mode: "RAW_SHELL" };
+      const propKey = parts[1];
+      const propVal = parts[2];
+      if (
+        /^persist\.sys\.[a-zA-Z0-9_.-]+$/.test(propKey) ||
+        /^sys\.[a-zA-Z0-9_.-]+$/.test(propKey) ||
+        /^persist\.[a-zA-Z0-9_.-]+$/.test(propKey)
+      ) {
+        if (/^[a-zA-Z0-9_.,:+*\-/=]+$/.test(propVal)) {
+          return { allowed: true, risk: "MEDIUM", mode: "WRITE_SETTING" };
+        }
       }
     }
   }

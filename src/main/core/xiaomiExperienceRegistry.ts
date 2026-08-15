@@ -869,6 +869,35 @@ const XIAOMI_EXPERIENCE_CATALOG: XiaomiExperienceItem[] = [
     defaultValue: "0",
     activeValues: ["1"],
   },
+  {
+    id: "hyperos_super_clipboard",
+    title: "Bật HyperOS Super Clipboard (Khay nhớ tạm siêu cấp / Đồng bộ Clipboard)",
+    description:
+      "Kích hoạt Super Clipboard trên HyperOS/MIUI (Yêu cầu APK com.milink.service - Mi Connectivity Service / HyperOS Interconnectivity). Link tải APK: https://memeosupdates.com/apps/com.milink.service. Đổi các key support_super_clipboard, miui_super_clipboard & show_clipboard_suggestion thành 1. Sau khi cài và bật, hãy khởi động lại máy để áp dụng.",
+    category: "utility",
+    risk: "SAFE",
+    detectStrategy: {
+      brand: ["XIAOMI", "REDMI", "POCO"],
+      minSdk: 30,
+      packages: ["com.milink.service"],
+      settingsKeys: [{ namespace: "global", key: "support_super_clipboard" }],
+    },
+    readCommand: { namespace: "global", key: "support_super_clipboard" },
+    enableCommand:
+      "settings put global support_super_clipboard 1 && settings put system support_super_clipboard 1 && settings put secure support_super_clipboard 1 && settings put system miui_super_clipboard 1 && settings put secure show_clipboard_suggestion 1",
+    disableCommand:
+      "settings put global support_super_clipboard 0 && settings put system support_super_clipboard 0 && settings put secure support_super_clipboard 0 && settings put system miui_super_clipboard 0 && settings put secure show_clipboard_suggestion 0",
+    fallbackEnableCommands: [
+      "setprop persist.sys.support_super_clipboard 1 && settings put global support_super_clipboard 1",
+      "setprop persist.sys.support_super_clipboard 1",
+    ],
+    fallbackDisableCommands: [
+      "setprop persist.sys.support_super_clipboard 0 && settings put global support_super_clipboard 0",
+      "setprop persist.sys.support_super_clipboard 0",
+    ],
+    defaultValue: "0",
+    activeValues: ["1"],
+  },
 ];
 
 // Không tự ý ẩn preset cộng đồng: key chưa tồn tại sẽ được service phân loại

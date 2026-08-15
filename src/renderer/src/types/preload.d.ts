@@ -10,6 +10,7 @@ import type {
 } from "@shared/types";
 
 export interface IADBAPI {
+  openExternal: (url: string) => Promise<boolean>;
   minimizeWindow: () => Promise<void>;
   maximizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
@@ -199,6 +200,68 @@ export interface IADBAPI {
   onCleanerProgress: (cb: (data: any) => void) => () => void;
   getCleanerWhitelist: () => Promise<string[]>;
   saveCleanerWhitelist: (whitelist: string[]) => Promise<boolean>;
+
+  // Fastboot ROM Flasher API
+  openRomFolderDialog: () => Promise<string | null>;
+  scanRomFolder: (folderPath: string) => Promise<{
+    romPath: string;
+    imagesDir: string;
+    targetCodename?: string;
+    targetCodenames?: string[];
+    platformType?: "qualcomm" | "mediatek" | "tensor" | "universal";
+    hasBootAlpha: boolean;
+    hasBootFolkpatch: boolean;
+    hasBootNonroot: boolean;
+    hasBootStandard: boolean;
+    hasInitBoot: boolean;
+    hasSuper: boolean;
+    hasFlashAllBat?: boolean;
+    hasFlashAllExceptStorageBat?: boolean;
+    hasFlashAllLockBat?: boolean;
+    foundImages: Array<{
+      name: string;
+      partition: string;
+      path: string;
+      sizeBytes: number;
+    }>;
+    error?: string;
+  }>;
+  getFastbootDeviceInfo: (deviceId: string) => Promise<{
+    product: string;
+    board?: string;
+    isUnlocked?: boolean;
+    currentSlot?: string;
+    hasSlots?: boolean;
+    slotCount?: number;
+    isUserspace?: boolean;
+    maxDownloadSize?: string;
+    error?: string;
+  }>;
+  flashFastbootRom: (options: {
+    deviceId: string;
+    romPath: string;
+    rootOption: "none" | "alpha" | "folkpatch" | "custom";
+    customBootPath?: string;
+    wipeData: boolean;
+    slotMode: "both" | "active" | "single";
+    disableVerity: boolean;
+    targetSlot?: "a" | "b";
+    bypassCodenameCheck?: boolean;
+    selectedPartitions?: string[];
+    allowCriticalPartitions?: boolean;
+    lockBootloader?: boolean;
+  }) => Promise<{ success: boolean; message: string }>;
+  cancelFastbootFlash: () => Promise<boolean>;
+  onFastbootFlashProgress: (
+    cb: (data: {
+      step: number;
+      totalSteps: number;
+      currentPartition: string;
+      message: string;
+      percentage: number;
+    }) => void,
+  ) => () => void;
+  onFastbootFlashLog: (cb: (log: string) => void) => () => void;
 }
 
 declare global {

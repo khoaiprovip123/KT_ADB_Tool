@@ -21,6 +21,7 @@ const validateCommand = (deviceId: string, command: string): boolean => {
 
 // Custom APIs for renderer
 const api = {
+  openExternal: (url: string) => ipcRenderer.invoke("app:open-external", url),
   minimizeWindow: () => ipcRenderer.invoke("win:minimize"),
   maximizeWindow: () => ipcRenderer.invoke("win:maximize"),
   closeWindow: () => ipcRenderer.invoke("win:close"),
@@ -300,6 +301,27 @@ const api = {
   getCleanerWhitelist: () => ipcRenderer.invoke("cleaner:get-whitelist"),
   saveCleanerWhitelist: (whitelist: string[]) =>
     ipcRenderer.invoke("cleaner:save-whitelist", whitelist),
+
+  // Fastboot ROM Flasher API
+  openRomFolderDialog: () => ipcRenderer.invoke("dialog:open-rom-folder"),
+  scanRomFolder: (folderPath: string) =>
+    ipcRenderer.invoke("fastboot:scan-rom-folder", folderPath),
+  getFastbootDeviceInfo: (deviceId: string) =>
+    ipcRenderer.invoke("fastboot:get-device-info", deviceId),
+  flashFastbootRom: (options: any) =>
+    ipcRenderer.invoke("fastboot:flash-rom", options),
+  cancelFastbootFlash: () => ipcRenderer.invoke("fastboot:cancel-flash"),
+  onFastbootFlashProgress: (cb: (data: any) => void) => {
+    const listener = (_e: any, data: any) => cb(data);
+    ipcRenderer.on("fastboot:flash-progress", listener);
+    return () =>
+      ipcRenderer.removeListener("fastboot:flash-progress", listener);
+  },
+  onFastbootFlashLog: (cb: (log: string) => void) => {
+    const listener = (_e: any, log: string) => cb(log);
+    ipcRenderer.on("fastboot:flash-log", listener);
+    return () => ipcRenderer.removeListener("fastboot:flash-log", listener);
+  },
 };
 
 if (process.contextIsolated) {

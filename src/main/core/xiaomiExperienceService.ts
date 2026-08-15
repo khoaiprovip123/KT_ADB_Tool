@@ -196,14 +196,31 @@ export async function getExperienceCapabilities(
         });
         continue;
       }
+      if (item.id === "hyperos_super_clipboard") {
+        const hasCrossDevice =
+          installedPkgs.has("com.milink.service") ||
+          installedPkgs.has("com.miui.crossdevice") ||
+          installedPkgs.has("com.xiaomi.mirror");
+        if (!hasCrossDevice) {
+          result.push({
+            item,
+            status: "UNSUPPORTED",
+            reason:
+              "⚠️ CHƯA CÀI APK BẮT BUỘC: Thiết bị chưa cài Mi Connectivity Service / HyperOS Interconnectivity (com.milink.service). Vui lòng tải APK tại https://memeosupdates.com/apps/com.milink.service và cài đặt trước!",
+          });
+          continue;
+        }
+      }
+
       if (
         packages?.length &&
         !packages.every((pkg) => installedPkgs.has(pkg))
       ) {
+        const missing = packages.filter((pkg) => !installedPkgs.has(pkg));
         result.push({
           item,
           status: "UNSUPPORTED",
-          reason: "Thiếu package hệ thống bắt buộc.",
+          reason: `Thiếu package hệ thống bắt buộc (${missing.join(", ")}).`,
         });
         continue;
       }
@@ -360,6 +377,17 @@ async function verifyCommandEffect(
       verifiedTargets++;
       continue;
     }
+    const setpropMatch = subCommand.match(/^setprop ([a-zA-Z0-9_.-]+) (.*)$/);
+    if (setpropMatch) {
+      const result = await runAdbCommandDetailed(
+        deviceId,
+        `getprop ${setpropMatch[1]}`,
+      );
+      if (!result.success || result.output.trim() !== setpropMatch[2])
+        return false;
+      verifiedTargets++;
+      continue;
+    }
   }
 
   const packageMutations = extractPackageMutations(command);
@@ -498,6 +526,11 @@ export async function applyExperienceItem(
       (await verifyCommandEffect(deviceId, commands[index]))
     ) {
       logs.push("[VERIFY] Đã xác minh toàn bộ giá trị/package bị tác động.");
+      if (item.id === "hyperos_super_clipboard" && enable) {
+        logs.push(
+          "[THÔNG BÁO KHỞI ĐỘNG LAỊ] Đã bật tính năng thành công! Vui lòng KHỞI ĐỘNG LẠI THIẾT BỊ (hoặc khởi động lại ứng dụng Bàn phím) để hệ thống áp dụng HyperOS Super Clipboard.",
+        );
+      }
       return {
         success: true,
         output: logs.join("\n"),

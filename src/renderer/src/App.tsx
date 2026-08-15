@@ -13,6 +13,7 @@ import {
   Sliders,
   QrCode,
   Eraser,
+  HardDriveDownload,
   Minus,
   Square,
   X,
@@ -52,6 +53,11 @@ const ExperienceCenter = React.lazy(() =>
 const QuickCleanerTab = React.lazy(() =>
   import("./features/quick-cleaner/QuickCleanerTab").then((m) => ({
     default: m.QuickCleanerTab,
+  })),
+);
+const FastbootRomTab = React.lazy(() =>
+  import("./components/features/FastbootRomTab").then((m) => ({
+    default: m.FastbootRomTab,
   })),
 );
 const AdvancedAdb = React.lazy(() => import("./features/advanced-adb"));
@@ -253,6 +259,13 @@ function App() {
               onClick={() => setActiveTab("cleaner")}
             />
             <NavItem
+              icon={<HardDriveDownload />}
+              label="Fastboot ROM"
+              active={activeTab === "fastboot-rom"}
+              isExpanded={isSidebarOpen}
+              onClick={() => setActiveTab("fastboot-rom")}
+            />
+            <NavItem
               icon={<Sparkles />}
               label="UX & Tinh chỉnh"
               active={activeTab === "experience"}
@@ -310,7 +323,9 @@ function App() {
                     ? "Tối ưu hệ thống"
                     : activeTab === "cleaner"
                       ? "Dọn dẹp nhanh & RAM"
-                      : activeTab === "experience"
+                      : activeTab === "fastboot-rom"
+                        ? "Fastboot ROM Flasher"
+                        : activeTab === "experience"
                         ? "Trung tâm trải nghiệm"
                         : activeTab === "advanced"
                           ? "Nâng cao ADB"
@@ -419,6 +434,7 @@ function App() {
               {activeTab === "experience" && <ExperienceCenter />}
               {activeTab === "optimize" && <SystemOptimization />}
               {activeTab === "cleaner" && <QuickCleanerTab />}
+              {activeTab === "fastboot-rom" && <FastbootRomTab />}
               {activeTab === "advanced" && <AdvancedAdb />}
               {activeTab === "settings" && <Settings />}
             </React.Suspense>
@@ -428,6 +444,7 @@ function App() {
               activeTab !== "experience" &&
               activeTab !== "optimize" &&
               activeTab !== "cleaner" &&
+              activeTab !== "fastboot-rom" &&
               activeTab !== "advanced" &&
               activeTab !== "settings" && (
                 <div className="flex items-center justify-center h-full text-slate-400">

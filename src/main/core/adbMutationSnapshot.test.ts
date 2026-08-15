@@ -90,7 +90,7 @@ describe("adbMutationSnapshot", () => {
     expect(captured.error).toContain("không thể khôi phục");
   });
 
-  it("blocks a changed target set until the old snapshot is restored", async () => {
+  it("auto-refreshes snapshot when command targets are updated in new version", async () => {
     const execute = vi.fn(async () => ({ success: true, output: "null" }));
 
     const first = await captureMutationSnapshot({
@@ -109,7 +109,10 @@ describe("adbMutationSnapshot", () => {
     });
 
     expect(first.success).toBe(true);
-    expect(changed.success).toBe(false);
-    expect(changed.error).toContain("tập lệnh cũ");
+    expect(changed.success).toBe(true);
+    expect(changed.snapshot?.settings[0]).toMatchObject({
+      namespace: "system",
+      key: "new_key",
+    });
   });
 });

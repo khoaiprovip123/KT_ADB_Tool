@@ -6,3 +6,5 @@ dist
 .env
 .env.local
 coverage
+*.zip
+*.code-workspace
