@@ -60,11 +60,15 @@ const api = {
   },
   getStorageStats: (deviceId: string) =>
     ipcRenderer.invoke("adb:get-storage-stats", deviceId),
-  runAdbCommand: (deviceId: string, command: string) => {
+  runAdbCommand: (deviceId: string, command: string, timeoutMs?: number) => {
     if (!validateCommand(deviceId, command)) {
       return Promise.reject(new Error("Invalid command parameters"));
     }
-    return ipcRenderer.invoke("adb:run-command", { deviceId, command });
+    return ipcRenderer.invoke("adb:run-command", {
+      deviceId,
+      command,
+      timeoutMs,
+    });
   },
   runScrcpy: (deviceId: string, turnScreenOff: boolean) =>
     ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff }),

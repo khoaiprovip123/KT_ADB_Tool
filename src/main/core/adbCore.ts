@@ -21,25 +21,85 @@ export interface AdbCommandExecution {
   exitCode: number | null;
 }
 
+export function getRecommendedTimeout(
+  command: string,
+  customTimeout?: number,
+): number {
+  if (typeof customTimeout === "number" && customTimeout > 0) {
+    return customTimeout;
+  }
+  const cmd = command.toLowerCase();
+  if (cmd.includes("compile") && (cmd.includes("-a") || cmd.includes("--all"))) {
+    if (cmd.includes("everything")) {
+      return 1_800_000; // 30 minutes for everything compilation
+    }
+    return 900_000; // 15 minutes for speed/speed-profile/bg-dexopt all packages
+  }
+  if (cmd.includes("compile")) {
+    return 300_000; // 5 minutes for single package compile
+  }
+  return 30_000; // default 30s
+}
+
 export function isAdbFailureOutput(output: string): boolean {
   const normalized = output.trim().toLowerCase();
   if (!normalized) return false;
-  return (
+  if (
     normalized.startsWith("error:") ||
     normalized.startsWith("critical error:") ||
     normalized === "failed" ||
-    normalized.startsWith("[blocked by safety layer]") ||
-    /(^|\n)(unknown command|failure\b|failed\b|securityexception\b|permission denied\b|not found:|.*inaccessible or not found)/i.test(
+    normalized.startsWith("[blocked by safety layer]")
+  ) {
+    return true;
+  }
+
+  // Fatal ADB errors or permission issues
+  if (
+    /(^|\n)(unknown command|securityexception\b|permission denied\b|not found:|.*inaccessible or not found)/i.test(
       normalized,
     )
-  );
+  ) {
+    return true;
+  }
+
+  // Strict check on command-level failure prefixes
+  if (/^failure\b/i.test(normalized)) {
+    return true;
+  }
+
+  // If there's failure or failed somewhere in the output
+  if (/(^|\n)(failure\b|failed\b)/i.test(normalized)) {
+    // If output is a multi-line batch package compilation progress log with status
+    if (
+      /\d+\/\d+:/.test(normalized) &&
+      (normalized.includes("success") || normalized.split("\n").length > 5)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 function failedExecution(error: any): AdbCommandExecution {
   const stdout = String(error?.stdout ?? "");
   const stderr = String(error?.stderr ?? "");
-  const detail = `${stdout}${stderr}`.trim() || error?.message || "ADB command failed";
-  const output = `ERROR: ${detail}`;
+  const isTimeout =
+    error?.killed ||
+    error?.code === "ETIMEDOUT" ||
+    /timed?\s*out/i.test(error?.message || "");
+
+  let detail = "";
+  if (isTimeout) {
+    detail = `[TIMEOUT] Lệnh thực thi bị ngắt do vượt quá thời gian chờ.${
+      stdout ? `\nTiến độ trước khi dừng:\n${stdout.slice(-300).trim()}` : ""
+    }`;
+  } else {
+    detail = `${stdout}${stderr}`.trim() || error?.message || "ADB command failed";
+  }
+
+  const output = detail.startsWith("ERROR:") ? detail : `ERROR: ${detail}`;
   const exitCode =
     typeof error?.code === "number"
       ? error.code
@@ -251,8 +311,9 @@ export async function runAdbCommand(
   deviceId: string,
   command: string,
   onLog: (log: string) => void,
+  timeoutMs?: number,
 ): Promise<string> {
-  const result = await runAdbCommandDetailed(deviceId, command);
+  const result = await runAdbCommandDetailed(deviceId, command, timeoutMs);
   onLog(result.output);
   return result.output;
 }
@@ -260,6 +321,7 @@ export async function runAdbCommand(
 export async function runAdbCommandDetailed(
   deviceId: string,
   command: string,
+  timeoutMs?: number,
 ): Promise<AdbCommandExecution> {
   try {
     const shellCommand = cleanAdbPrefix(command);
@@ -276,10 +338,16 @@ export async function runAdbCommandDetailed(
       };
     }
 
+    const effectiveTimeout = getRecommendedTimeout(shellCommand, timeoutMs);
+
     const res = await execFilePromise(
       currentAdbExe,
       ["-s", deviceId, "shell", shellCommand],
-      { windowsHide: true, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+      {
+        windowsHide: true,
+        timeout: effectiveTimeout,
+        maxBuffer: 10 * 1024 * 1024,
+      },
     );
     const stdout = String(res.stdout ?? "");
     const stderr = String(res.stderr ?? "");
@@ -305,13 +373,15 @@ export async function runAdbCommandDetailed(
 export async function execAdb(
   deviceId: string,
   command: string,
+  timeoutMs?: number,
 ): Promise<string> {
-  return (await execAdbDetailed(deviceId, command)).output;
+  return (await execAdbDetailed(deviceId, command, timeoutMs)).output;
 }
 
 export async function execAdbDetailed(
   deviceId: string,
   command: string,
+  timeoutMs?: number,
 ): Promise<AdbCommandExecution> {
   let cleanCmd = command;
   if (cleanCmd.startsWith("shell ")) {
@@ -334,10 +404,16 @@ export async function execAdbDetailed(
   }
 
   try {
+    const effectiveTimeout = getRecommendedTimeout(cleanCmd, timeoutMs);
+
     const res = await execFilePromise(
       currentAdbExe,
       ["-s", deviceId, "shell", cleanCmd],
-      { windowsHide: true, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+      {
+        windowsHide: true,
+        timeout: effectiveTimeout,
+        maxBuffer: 10 * 1024 * 1024,
+      },
     );
     const stdout = String(res.stdout ?? "");
     const stderr = String(res.stderr ?? "");

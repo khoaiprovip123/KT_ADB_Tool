@@ -46,22 +46,29 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     return success;
   });
 
-  ipcMain.handle("adb:run-command", async (_event, { deviceId, command }) => {
-    try {
-      assertValidDeviceId(deviceId);
-      assertValidShellCommand(command);
-      const result = await runAdbCommandDetailed(deviceId, command);
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("adb:log-stream", result.output);
+  ipcMain.handle(
+    "adb:run-command",
+    async (_event, { deviceId, command, timeoutMs }) => {
+      try {
+        assertValidDeviceId(deviceId);
+        assertValidShellCommand(command);
+        const result = await runAdbCommandDetailed(
+          deviceId,
+          command,
+          timeoutMs,
+        );
+        if (!mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("adb:log-stream", result.output);
+        }
+        return {
+          success: result.success,
+          output: result.output,
+        };
+      } catch (err: any) {
+        return { success: false, output: err.message };
       }
-      return {
-        success: result.success,
-        output: result.output,
-      };
-    } catch (err: any) {
-      return { success: false, output: err.message };
-    }
-  });
+    },
+  );
 
   // ── Sub-module Handlers ───────────────────────────────────────────────────
   registerDeviceHandlers(mainWindow);

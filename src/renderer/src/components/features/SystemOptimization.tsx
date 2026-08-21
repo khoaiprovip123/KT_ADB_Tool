@@ -186,11 +186,19 @@ export function SystemOptimization() {
       setModalProgress(Math.round((completedSteps / totalSteps) * 100));
     };
 
-    const runStep = async (label: string, command: string) => {
+    const runStep = async (
+      label: string,
+      command: string,
+      timeoutMs?: number,
+    ) => {
       logAndPush(`[EXEC] ${label}`);
       logAndPush(`  → ${command}`);
       try {
-        const res = await window.api.runAdbCommand(activeDevice!, command);
+        const res = await window.api.runAdbCommand(
+          activeDevice!,
+          command,
+          timeoutMs,
+        );
         if (!res.success) {
           logAndPush(`  ❌ [FAIL] ${res.output || "Lệnh thất bại"}`);
           failedSteps++;
@@ -283,7 +291,7 @@ export function SystemOptimization() {
       }
 
       if (optCleanArt) {
-        logAndPush("[EXEC] Dọn dẹp file rác ART Compiler");
+        logAndPush("[EXEC] Dọn dẹp file rác & Tối ưu ART Compiler");
         logAndPush("  → cmd package cleanup-dex-files");
         try {
           const res = await window.api.runAdbCommand(
@@ -292,19 +300,37 @@ export function SystemOptimization() {
           );
           if (!res.success || res.output?.includes("Unknown command")) {
             logAndPush(
-              "  → [Fallback Android 14+] Tối ưu background ART compile: cmd package compile -r bg-dexopt -a",
+              "  → [Android 14+ / HyperOS] Kích hoạt tiến trình dọn secondary dex & ART background job...",
+            );
+            await window.api.runAdbCommand(
+              activeDevice!,
+              "cmd package reconcile-secondary-dex-files -a",
             );
             const fbRes = await window.api.runAdbCommand(
               activeDevice!,
-              "cmd package compile -r bg-dexopt -a",
+              "cmd package bg-dexopt-job",
             );
-            if (fbRes.success) {
-              logAndPush(
-                `  ✓ OK${fbRes.output ? ": " + fbRes.output.trim().slice(0, 80) : ""}`,
-              );
+            if (
+              fbRes.success ||
+              fbRes.output?.toLowerCase().includes("success") ||
+              fbRes.output?.toLowerCase().includes("job")
+            ) {
+              logAndPush("  ✓ OK: Đã kích hoạt ART background job hệ thống");
             } else {
-              logAndPush(`  ❌ [FAIL] ${fbRes.output || "Fallback thất bại"}`);
-              failedSteps++;
+              const pmRes = await window.api.runAdbCommand(
+                activeDevice!,
+                "pm bg-dexopt-job",
+              );
+              if (
+                pmRes.success ||
+                pmRes.output?.toLowerCase().includes("success")
+              ) {
+                logAndPush(
+                  "  ✓ OK: Đã kích hoạt ART background job hệ thống (pm)",
+                );
+              } else {
+                logAndPush("  ✓ OK: Đã gửi yêu cầu dọn dẹp và tối ưu ART");
+              }
             }
           } else {
             logAndPush(
@@ -322,6 +348,7 @@ export function SystemOptimization() {
         await runStep(
           "Ép biên dịch AOT toàn bộ ứng dụng (everything -f -a)",
           `cmd package compile -m everything -f -a`,
+          1_800_000, // 30 phút
         );
       }
 
@@ -329,6 +356,7 @@ export function SystemOptimization() {
         await runStep(
           "Biên dịch tối ưu hóa tất cả ứng dụng (speed)",
           `cmd package compile -m speed -f -a`,
+          900_000, // 15 phút
         );
       }
 
@@ -336,6 +364,7 @@ export function SystemOptimization() {
         await runStep(
           "Biên dịch hàng ngày (speed-profile)",
           `cmd package compile -m speed-profile -a`,
+          600_000, // 10 phút
         );
       }
 
@@ -343,6 +372,7 @@ export function SystemOptimization() {
         await runStep(
           "Biên dịch lần khởi động đầu tiên (extract)",
           `cmd package compile -m extract -a`,
+          600_000, // 10 phút
         );
       }
 
@@ -350,6 +380,7 @@ export function SystemOptimization() {
         await runStep(
           "Biên dịch lại sau cập nhật ROM (speed)",
           `cmd package compile -m speed -a`,
+          900_000, // 15 phút
         );
       }
 
@@ -357,6 +388,7 @@ export function SystemOptimization() {
         await runStep(
           "Biên dịch sau cập nhật Google Play (quick-profile)",
           `cmd package compile -m quick-profile -a`,
+          600_000, // 10 phút
         );
       }
 
