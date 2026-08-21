@@ -1,6 +1,6 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
-## [2.5.8] - 2026-08-21
+## [2.5.9] - 2026-08-21
 
 ### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)
 - **Tối ưu hóa & Khắc phục triệt để lỗi gián đoạn Siêu Tối Ưu Hóa (ART Compiler Timeout & Android 14+ Fallback)**:

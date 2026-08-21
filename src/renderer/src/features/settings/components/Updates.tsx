@@ -16,6 +16,29 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.9",
+    date: "21/08/2026",
+    highlights: [
+      "⚡ Tối ưu hóa Siêu Tối Ưu Hóa: Dynamic & Configurable Timeout 10–30 phút cho ART Compiler.",
+      "🛠️ Cải tiến Fallback Dọn dẹp ART trên Android 14+ / HyperOS qua reconcile-secondary-dex và bg-dexopt-job.",
+      "🔒 Chuẩn hóa phát hiện lỗi và lưu giữ chi tiết tiến độ biên dịch batch.",
+    ],
+  },
+  {
+    version: "v2.5.8",
+    date: "15/08/2026",
+    highlights: [
+      "Tối ưu hóa cơ chế kiểm tra cập nhật đa kho lưu trữ (Multi-repo update checker).",
+    ],
+  },
+  {
+    version: "v2.5.7",
+    date: "11/08/2026",
+    highlights: [
+      "Khắc phục triệt để lỗi NSIS Error & tải bản cập nhật qua Node.js native stream.",
+    ],
+  },
+  {
     version: "v2.5.4",
     date: "06/08/2026",
     highlights: [
@@ -91,7 +114,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.4");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.9");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );
@@ -117,64 +140,71 @@ export default function Updates() {
       })
       .catch((err) => console.error("Lấy phiên bản lỗi:", err));
 
-    // Lấy lịch sử Releases từ GitHub API để hiển thị động
-    fetch("https://api.github.com/repos/khoaiprovip123/KT_ADB_Tool/releases", {
-      headers: { Accept: "application/vnd.github+json" },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const fetched: ReleaseItem[] = data.map((rel: any) => {
-            const rawBody = rel.body || "";
-            const rawLines = rawBody
-              .split("\n")
-              .map((l: string) =>
-                l
-                  .replace(/^[\s*\-#]+/, "")
-                  .replace(/\*\*/g, "")
-                  .trim(),
-              )
-              .filter((l: string) => l.length > 0);
+    // Lấy lịch sử Releases từ các kho lưu trữ GitHub
+    const repos = ["thanhlongts2k/KT_ADB_Tool", "khoaiprovip123/KT_ADB_Tool"];
+    Promise.all(
+      repos.map((r) =>
+        fetch(`https://api.github.com/repos/${r}/releases`, {
+          headers: { Accept: "application/vnd.github+json" },
+        })
+          .then((res) => (res.ok ? res.json() : []))
+          .catch(() => []),
+      ),
+    ).then((results) => {
+      const allReleases = results.flat();
+      if (allReleases.length > 0) {
+        const fetched: ReleaseItem[] = allReleases.map((rel: any) => {
+          const rawBody = rel.body || "";
+          const rawLines = rawBody
+            .split("\n")
+            .map((l: string) =>
+              l
+                .replace(/^[\s*\-#]+/, "")
+                .replace(/\*\*/g, "")
+                .trim(),
+            )
+            .filter((l: string) => l.length > 0);
 
-            // Deduplicate lines
-            const uniqueLines = Array.from(new Set<string>(rawLines));
+          const uniqueLines = Array.from(new Set<string>(rawLines));
+          const dateObj = new Date(rel.published_at || rel.created_at);
+          const dateStr = !isNaN(dateObj.getTime())
+            ? dateObj.toLocaleDateString("vi-VN")
+            : "";
+          return {
+            version: rel.tag_name?.startsWith("v")
+              ? rel.tag_name
+              : `v${rel.tag_name}`,
+            date: dateStr,
+            highlights:
+              uniqueLines.length > 0
+                ? uniqueLines
+                : [rel.name || "Bản cập nhật mới"],
+          };
+        });
 
-            const dateObj = new Date(rel.published_at || rel.created_at);
-            const dateStr = !isNaN(dateObj.getTime())
-              ? dateObj.toLocaleDateString("vi-VN")
-              : "";
-            return {
-              version: rel.tag_name.startsWith("v")
-                ? rel.tag_name
-                : `v${rel.tag_name}`,
-              date: dateStr,
-              highlights:
-                uniqueLines.length > 0 ? uniqueLines : [rel.name || "Bản cập nhật mới"],
-            };
-          });
-
-          const mergedMap = new Map<string, ReleaseItem>();
-
-          // Priority to DEFAULT_RELEASE_HISTORY if local highlights exist
-          DEFAULT_RELEASE_HISTORY.forEach((item) => {
+        const mergedMap = new Map<string, ReleaseItem>();
+        DEFAULT_RELEASE_HISTORY.forEach((item) => {
+          mergedMap.set(item.version, item);
+        });
+        fetched.forEach((item) => {
+          if (item.version && !mergedMap.has(item.version)) {
             mergedMap.set(item.version, item);
-          });
+          }
+        });
 
-          fetched.forEach((item) => {
-            if (!mergedMap.has(item.version)) {
-              mergedMap.set(item.version, item);
+        const mergedList = Array.from(mergedMap.values()).sort((a, b) => {
+          const vA = a.version.replace(/^v/, "").split(".").map(Number);
+          const vB = b.version.replace(/^v/, "").split(".").map(Number);
+          for (let i = 0; i < 3; i++) {
+            if ((vA[i] || 0) !== (vB[i] || 0)) {
+              return (vB[i] || 0) - (vA[i] || 0);
             }
-          });
-
-          const mergedList = Array.from(mergedMap.values()).sort((a, b) =>
-            a.version < b.version ? 1 : -1,
-          );
-          setReleaseHistory(mergedList);
-        }
-      })
-      .catch((err) =>
-        console.warn("Lấy lịch sử release GitHub thất bại:", err),
-      );
+          }
+          return 0;
+        });
+        setReleaseHistory(mergedList);
+      }
+    });
   }, []);
 
   const handleCheckUpdate = async () => {
