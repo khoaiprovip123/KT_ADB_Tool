@@ -7,6 +7,7 @@ import { registerSystemTweaksHandlers } from "./systemTweaksHandlers";
 import { registerXiaomiExperienceHandlers } from "./xiaomiExperienceHandlers";
 import { registerAdvancedAdbHandlers } from "./advancedAdbHandlers";
 import { registerQuickCleanerHandlers } from "./quickCleanerHandlers";
+import { registerFastbootRomHandlers } from "./fastbootRomHandlers";
 import { store } from "../store";
 import { assertValidDeviceId, assertValidShellCommand } from "./validate";
 
@@ -78,6 +79,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   registerXiaomiExperienceHandlers(mainWindow);
   registerAdvancedAdbHandlers();
   registerQuickCleanerHandlers(mainWindow);
+  registerFastbootRomHandlers(mainWindow);
 
   // ── Store Handlers (whitelist key hợp lệ để tránh ghi đè nguy hiểm) ───────
   const ALLOWED_STORE_KEYS = new Set([
@@ -151,6 +153,19 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
       );
     },
   );
+
+  ipcMain.handle("app:open-external", async (_event, url: string) => {
+    try {
+      if (typeof url === "string" && (url.startsWith("https://") || url.startsWith("http://"))) {
+        const { shell } = await import("electron");
+        await shell.openExternal(url);
+        return true;
+      }
+    } catch (err) {
+      console.error("Lỗi mở URL bên ngoài:", err);
+    }
+    return false;
+  });
 
   ipcMain.on("app:fatal-error", (_event, { title, message }) => {
     dialog.showErrorBox(title || "Lỗi ứng dụng nghiêm trọng", message || "Lỗi không xác định");

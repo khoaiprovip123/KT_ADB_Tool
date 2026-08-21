@@ -70,6 +70,7 @@ describe("xiaomiExperienceService", () => {
         "disable_miui_optimization",
         "disable_miui_daemon",
         "dc_dimming_xiaomi",
+        "hyperos_super_clipboard",
       ]),
     );
   });

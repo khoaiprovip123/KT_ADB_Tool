@@ -11,10 +11,20 @@ import {
   Wrench,
   Terminal,
   Wifi,
+  Users,
 } from "lucide-react";
 
 export default function About() {
   const [appVersion, setAppVersion] = useState("2.5.0");
+
+  const handleOpenUrl = (url: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (window.api?.openExternal) {
+      window.api.openExternal(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
 
   useEffect(() => {
     window.api
@@ -215,13 +225,79 @@ export default function About() {
         </div>
       </div>
 
+      {/* Community References & Special Credits */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-purple-950/40 border border-blue-200/80 dark:border-blue-800/40 backdrop-blur-xl shadow-md space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+              Nguồn Tham Khảo & Đóng Góp Cộng Đồng
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Trân trọng cảm ơn các dữ liệu kịch bản, bảng codename và kinh nghiệm quý báu từ cộng đồng Android
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+          {/* NothingsVN */}
+          <a
+            href="https://t.me/nothingscom"
+            onClick={(e) => handleOpenUrl("https://t.me/nothingscom", e)}
+            target="_blank"
+            rel="noreferrer"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 hover:border-blue-500 dark:hover:border-blue-400 shadow-sm hover:shadow-md transition-all group flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">
+                NVN
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  Cộng đồng NothingsVN
+                </h4>
+                <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  t.me/nothingscom
+                </p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors shrink-0" />
+          </a>
+
+          {/* XiMiToolGroup */}
+          <a
+            href="https://t.me/ximitoolgroup"
+            onClick={(e) => handleOpenUrl("https://t.me/ximitoolgroup", e)}
+            target="_blank"
+            rel="noreferrer"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-500 dark:hover:border-indigo-400 shadow-sm hover:shadow-md transition-all group flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                XMT
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  XiMi Tool Group
+                </h4>
+                <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  t.me/ximitoolgroup
+                </p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors shrink-0" />
+          </a>
+        </div>
+      </div>
+
       {/* System Specifications & Credits */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 space-y-2 shadow-md">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phát triển bởi</span>
           <div className="font-extrabold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <span>khoaiprovip123</span>
-            <span className="text-xs text-indigo-500 font-medium">& Team Antigravity AI</span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 pt-1">
             Mã nguồn được đóng gói đầy đủ binary ADB & Scrcpy, sẵn sàng vận hành.
@@ -257,9 +333,10 @@ export default function About() {
           <div className="pt-3 flex items-center gap-3 text-xs font-semibold text-indigo-300">
             <a
               href="https://github.com/khoaiprovip123/KT_ADB_Tool"
+              onClick={(e) => handleOpenUrl("https://github.com/khoaiprovip123/KT_ADB_Tool", e)}
               target="_blank"
               rel="noreferrer"
-              className="hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 border border-white/15"
+              className="hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 border border-white/15 cursor-pointer"
             >
               <span>GitHub README & Source</span>
               <ExternalLink className="w-3.5 h-3.5" />

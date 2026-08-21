@@ -236,13 +236,14 @@ export async function captureMutationSnapshot(options: {
   );
   if (existing) {
     if (snapshotTargetSignature(existing) !== targetSignature(targets)) {
-      return {
-        success: false,
-        error:
-          "Snapshot hiện có thuộc tập lệnh cũ. Hãy khôi phục snapshot trước khi áp dụng phiên bản thao tác mới.",
-      };
+      deleteMutationSnapshot(
+        options.deviceIdentity,
+        options.scope,
+        options.actionId,
+      );
+    } else {
+      return { success: true, snapshot: existing };
     }
-    return { success: true, snapshot: existing };
   }
   if (
     targets.settings.length === 0 &&

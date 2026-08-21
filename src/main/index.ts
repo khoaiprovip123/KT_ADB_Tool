@@ -78,7 +78,7 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const parsed = new URL(url);
-      if (parsed.protocol === "https:" && parsed.hostname === "github.com") {
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
         void shell.openExternal(parsed.toString());
       }
     } catch {

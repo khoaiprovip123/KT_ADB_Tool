@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Fingerprint,
   Copy,
+  ShieldCheck,
+  Shield,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
@@ -264,25 +266,41 @@ export function Dashboard() {
                   <div className="text-sm font-bold text-orange-600 tracking-wide mt-0.5">
                     {info.customOs}
                   </div>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                      Chế độ ADB
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200/80 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      ADB Online
                     </span>
-                    <button
-                      onClick={() => handleFastbootReboot("bootloader")}
-                      className="px-3 py-1 bg-slate-50 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 text-slate-700 border border-slate-200 rounded-full text-xs font-bold flex items-center gap-1 transition-all shadow-sm"
-                      title="Chuyển thiết bị sang chế độ Fastboot"
+                    <span className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200/80 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                      <Smartphone className="w-3.5 h-3.5 text-blue-500" />
+                      Android {info.osVer || "N/A"}
+                    </span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm border ${
+                        info.isRooted
+                          ? "bg-purple-50 text-purple-600 border-purple-200"
+                          : "bg-slate-50 text-slate-600 border-slate-200"
+                      }`}
                     >
-                      <Zap className="w-3.5 h-3.5 text-cyan-500" /> Vào Fastboot
-                    </button>
-                    <button
-                      onClick={() => handleFastbootReboot("edl")}
-                      className="px-3 py-1 bg-slate-50 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 text-slate-700 border border-slate-200 rounded-full text-xs font-bold flex items-center gap-1 transition-all shadow-sm"
-                      title="Chuyển thiết bị sang chế độ khẩn cấp EDL (9008)"
-                    >
-                      <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Vào EDL
-                    </button>
+                      <ShieldCheck
+                        className={`w-3.5 h-3.5 ${info.isRooted ? "text-purple-500" : "text-slate-400"}`}
+                      />
+                      {info.isRooted ? "Superuser (Root)" : "Chưa Root"}
+                    </span>
+                    {info.bootloaderStatus && (
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm border ${
+                          info.bootloaderStatus.toLowerCase().includes("unlock")
+                            ? "bg-teal-50 text-teal-600 border-teal-200"
+                            : "bg-amber-50 text-amber-600 border-amber-200"
+                        }`}
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        {info.bootloaderStatus.toLowerCase().includes("unlock")
+                          ? "Bootloader Unlocked"
+                          : "Bootloader Locked"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
