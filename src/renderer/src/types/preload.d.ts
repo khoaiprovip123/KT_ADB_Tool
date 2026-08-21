@@ -30,6 +30,7 @@ export interface IADBAPI {
   runAdbCommand: (
     deviceId: string,
     command: string,
+    timeoutMs?: number,
   ) => Promise<AdbCommandResult>;
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => Promise<any>;
   connectWifi: (deviceId: string, ip: string) => Promise<any>;

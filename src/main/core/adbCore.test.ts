@@ -151,4 +151,65 @@ describe("adbCore", () => {
       expect(result).toContain("Command failed");
     });
   });
+
+  describe("Compilation and Timeout Handling", () => {
+    it("should allocate extended timeout for batch package compilation", async () => {
+      const onLog = vi.fn();
+      vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
+        stdout: "1/100: com.app.one\nSuccess",
+        stderr: "",
+      });
+
+      await runAdbCommand(
+        "device-1",
+        "cmd package compile -m speed-profile -a",
+        onLog,
+      );
+
+      expect((execFile as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        "adb",
+        ["-s", "device-1", "shell", "cmd package compile -m speed-profile -a"],
+        expect.objectContaining({ timeout: 900_000 }),
+      );
+    });
+
+    it("should respect explicit custom timeoutMs when provided", async () => {
+      const onLog = vi.fn();
+      vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
+        stdout: "Success",
+        stderr: "",
+      });
+
+      await runAdbCommand(
+        "device-1",
+        "cmd package compile -m everything -f -a",
+        onLog,
+        1_800_000,
+      );
+
+      expect((execFile as any)[util.promisify.custom]).toHaveBeenCalledWith(
+        "adb",
+        ["-s", "device-1", "shell", "cmd package compile -m everything -f -a"],
+        expect.objectContaining({ timeout: 1_800_000 }),
+      );
+    });
+
+    it("should format clear TIMEOUT error message when process is killed due to timeout", async () => {
+      vi.mocked((execFile as any)[util.promisify.custom]).mockRejectedValue({
+        killed: true,
+        code: "ETIMEDOUT",
+        message: "Command timed out after 30000ms",
+        stdout: "1/445: com.app.one\n2/445: com.app.two",
+      });
+
+      const result = await runAdbCommandDetailed(
+        "device-1",
+        "cmd package compile -r bg-dexopt -a",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.output).toContain("[TIMEOUT]");
+      expect(result.output).toContain("Tiến độ trước khi dừng");
+    });
+  });
 });

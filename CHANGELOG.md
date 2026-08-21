@@ -1,5 +1,14 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.9] - 2026-08-21
+
+### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)
+- **Tối ưu hóa & Khắc phục triệt để lỗi gián đoạn Siêu Tối Ưu Hóa (ART Compiler Timeout & Android 14+ Fallback)**:
+  - **Dynamic & Configurable Timeout**: Tự động nhận diện các tác vụ biên dịch AOT ART Compiler chuyên sâu (`cmd package compile -r bg-dexopt -a`, `speed-profile`, `everything`, `speed`, v.v.) và cấp phát thời gian chờ linh hoạt từ 10 đến 30 phút thay vì bị ngắt đột ngột bởi timeout 30 giây mặc định khi tối ưu thiết bị có số lượng ứng dụng lớn (hơn 400+ packages).
+  - **Hỗ trợ tham số `timeoutMs` xuyên suốt**: Mở rộng giao diện IPC `runAdbCommand` từ main process, preload bridge tới renderer UI.
+  - **Cải tiến cơ chế dọn dẹp ART trên Android 14+ / HyperOS**: Tự động chuyển đổi thông minh khi lệnh cũ `cleanup-dex-files` bị hệ thống gỡ bỏ, thực hiện dọn secondary dex (`cmd package reconcile-secondary-dex-files -a`) và kích hoạt job tối ưu hóa nền native của Android (`cmd package bg-dexopt-job` / `pm bg-dexopt-job`) không làm tắc nghẽn luồng kết nối ADB.
+  - **Chuẩn hóa thông báo lỗi**: Cải tiến bộ lọc trạng thái `isAdbFailureOutput` và hàm `failedExecution`, hiển thị thông báo lỗi rõ ràng và lưu giữ chi tiết tiến độ thay vì in đè log lỗi.
+
 ## [2.5.7] - 2026-08-11
 
 ### Sửa lỗi & Cải tiến (Fixed & Improved)
