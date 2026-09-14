@@ -7,7 +7,6 @@ import {
   pairDevice,
   getStorageStats,
   getDeviceInfo,
-  openHardKeyboardSettings,
   disconnectDevice,
 } from "../core/deviceService";
 import {
@@ -80,11 +79,6 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
       });
     },
   );
-
-  ipcMain.handle("adb:open-hard-keyboard-settings", async (_event, deviceId) => {
-    if (!isValidDeviceId(deviceId)) return false;
-    return await openHardKeyboardSettings(deviceId);
-  });
 
   ipcMain.handle("adb:connect-wifi", async (_event, { deviceId, ip }) => {
     if (!isValidDeviceId(deviceId)) return false;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Wifi,
   Settings,
@@ -6,7 +6,8 @@ import {
   PowerOff,
   Cast,
   RotateCcw,
-  Keyboard,
+  Unplug,
+  Loader2,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 
@@ -18,6 +19,17 @@ export function ControlCenterModal({
   onClose: () => void;
 }) {
   const { activeDevice } = useDeviceStore();
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (!activeDevice) return;
+    setIsDisconnecting(true);
+    await window.api.disconnectDevice(activeDevice);
+    const devs = await window.api.getDevices();
+    useDeviceStore.getState().setDevices(devs);
+    setIsDisconnecting(false);
+    onClose();
+  };
 
   const runAction = (cmd: string) => {
     if (!activeDevice) return;
@@ -74,34 +86,7 @@ export function ControlCenterModal({
           </button>
         </div>
 
-        {/* Phím tắt Chat / Bàn phím Tip */}
-        <div className="p-3 bg-gradient-to-br from-indigo-50/90 to-blue-50/90 rounded-2xl border border-indigo-100/80 mb-4 text-xs">
-          <div className="flex items-center gap-1.5 font-bold mb-1.5 text-indigo-950">
-            <Keyboard className="w-4 h-4 text-indigo-600" />
-            <span>Chế độ gõ phím & Chat khi Phản chiếu</span>
-          </div>
-          <div className="space-y-1 text-[11px] text-slate-700 mb-2.5">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-indigo-700 bg-indigo-100/70 px-1.5 py-0.5 rounded">Enter</span>
-              <span>Gửi tin nhắn (Telegram, Messenger, Zalo)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-700 bg-slate-200/70 px-1.5 py-0.5 rounded">Shift + Enter</span>
-              <span>Xuống hàng</span>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (activeDevice) {
-                window.api.openHardKeyboardSettings(activeDevice);
-              }
-            }}
-            className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5"
-          >
-            <Settings className="w-3 h-3" />
-            Cài đặt Bàn phím trên Điện thoại
-          </button>
-        </div>
+        {/* Quick Settings Grid */}
         <div className="grid grid-cols-2 gap-3">
           <ActionBtn
             icon={<Wifi />}
@@ -140,6 +125,25 @@ export function ControlCenterModal({
             color="bg-red-50 text-red-600 hover:bg-red-100 col-span-2"
           />
         </div>
+
+        {/* Nút Xóa / Ngắt kết nối thiết bị */}
+        {activeDevice && (
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <button
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors border border-red-200/60 shadow-sm"
+              title="Xóa / Ngắt kết nối thiết bị đang chọn"
+            >
+              {isDisconnecting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+              ) : (
+                <Unplug className="w-3.5 h-3.5" />
+              )}
+              <span>Xóa / Ngắt kết nối thiết bị này</span>
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

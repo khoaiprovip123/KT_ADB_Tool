@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   getDeviceAspectRatio,
-  openHardKeyboardSettings,
   stopScrcpyWindowController,
   cleanupAllWindowControllers,
 } from "../../src/main/core/scrcpyWindowController";
@@ -55,19 +54,6 @@ describe("scrcpyWindowController", () => {
       expect(res.width).toBe(1080);
       expect(res.height).toBe(2400);
       expect(res.aspectRatio).toBeCloseTo(1080 / 2400, 4);
-    });
-  });
-
-  describe("openHardKeyboardSettings", () => {
-    it("should invoke am start command successfully", async () => {
-      vi.mocked(adbState.client.shell).mockResolvedValue(createMockStream("") as any);
-
-      const success = await openHardKeyboardSettings("device-1");
-      expect(success).toBe(true);
-      expect(adbState.client.shell).toHaveBeenCalledWith(
-        "device-1",
-        "am start -a android.settings.HARD_KEYBOARD_SETTINGS",
-      );
     });
   });
 

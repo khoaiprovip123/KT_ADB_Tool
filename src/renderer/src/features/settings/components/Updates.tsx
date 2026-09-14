@@ -16,6 +16,15 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.11",
+    date: "14/09/2026",
+    highlights: [
+      "🏷️ Đổi tiêu đề cửa sổ phản chiếu màn hình Scrcpy thành tên thiết bị thực tế (ví dụ: Redmi Note 11 Pro).",
+      "🚀 Tự động phân giải kết nối mDNS Wireless Debugging sang IP:Port, triệt tiêu lỗi Scrcpy văng exit 0.",
+      "🔌 Bổ sung nút Xóa / Ngắt kết nối thiết bị trực quan: ngay trên thanh Header và trong Trung tâm Điều khiển.",
+    ],
+  },
+  {
     version: "v2.5.10",
     date: "14/09/2026",
     highlights: [

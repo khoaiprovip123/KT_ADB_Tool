@@ -33,7 +33,6 @@ export interface IADBAPI {
     timeoutMs?: number,
   ) => Promise<AdbCommandResult>;
   runScrcpy: (deviceId: string, turnScreenOff: boolean) => Promise<any>;
-  openHardKeyboardSettings: (deviceId: string) => Promise<boolean>;
   connectWifi: (deviceId: string, ip: string) => Promise<any>;
   connectIp: (ip: string) => Promise<any>;
   pairDevice: (ipPort: string, code: string) => Promise<any>;

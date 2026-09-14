@@ -21,6 +21,8 @@ namespace KT_ADB_Tool.Native {
         [DllImport("user32.dll")] static extern bool   SetProcessDPIAware();
         [DllImport("user32.dll")] static extern bool   GetWindowRect(IntPtr hWnd, out RECT lpRect);
         [DllImport("user32.dll")] static extern bool   SetWindowPos(IntPtr hWnd, IntPtr ins, int x, int y, int cx, int cy, uint f);
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern bool SetWindowText(IntPtr hWnd, string lpString);
 
         // WinEvent hook — EVENT_SYSTEM_MOVESIZEEND: fires khi user thả chuột sau resize/move
         delegate void WinEventDelegate(IntPtr hHook, uint ev, IntPtr hwnd,
@@ -50,6 +52,7 @@ namespace KT_ADB_Tool.Native {
         static string scrcpyExe  = "";
         static string keyboardMode = "sdk";
         static bool   turnScreenOff = false;
+        static string windowTitle = "";
 
         // Aspect ratio cập nhật ĐỘNG từ "Texture: WxH" stdout
         static double deviceRatio = 0.0;
@@ -105,9 +108,10 @@ namespace KT_ADB_Tool.Native {
                 else if (args[i] == "--scrcpy"   && i+1 < args.Length) scrcpyExe    = args[++i];
                 else if (args[i] == "--keyboard" && i+1 < args.Length) keyboardMode  = args[++i];
                 else if (args[i] == "--turn-screen-off") turnScreenOff = true;
+                else if (args[i] == "--title"    && i+1 < args.Length) windowTitle   = args[++i];
                 // --adb không cần nữa (không gửi broadcast)
             }
-            Log(string.Format("serial={0} initRatio={1:F4} keyboard={2}", serial, deviceRatio, keyboardMode));
+            Log(string.Format("serial={0} initRatio={1:F4} keyboard={2} title={3}", serial, deviceRatio, keyboardMode, windowTitle));
         }
 
         // ============================================================
@@ -123,9 +127,10 @@ namespace KT_ADB_Tool.Native {
 
             string childTitle = "SCRCPY_EMBED_" + Process.GetCurrentProcess().Id;
             string keyboard   = (keyboardMode == "uhid") ? "sdk" : keyboardMode;
+            string displayTitle = !string.IsNullOrEmpty(windowTitle) ? windowTitle : "KT ADB Tool - Mirror";
 
             string scrcpyArgs = string.Format(
-                "-s {0} --no-audio --window-title={1} --keyboard={2}",
+                "-s \"{0}\" --no-audio --window-title=\"{1}\" --keyboard={2}",
                 serial, childTitle, keyboard);
             if (turnScreenOff) scrcpyArgs += " --turn-screen-off";
             Log("Launch: " + scrcpyArgs);
@@ -165,12 +170,15 @@ namespace KT_ADB_Tool.Native {
                         Log(string.Format("Texture={0}x{1} ratio={2:F6}", w, h, deviceRatio));
                     }
                 }
+                if (scrcpyHwnd != IntPtr.Zero && !string.IsNullOrEmpty(displayTitle)) {
+                    SetWindowText(scrcpyHwnd, displayTitle);
+                }
             };
             scrcpyProc.ErrorDataReceived += (s, ev) => { if (ev.Data != null) Log("[err] " + ev.Data); };
             scrcpyProc.BeginOutputReadLine();
             scrcpyProc.BeginErrorReadLine();
 
-            // Tìm HWND để WinEvent hook nhận diện đúng cửa sổ
+            // Tìm HWND để WinEvent hook nhận diện đúng cửa sổ và đổi title sang tên thiết bị
             string st = childTitle;
             ThreadPool.QueueUserWorkItem((_) => {
                 for (int i = 0; i < 200; i++) {
@@ -180,6 +188,8 @@ namespace KT_ADB_Tool.Native {
                     if (h != IntPtr.Zero) {
                         scrcpyHwnd = h;
                         Log("HWND=0x" + h.ToInt64().ToString("X8"));
+                        SetWindowText(h, displayTitle);
+                        Log("Title set: " + displayTitle);
                         break;
                     }
                 }

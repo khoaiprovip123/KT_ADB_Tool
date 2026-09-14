@@ -43,20 +43,6 @@ export async function getDeviceAspectRatio(
   return { width: 1080, height: 2400, aspectRatio: 1080 / 2400 };
 }
 
-/**
- * Mở nhanh cài đặt bàn phím vật lý trên điện thoại qua ADB
- */
-export async function openHardKeyboardSettings(deviceId: string): Promise<boolean> {
-  try {
-    const client = adbState.client;
-    if (!client) return false;
-    await client.shell(deviceId, "am start -a android.settings.HARD_KEYBOARD_SETTINGS");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // =========================================================================
 // Compatibility stubs
 // =========================================================================

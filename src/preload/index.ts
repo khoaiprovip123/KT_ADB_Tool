@@ -73,8 +73,6 @@ const api = {
   },
   runScrcpy: (deviceId: string, turnScreenOff: boolean) =>
     ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff }),
-  openHardKeyboardSettings: (deviceId: string) =>
-    ipcRenderer.invoke("adb:open-hard-keyboard-settings", deviceId),
   connectWifi: (deviceId: string, ip: string) =>
     ipcRenderer.invoke("adb:connect-wifi", { deviceId, ip }),
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),
