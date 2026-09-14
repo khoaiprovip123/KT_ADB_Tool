@@ -6,6 +6,7 @@ import {
   PowerOff,
   Cast,
   RotateCcw,
+  Keyboard,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 
@@ -73,7 +74,34 @@ export function ControlCenterModal({
           </button>
         </div>
 
-        {/* Quick Settings Grid */}
+        {/* Phím tắt Chat / Bàn phím Tip */}
+        <div className="p-3 bg-gradient-to-br from-indigo-50/90 to-blue-50/90 rounded-2xl border border-indigo-100/80 mb-4 text-xs">
+          <div className="flex items-center gap-1.5 font-bold mb-1.5 text-indigo-950">
+            <Keyboard className="w-4 h-4 text-indigo-600" />
+            <span>Chế độ gõ phím & Chat khi Phản chiếu</span>
+          </div>
+          <div className="space-y-1 text-[11px] text-slate-700 mb-2.5">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-indigo-700 bg-indigo-100/70 px-1.5 py-0.5 rounded">Enter</span>
+              <span>Gửi tin nhắn (Telegram, Messenger, Zalo)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-700 bg-slate-200/70 px-1.5 py-0.5 rounded">Shift + Enter</span>
+              <span>Xuống hàng</span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (activeDevice) {
+                window.api.openHardKeyboardSettings(activeDevice);
+              }
+            }}
+            className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5"
+          >
+            <Settings className="w-3 h-3" />
+            Cài đặt Bàn phím trên Điện thoại
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <ActionBtn
             icon={<Wifi />}

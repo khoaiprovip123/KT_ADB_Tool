@@ -1,5 +1,21 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.10] - 2026-09-14
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Nâng cấp Phản chiếu Màn hình (Scrcpy Window Architecture)**:
+  - Tự động duy trì và snap đúng tỉ lệ khung hình (Aspect Ratio) của thiết bị sau khi người dùng thay đổi kích thước cửa sổ.
+  - Sử dụng khung viền và thanh tiêu đề Windows mặc định để người dùng dễ dàng kéo di chuyển hoặc căn chỉnh kích thước.
+  - Chuyển sang chế độ phím `--keyboard=sdk`, hỗ trợ gõ phím tiếng Việt có dấu native 100% mượt mà từ máy tính qua các bộ gõ Unikey / EVKey.
+  - Loại bỏ hoàn toàn sự can thiệp của bàn phím ảo bên thứ 3 và hook phím, giữ nguyên vẹn trải nghiệm gốc.
+- **Triệt tiêu cửa sổ Console (CMD/Terminal)**:
+  - Khởi chạy tiến trình Scrcpy ngầm với `CreateNoWindow = true`, `WindowStyle = Hidden` và biên dịch C# dạng `/target:winexe`.
+  - Cấu hình `windowsHide: true` cho toàn bộ các lệnh gọi tiến trình con trong Node.js/Electron, ngăn chặn triệt để tình trạng chớp nháy hoặc bật cửa sổ terminal đen.
+- **Quản lý Kết nối Không dây & Wi-Fi**:
+  - Bổ sung nút **Xóa kết nối** (`Trash2`) cho từng thiết bị trực tiếp trong giao diện danh sách thiết bị đã kết nối của modal Quản lý Kết nối & Mã QR.
+  - Hỗ trợ ngắt kết nối an toàn cho các thiết bị mạng không dây và dịch vụ mDNS.
+  - Cải tiến bộ lọc định danh thiết bị (`DEVICE_ID_REGEX`) hỗ trợ đầy đủ các serial mDNS chứa khoảng trắng và dấu ngoặc đơn `( )`.
+
 ## [2.5.9] - 2026-08-21
 
 ### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)

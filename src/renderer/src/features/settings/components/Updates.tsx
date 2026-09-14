@@ -16,6 +16,16 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.10",
+    date: "14/09/2026",
+    highlights: [
+      "🖥️ Nâng cấp Scrcpy Mirroring: Tự động khóa tỉ lệ khung hình (Aspect Ratio), viền cửa sổ gốc mượt mà và gõ tiếng Việt có dấu native 100% qua --keyboard=sdk.",
+      "🚫 Triệt tiêu hoàn toàn cửa sổ Console đen (CMD/Terminal) khi khởi chạy phản chiếu màn hình.",
+      "🔌 Thêm nút Xóa / Ngắt kết nối thiết bị mạng & Wi-Fi ngay trong modal Quản lý Kết nối & Mã QR.",
+      "🛡️ Hỗ trợ nhận diện chuẩn xác serial mDNS không dây chứa khoảng trắng và ký tự đặc biệt.",
+    ],
+  },
+  {
     version: "v2.5.9",
     date: "21/08/2026",
     highlights: [
@@ -114,7 +124,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.9");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.10");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );

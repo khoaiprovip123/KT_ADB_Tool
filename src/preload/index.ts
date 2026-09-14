@@ -73,11 +73,15 @@ const api = {
   },
   runScrcpy: (deviceId: string, turnScreenOff: boolean) =>
     ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff }),
+  openHardKeyboardSettings: (deviceId: string) =>
+    ipcRenderer.invoke("adb:open-hard-keyboard-settings", deviceId),
   connectWifi: (deviceId: string, ip: string) =>
     ipcRenderer.invoke("adb:connect-wifi", { deviceId, ip }),
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),
   pairDevice: (ipPort: string, code: string) =>
     ipcRenderer.invoke("adb:pair-device", { ipPort, code }),
+  disconnectDevice: (deviceId: string) =>
+    ipcRenderer.invoke("adb:disconnect-device", deviceId),
   getLocalIp: () => ipcRenderer.invoke("adb:get-local-ip"),
   getPackages: (deviceId: string, filter: "all" | "system" | "third") =>
     ipcRenderer.invoke("adb:get-packages", { deviceId, filter }),

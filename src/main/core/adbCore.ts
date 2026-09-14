@@ -131,7 +131,9 @@ export async function initAdb(onProgress: (msg: string) => void) {
     await new Promise((r) => setTimeout(r, 1000));
 
     await new Promise<void>((resolve) => {
-      const child = spawn(currentAdbExe, ["start-server"]);
+      const child = spawn(currentAdbExe, ["start-server"], {
+        windowsHide: true,
+      });
       const timer = setTimeout(() => {
         child.kill();
         resolve();

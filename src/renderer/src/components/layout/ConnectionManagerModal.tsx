@@ -7,6 +7,7 @@ import {
   KeyRound,
   RefreshCw,
   QrCode,
+  Trash2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useDeviceStore } from "../../store/deviceStore";
@@ -33,6 +34,7 @@ export function ConnectionManagerModal({
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
   // Auto generate 6-digit random code and fetch local IP
   const generateNewPairCode = () => {
@@ -65,6 +67,25 @@ export function ConnectionManagerModal({
       toast.error(`Lỗi: ${err.message}`);
     } finally {
       setIsFixing(false);
+    }
+  };
+
+  const handleDisconnect = async (deviceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDisconnectingId(deviceId);
+    try {
+      const res = await window.api.disconnectDevice(deviceId);
+      if (res.success) {
+        toast.success(`Đã xóa kết nối: ${deviceId}`);
+        const updated = await window.api.getDevices();
+        useDeviceStore.getState().setDevices(updated || []);
+      } else {
+        toast.error(res.message || "Xóa kết nối thất bại.");
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi ngắt kết nối: ${err.message}`);
+    } finally {
+      setDisconnectingId(null);
     }
   };
 
@@ -334,57 +355,95 @@ export function ConnectionManagerModal({
                   Chưa có thiết bị nào kết nối
                 </div>
               ) : (
-                devices.map((device) => (
-                  <button
-                    key={device.id}
-                    onClick={() => {
-                      setActiveDevice(device.id);
-                      onClose();
-                    }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                      activeDevice === device.id
-                        ? "bg-blue-50 border-blue-200 shadow-sm"
-                        : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          activeDevice === device.id
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {device.id.includes(":5555") ? (
-                          <Wifi className="w-4 h-4" />
-                        ) : (
-                          <Smartphone className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="text-left">
+                devices.map((device) => {
+                  const isWireless =
+                    device.id.includes(":5555") ||
+                    device.id.includes("._tcp") ||
+                    device.id.includes(":");
+                  return (
+                    <div
+                      key={device.id}
+                      onClick={() => {
+                        setActiveDevice(device.id);
+                        onClose();
+                      }}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                        activeDevice === device.id
+                          ? "bg-blue-50 border-blue-200 shadow-sm"
+                          : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div
-                          className={`text-xs font-semibold ${activeDevice === device.id ? "text-blue-900" : "text-slate-700"}`}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            activeDevice === device.id
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
                         >
-                          {device.model || device.id}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${device.status === "device" ? "bg-green-500" : "bg-red-500"}`}
-                          />
-                          {device.status === "device"
-                            ? "Đã kết nối"
-                            : device.status}
-                          {device.id.includes(":5555") && (
-                            <span className="text-blue-500">• Không dây</span>
+                          {isWireless ? (
+                            <Wifi className="w-4 h-4" />
+                          ) : (
+                            <Smartphone className="w-4 h-4" />
                           )}
                         </div>
+                        <div className="text-left min-w-0 flex-1 pr-2">
+                          <div
+                            className={`text-xs font-semibold truncate ${
+                              activeDevice === device.id
+                                ? "text-blue-900"
+                                : "text-slate-700"
+                            }`}
+                            title={device.model || device.id}
+                          >
+                            {device.model || device.id}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 truncate">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                device.status === "device"
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                            <span className="shrink-0">
+                              {device.status === "device"
+                                ? "Đã kết nối"
+                                : device.status}
+                            </span>
+                            {isWireless && (
+                              <span className="text-blue-500 shrink-0">
+                                • Không dây
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {activeDevice === device.id && (
+                          <div
+                            className="w-2 h-2 rounded-full bg-blue-600 mr-1"
+                            title="Đang hoạt động"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDisconnect(device.id, e)}
+                          disabled={disconnectingId === device.id}
+                          title="Xóa kết nối thiết bị này"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 flex items-center justify-center"
+                        >
+                          {disconnectingId === device.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
-                    {activeDevice === device.id && (
-                      <div className="w-2 h-2 rounded-full bg-blue-600 mr-2" />
-                    )}
-                  </button>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

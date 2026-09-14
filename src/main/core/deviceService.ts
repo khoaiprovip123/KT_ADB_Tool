@@ -12,47 +12,68 @@ function getAdbExe(): string {
   return path.join(binPath, "adb.exe");
 }
 
+import {
+  getDeviceAspectRatio,
+  stopScrcpyWindowController,
+  cleanupAllWindowControllers,
+  openHardKeyboardSettings,
+} from "./scrcpyWindowController";
+
+export { openHardKeyboardSettings };
+
 const activeScrcpyProcesses = new Map<string, any>();
 const IP_REGEX = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?$/;
 const PAIR_CODE_REGEX = /^\d{6}$/;
 
-// Chạy Scrcpy
+// Bật tính năng phản chiếu màn hình qua ScrcpyContainer.exe (native Win32)
 export async function runScrcpy(
   deviceId: string,
   turnScreenOff: boolean,
   onLog: (log: string) => void,
 ) {
   try {
+    // Dừng tiến trình cũ nếu có
     const existing = activeScrcpyProcesses.get(deviceId);
     if (existing) {
-      try {
-        existing.kill();
-      } catch {
-        // Bỏ qua lỗi khi kill process cũ - có thể process đã thoát rồi
-      }
+      try { existing.kill(); } catch { /* ignore */ }
       activeScrcpyProcesses.delete(deviceId);
     }
+    stopScrcpyWindowController(deviceId);
 
     const binPath = app.isPackaged
       ? path.join(process.resourcesPath, "bin")
       : path.join(__dirname, "../../resources/bin");
-    const scrcpyExe = path.join(binPath, "scrcpy", "scrcpy.exe");
+    const scrcpyDir = path.join(binPath, "scrcpy");
+    const scrcpyExe = path.join(scrcpyDir, "scrcpy.exe");
+    const containerExe = path.join(scrcpyDir, "ScrcpyContainer.exe");
 
-    const args = ["-s", deviceId, "--no-audio"];
-    if (turnScreenOff) args.push("--turn-screen-off");
+    // Lấy aspect ratio thiết bị
+    const aspectData = await getDeviceAspectRatio(deviceId);
 
-    const scrcpyProcess = spawn(scrcpyExe, args);
-    activeScrcpyProcesses.set(deviceId, scrcpyProcess);
+    // ––– Khởi động ScrcpyContainer.exe (snap-only helper, không can thiệp phím) –––
+    // Điện thoại dùng bàn phím mặc định hệ thống (Gboard, Xiaomi IME...)
+    const containerArgs = [
+      "--serial", deviceId,
+      "--ratio", aspectData.aspectRatio.toFixed(6),
+      "--scrcpy", scrcpyExe,
+      "--keyboard", "sdk",
+    ];
+    if (turnScreenOff) containerArgs.push("--turn-screen-off");
 
-    scrcpyProcess.stdout.on("data", (data) => onLog(`[Scrcpy] ${data}`));
-    scrcpyProcess.stderr.on("data", (data) =>
-      onLog(`[Scrcpy Warning] ${data}`),
-    );
-    scrcpyProcess.on("error", (err) => {
+    onLog(`[Scrcpy] Khởi động (ratio=${aspectData.aspectRatio.toFixed(3)}, keyboard=sdk)`);
+    const containerProcess = spawn(containerExe, containerArgs, {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    activeScrcpyProcesses.set(deviceId, containerProcess);
+
+    containerProcess.stdout?.on("data", (data) => onLog(`[Scrcpy] ${data}`));
+    containerProcess.stderr?.on("data", (data) => onLog(`[Scrcpy Warning] ${data}`));
+    containerProcess.on("error", (err) => {
       activeScrcpyProcesses.delete(deviceId);
       onLog(`[Scrcpy Error] ${err.message}`);
     });
-    scrcpyProcess.on("close", (code) => {
+    containerProcess.on("close", (code) => {
       activeScrcpyProcesses.delete(deviceId);
       onLog(`[Scrcpy] Exited with code ${code}`);
     });
@@ -73,6 +94,7 @@ export function cleanupAllProcesses() {
     }
   }
   activeScrcpyProcesses.clear();
+  cleanupAllWindowControllers();
 }
 
 // Bật tính năng kết nối không dây
@@ -91,7 +113,9 @@ export async function connectWifi(
 
     onLog("Đang chuyển đổi sang chế độ Wireless (TCPIP 5555)...");
     await new Promise<void>((resolve, reject) => {
-      const tcpip = spawn(adbExe, ["-s", deviceId, "tcpip", "5555"]);
+      const tcpip = spawn(adbExe, ["-s", deviceId, "tcpip", "5555"], {
+        windowsHide: true,
+      });
       tcpip.on("error", (err) => reject(err));
       tcpip.on("close", (code) => {
         if (code === 0) resolve();
@@ -103,7 +127,9 @@ export async function connectWifi(
 
     onLog(`Đang kết nối tới ${ip}:5555 ...`);
     await new Promise<void>((resolve, reject) => {
-      const connect = spawn(adbExe, ["connect", `${ip}:5555`]);
+      const connect = spawn(adbExe, ["connect", `${ip}:5555`], {
+        windowsHide: true,
+      });
       connect.stdout.on("data", (d) => onLog(d.toString()));
       connect.on("error", (err) => reject(err));
       connect.on("close", (code) => {
@@ -132,7 +158,9 @@ export async function connectIp(ip: string, onLog: (log: string) => void) {
 
     onLog(`Đang kết nối tới ${targetIp} ...`);
     await new Promise<void>((resolve, reject) => {
-      const connect = spawn(adbExe, ["connect", targetIp]);
+      const connect = spawn(adbExe, ["connect", targetIp], {
+        windowsHide: true,
+      });
 
       const timeout = setTimeout(() => {
         try { connect.kill(); } catch { /* ignore */ }
@@ -183,7 +211,9 @@ export async function pairDevice(
 
     onLog(`Đang ghép nối với ${ipPort} bằng mã ${code} ...`);
     await new Promise<void>((resolve, reject) => {
-      const pair = spawn(adbExe, ["pair", ipPort, code]);
+      const pair = spawn(adbExe, ["pair", ipPort, code], {
+        windowsHide: true,
+      });
 
       const timeout = setTimeout(() => {
         try { pair.kill(); } catch { /* ignore */ }
@@ -284,3 +314,49 @@ export async function getStorageStats(
     return null;
   }
 }
+
+// Ngắt kết nối thiết bị mạng / Wi-Fi
+export async function disconnectDevice(
+  deviceId: string,
+  onLog?: (log: string) => void,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Dừng tiến trình scrcpy nếu đang chạy cho thiết bị này
+    const existingScrcpy = activeScrcpyProcesses.get(deviceId);
+    if (existingScrcpy) {
+      try {
+        existingScrcpy.kill();
+      } catch {
+        /* ignore */
+      }
+      activeScrcpyProcesses.delete(deviceId);
+    }
+    stopScrcpyWindowController(deviceId);
+
+    const adbExe = getAdbExe();
+    onLog?.(`Đang ngắt kết nối thiết bị: ${deviceId}...`);
+    return await new Promise<{ success: boolean; message: string }>((resolve) => {
+      const proc = spawn(adbExe, ["disconnect", deviceId], {
+        windowsHide: true,
+      });
+      let output = "";
+      proc.stdout?.on("data", (d) => (output += d.toString()));
+      proc.stderr?.on("data", (d) => (output += d.toString()));
+      proc.on("error", (err) => {
+        onLog?.(`Lỗi ngắt kết nối: ${err.message}`);
+        resolve({ success: false, message: err.message });
+      });
+      proc.on("close", (code) => {
+        const msg =
+          output.trim() ||
+          (code === 0 ? "Ngắt kết nối thành công" : "Ngắt kết nối thất bại");
+        onLog?.(`[ADB Disconnect] ${msg}`);
+        resolve({ success: code === 0, message: msg });
+      });
+    });
+  } catch (err: any) {
+    onLog?.(`Lỗi ngắt kết nối: ${err.message}`);
+    return { success: false, message: err.message };
+  }
+}
+
