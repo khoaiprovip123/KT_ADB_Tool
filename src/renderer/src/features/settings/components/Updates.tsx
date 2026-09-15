@@ -16,6 +16,15 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.12",
+    date: "15/09/2026",
+    highlights: [
+      "🖥️ Khắc phục triệt để lỗi xuất hiện 2 dải đen (pillarbox) khi xoay ngang màn hình phản chiếu Scrcpy.",
+      "📐 Chuẩn hóa thuật toán căn chỉnh Aspect Ratio trên vùng Client Area thực tế, trừ hao hoàn hảo thanh tiêu đề Title Bar và viền Windows.",
+      "🔄 Tự động snap kích thước cửa sổ tối ưu ngay khi nhận diện xoay màn hình (Portrait <-> Landscape).",
+    ],
+  },
+  {
     version: "v2.5.11",
     date: "14/09/2026",
     highlights: [

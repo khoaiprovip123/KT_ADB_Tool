@@ -1,5 +1,22 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.12] - 2026-09-15
+
+### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)
+- **Khắc phục triệt để khoảng đen 2 bên (Pillarbox) khi phản chiếu màn hình Scrcpy ngang**:
+  - Chuẩn hóa thuật toán snap tỉ lệ khung hình (Aspect Ratio) dựa trên vùng hiển thị video thực tế (`GetClientRect`) thay vì toàn bộ khung cửa sổ (`GetWindowRect`).
+  - Trừ hao chính xác từng pixel độ dày thanh tiêu đề Title Bar (~32-48px) và viền cửa sổ Windows DWM, triệt tiêu hoàn toàn viền đen thừa ở 2 cạnh trái/phải.
+  - Tự động snap kích thước tối ưu ngay khi nhận diện xoay màn hình (Portrait <-> Landscape) từ stream video mà không cần người dùng phải kéo dãn thủ công.
+  - Thông minh phân biệt hướng kéo (chiều ngang vs chiều dọc) để scale mượt mà, không bị giật ngược kích thước.
+  - Lưu log tiến trình Scrcpy Container tại thư mục `%TEMP%` để tránh lỗi phân quyền ghi file khi cài đặt trong `C:\Program Files`.
+
+## [2.5.11] - 2026-09-14
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- Đổi tiêu đề cửa sổ phản chiếu màn hình Scrcpy thành tên thiết bị thực tế (ví dụ: Redmi Note 11 Pro).
+- Tự động phân giải kết nối mDNS Wireless Debugging sang IP:Port, triệt tiêu lỗi Scrcpy văng exit 0.
+- Bổ sung nút Xóa / Ngắt kết nối thiết bị trực quan: ngay trên thanh Header và trong Trung tâm Điều khiển.
+
 ## [2.5.10] - 2026-09-14
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)
