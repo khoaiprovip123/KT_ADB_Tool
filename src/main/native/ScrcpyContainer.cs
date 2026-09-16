@@ -363,7 +363,12 @@ namespace KT_ADB_Tool.Native {
             int clientW = cr.Right - cr.Left;
             int clientH = cr.Bottom - cr.Top;
 
-            if (winW <= 0 || winH <= 0 || clientW <= 0 || clientH <= 0) return;
+            // Nếu kích thước không thay đổi (User chỉ di chuyển cửa sổ, không resize) → KHÔNG can thiệp vị trí!
+            bool sizeChanged = (lastClientW > 0 && lastClientH > 0 &&
+                (Math.Abs(clientW - lastClientW) > 4 || Math.Abs(clientH - lastClientH) > 4));
+            if (!orientationChanged && !sizeChanged && lastClientW > 0) {
+                return;
+            }
 
             // Tính chính xác phần viền không thuộc Client (Title Bar, viền DWM trái/phải/dưới)
             int borderW = winW - clientW;
@@ -384,7 +389,6 @@ namespace KT_ADB_Tool.Native {
             if (orientationChanged) {
                 // Tự động căn chỉnh kích thước khởi đầu tối ưu khi mở cửa sổ hoặc đổi hướng Portrait <-> Landscape
                 if (isLandscape) {
-                    // Landscape: Ưu tiên chiều cao khoảng 60% màn hình
                     targetClientH = Math.Min(600, (int)(workArea.Height * 0.60));
                     targetClientW = (int)Math.Round(targetClientH * deviceRatio);
                     if (targetClientW > maxClientW) {
@@ -392,7 +396,6 @@ namespace KT_ADB_Tool.Native {
                         targetClientH = (int)Math.Round(targetClientW / deviceRatio);
                     }
                 } else {
-                    // Portrait: Ưu tiên chiều cao vừa vặn màn hình (khoảng 82% màn hình)
                     targetClientH = Math.Min(maxClientH, (int)(workArea.Height * 0.82));
                     targetClientW = (int)Math.Round(targetClientH * deviceRatio);
                 }
@@ -460,23 +463,19 @@ namespace KT_ADB_Tool.Native {
             int newLeft = wr.Left;
             int newTop  = wr.Top;
 
-            // ============================================================
-            // Auto-Shift Position: Tự động dịch vị trí thông minh
-            // Khi cửa sổ nở to ra, nếu đáy chạm Taskbar thì tự động đẩy Top dịch dần lên đỉnh màn hình
-            // để cửa sổ có không gian nở to cực đại (đạt tới maxClientH toàn màn hình)
-            // ============================================================
-            if (newTop + newWinH > workArea.Bottom) {
-                newTop = Math.Max(workArea.Top, workArea.Bottom - newWinH);
-            }
-            if (newTop < workArea.Top) {
-                newTop = workArea.Top;
-            }
-
-            if (newLeft + newWinW > workArea.Right) {
-                newLeft = Math.Max(workArea.Left, workArea.Right - newWinW);
-            }
-            if (newLeft < workArea.Left) {
-                newLeft = workArea.Left;
+            // Khi xoay màn hình, đảm bảo cửa sổ không bị tràn ra ngoài màn hình
+            if (orientationChanged) {
+                if (newLeft + newWinW > workArea.Right) {
+                    newLeft = Math.Max(workArea.Left, workArea.Right - newWinW);
+                }
+                if (newTop + newWinH > workArea.Bottom) {
+                    newTop = Math.Max(workArea.Top, workArea.Bottom - newWinH);
+                }
+            } else if (targetClientH > lastClientH && lastClientH > 0) {
+                // CHỈ KHI KÉO TO RA mà bị cấn Taskbar ở dưới thì mới tự đẩy Top lên trên
+                if (newTop + newWinH > workArea.Bottom && newTop > workArea.Top) {
+                    newTop = Math.Max(workArea.Top, workArea.Bottom - newWinH);
+                }
             }
 
             lastClientW = targetClientW;

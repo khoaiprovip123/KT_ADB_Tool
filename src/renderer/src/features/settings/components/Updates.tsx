@@ -16,6 +16,15 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.14",
+    date: "16/09/2026",
+    highlights: [
+      "🪟 Tự do di chuyển cửa sổ phản chiếu đến mọi vị trí (nửa dưới màn hình, góc cạnh, đa màn hình).",
+      "🎯 Tách biệt hoàn toàn sự kiện Di chuyển (Move) và Thu phóng (Resize), loại bỏ hiện tượng bị giật ngược lên đỉnh.",
+      "🚀 Tinh chỉnh Auto-Shift thông minh: chỉ hỗ trợ dịch Top khi kéo to ra chạm Taskbar.",
+    ],
+  },
+  {
     version: "v2.5.13",
     date: "16/09/2026",
     highlights: [

@@ -1,5 +1,12 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.14] - 2026-09-16
+
+### Sửa lỗi & Tối ưu hóa Di chuyển Cửa sổ (Fixed & Enhanced)
+- **Khắc phục triệt để lỗi không kéo được cửa sổ xuống nửa màn hình**:
+  - Tách biệt hoàn toàn sự kiện Di chuyển (Move) và Thay đổi kích thước (Resize). Khi người dùng chỉ di chuyển vị trí cửa sổ (`sizeChanged == false`), hệ thống tôn trọng 100% quyền điều khiển của Windows, không can thiệp toạ độ, cho phép người dùng tự do kéo cửa sổ đến bất kỳ vị trí nào trên màn hình (nửa dưới, góc cạnh, đa màn hình).
+  - Tinh chỉnh cơ chế Auto-Shift: Chỉ kích hoạt dịch tọa độ `Top` khi và chỉ khi người dùng đang thao tác kéo to kích thước (`targetClientH > lastClientH`) chạm đáy Taskbar. Loại bỏ hoàn toàn hiện tượng cửa sổ bị "hút dính" hoặc giật ngược lên đỉnh màn hình khi di chuyển hoặc thu nhỏ.
+
 ## [2.5.13] - 2026-09-16
 
 ### Sửa lỗi & Nâng cấp Trải nghiệm Phản chiếu Màn hình (Fixed & Enhanced)
