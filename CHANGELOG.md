@@ -1,5 +1,21 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.13] - 2026-09-16
+
+### Sửa lỗi & Nâng cấp Trải nghiệm Phản chiếu Màn hình (Fixed & Enhanced)
+- **Tối ưu hóa Phóng to (Scale-Up) & Triệt tiêu Hoàn toàn Viền đen**:
+  - Hỗ trợ phóng to đồng tỉ lệ cả khung lẫn nội dung từ kích thước nhỏ lên cực đại $100\%$ chiều cao màn hình máy tính (từ đỉnh xuống sát Taskbar).
+  - Tích hợp cơ chế **Auto-Shift Position**: Tự động dịch tọa độ `Top` lên đỉnh khi kéo to ở đáy, tận dụng trọn vẹn toàn bộ không gian màn hình PC mà không bị cấn Taskbar.
+  - Khóa cứng tỉ lệ $\frac{W}{H} \equiv \text{deviceRatio}$ trong mọi thao tác kéo chuột, loại bỏ hoàn toàn tình trạng phình ngang sinh ra 2 dải đen (pillarbox).
+- **Khắc phục Race-condition khi khởi chạy**:
+  - Chờ nhận diện Direct3D texture stream (`Texture: WxH`) trước khi kích hoạt Auto-Snap khởi đầu, loại bỏ lỗi cửa sổ bị co rút về kích thước tối thiểu ($160\times 356$).
+- **Vô hiệu hóa nút Maximize (`WS_MAXIMIZEBOX`)**:
+  - Ẩn nút Maximize để ngăn chặn thao tác bấm nhầm bung toàn màn hình 16:9 sinh ra viền đen khổng lồ. Hỗ trợ phím tắt `Alt + F` để vào chế độ Fullscreen chuyên nghiệp.
+- **Tích hợp Windows Job Object**:
+  - Đảm bảo $100\%$ tiến trình `scrcpy.exe` được Windows Kernel tự động giải phóng sạch sẽ khi thoát app hoặc dừng kết nối, triệt tiêu hoàn toàn zombie process.
+- **Nâng cấp Per-Monitor V2 DPI Awareness**:
+  - Toạ độ và kích thước khung viền chuẩn xác từng pixel trên mọi cấu hình màn hình đơn hoặc đa màn hình khác DPI.
+
 ## [2.5.12] - 2026-09-15
 
 ### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)

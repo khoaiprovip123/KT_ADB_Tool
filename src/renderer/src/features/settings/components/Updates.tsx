@@ -16,6 +16,16 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.13",
+    date: "16/09/2026",
+    highlights: [
+      "🔍 Tối ưu hóa phóng to đồng tỉ lệ cả khung lẫn nội dung từ nhỏ lên tối đa 100% màn hình PC.",
+      "🚀 Tích hợp cơ chế Auto-Shift Position: tự động đẩy Top lên đỉnh khi kéo đáy tránh cấn Taskbar.",
+      "🛡️ Khóa cứng tỉ lệ chuẩn triệt tiêu 100% viền đen thừa (pillarbox) và vô hiệu hóa nút Maximize tránh bung 16:9.",
+      "⚡ Tích hợp Windows Job Object tự động dọn dẹp sạch tiến trình scrcpy, nâng cấp Per-Monitor V2 DPI Awareness.",
+    ],
+  },
+  {
     version: "v2.5.12",
     date: "15/09/2026",
     highlights: [
