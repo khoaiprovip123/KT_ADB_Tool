@@ -7,6 +7,7 @@ import {
   pairDevice,
   getStorageStats,
   getDeviceInfo,
+  disconnectDevice,
 } from "../core/deviceService";
 import {
   assertValidSettingsNamespace,
@@ -98,6 +99,17 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
 
   ipcMain.handle("adb:pair-device", async (_event, { ipPort, code }) => {
     return await pairDevice(ipPort, code, (log) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("adb:log-stream", log);
+      }
+    });
+  });
+
+  ipcMain.handle("adb:disconnect-device", async (_event, deviceId) => {
+    if (!isValidDeviceId(deviceId)) {
+      return { success: false, message: "ID thiết bị không hợp lệ" };
+    }
+    return await disconnectDevice(deviceId, (log) => {
       if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send("adb:log-stream", log);
       }

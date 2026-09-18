@@ -36,6 +36,9 @@ export interface IADBAPI {
   connectWifi: (deviceId: string, ip: string) => Promise<any>;
   connectIp: (ip: string) => Promise<any>;
   pairDevice: (ipPort: string, code: string) => Promise<any>;
+  disconnectDevice: (
+    deviceId: string,
+  ) => Promise<{ success: boolean; message: string }>;
   getLocalIp: () => Promise<string>;
   getPackages: (
     deviceId: string,

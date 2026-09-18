@@ -16,6 +16,53 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.14",
+    date: "16/09/2026",
+    highlights: [
+      "🪟 Tự do di chuyển cửa sổ phản chiếu đến mọi vị trí (nửa dưới màn hình, góc cạnh, đa màn hình).",
+      "🎯 Tách biệt hoàn toàn sự kiện Di chuyển (Move) và Thu phóng (Resize), loại bỏ hiện tượng bị giật ngược lên đỉnh.",
+      "🚀 Tinh chỉnh Auto-Shift thông minh: chỉ hỗ trợ dịch Top khi kéo to ra chạm Taskbar.",
+    ],
+  },
+  {
+    version: "v2.5.13",
+    date: "16/09/2026",
+    highlights: [
+      "🔍 Tối ưu hóa phóng to đồng tỉ lệ cả khung lẫn nội dung từ nhỏ lên tối đa 100% màn hình PC.",
+      "🚀 Tích hợp cơ chế Auto-Shift Position: tự động đẩy Top lên đỉnh khi kéo đáy tránh cấn Taskbar.",
+      "🛡️ Khóa cứng tỉ lệ chuẩn triệt tiêu 100% viền đen thừa (pillarbox) và vô hiệu hóa nút Maximize tránh bung 16:9.",
+      "⚡ Tích hợp Windows Job Object tự động dọn dẹp sạch tiến trình scrcpy, nâng cấp Per-Monitor V2 DPI Awareness.",
+    ],
+  },
+  {
+    version: "v2.5.12",
+    date: "15/09/2026",
+    highlights: [
+      "🖥️ Khắc phục triệt để lỗi xuất hiện 2 dải đen (pillarbox) khi xoay ngang màn hình phản chiếu Scrcpy.",
+      "📐 Chuẩn hóa thuật toán căn chỉnh Aspect Ratio trên vùng Client Area thực tế, trừ hao hoàn hảo thanh tiêu đề Title Bar và viền Windows.",
+      "🔄 Tự động snap kích thước cửa sổ tối ưu ngay khi nhận diện xoay màn hình (Portrait <-> Landscape).",
+    ],
+  },
+  {
+    version: "v2.5.11",
+    date: "14/09/2026",
+    highlights: [
+      "🏷️ Đổi tiêu đề cửa sổ phản chiếu màn hình Scrcpy thành tên thiết bị thực tế (ví dụ: Redmi Note 11 Pro).",
+      "🚀 Tự động phân giải kết nối mDNS Wireless Debugging sang IP:Port, triệt tiêu lỗi Scrcpy văng exit 0.",
+      "🔌 Bổ sung nút Xóa / Ngắt kết nối thiết bị trực quan: ngay trên thanh Header và trong Trung tâm Điều khiển.",
+    ],
+  },
+  {
+    version: "v2.5.10",
+    date: "14/09/2026",
+    highlights: [
+      "🖥️ Nâng cấp Scrcpy Mirroring: Tự động khóa tỉ lệ khung hình (Aspect Ratio), viền cửa sổ gốc mượt mà và gõ tiếng Việt có dấu native 100% qua --keyboard=sdk.",
+      "🚫 Triệt tiêu hoàn toàn cửa sổ Console đen (CMD/Terminal) khi khởi chạy phản chiếu màn hình.",
+      "🔌 Thêm nút Xóa / Ngắt kết nối thiết bị mạng & Wi-Fi ngay trong modal Quản lý Kết nối & Mã QR.",
+      "🛡️ Hỗ trợ nhận diện chuẩn xác serial mDNS không dây chứa khoảng trắng và ký tự đặc biệt.",
+    ],
+  },
+  {
     version: "v2.5.9",
     date: "21/08/2026",
     highlights: [
@@ -114,7 +161,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.9");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.10");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );

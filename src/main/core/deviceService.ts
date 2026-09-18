@@ -1,7 +1,10 @@
 import * as path from "path";
+import util from "util";
 import { app } from "electron";
-import { spawn } from "child_process";
+import { exec, spawn } from "child_process";
 import { adbState } from "./adbCore";
+
+const execPromise = util.promisify(exec);
 
 export { getDeviceInfo } from "./deviceInfoService";
 
@@ -12,47 +15,192 @@ function getAdbExe(): string {
   return path.join(binPath, "adb.exe");
 }
 
+import {
+  getDeviceAspectRatio,
+  stopScrcpyWindowController,
+  cleanupAllWindowControllers,
+} from "./scrcpyWindowController";
+
 const activeScrcpyProcesses = new Map<string, any>();
 const IP_REGEX = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?$/;
 const PAIR_CODE_REGEX = /^\d{6}$/;
 
-// Chạy Scrcpy
+/**
+ * Phân giải target cho Scrcpy:
+ * Scrcpy 2.4 (C-code) gặp lỗi phân tích khi serial trong `adb devices` chứa khoảng trắng
+ * (ví dụ thiết bị mDNS Android 11+ bị trùng tên: `adb-... (2)._adb-tls-connect._tcp`).
+ * Khi phát hiện serial dạng mDNS hoặc chứa khoảng trắng, hàm này tự động:
+ * 1. Tra cứu IP:Port thực tế từ `adb mdns services`.
+ * 2. Kết nối sẵn sàng qua `adb connect <ip:port>`.
+ * 3. Trả về `<ip:port>` chuẩn để Scrcpy kết nối trực tiếp, triệt tiêu hoàn toàn lỗi crash/exit 0.
+ */
+async function resolveScrcpyTarget(
+  deviceId: string,
+  onLog: (log: string) => void,
+): Promise<string> {
+  if (!deviceId.includes(" ") && !deviceId.includes("._tcp")) {
+    return deviceId;
+  }
+
+  const adbExe = getAdbExe();
+
+  // 1. Thử tra cứu từ `adb mdns services`
+  try {
+    const { stdout } = await execPromise(`"${adbExe}" mdns services`, {
+      windowsHide: true,
+    });
+    const lines = stdout.split("\n");
+    for (const line of lines) {
+      const parts = line.trim().split(/\t+|\s{2,}/);
+      if (parts.length >= 3) {
+        const svcName = parts[0].trim();
+        const svcType = parts[1].trim();
+        const ipPort = parts[2].trim();
+        const fullName = `${svcName}.${svcType}`;
+
+        if (
+          deviceId === fullName ||
+          deviceId.includes(svcName) ||
+          svcName.includes(deviceId.replace(/\._tcp.*$/, ""))
+        ) {
+          if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+$/.test(ipPort)) {
+            onLog(`[Scrcpy] Phát hiện thiết bị mDNS, tự động kết nối IP: ${ipPort}`);
+            try {
+              await execPromise(`"${adbExe}" connect ${ipPort}`, {
+                windowsHide: true,
+              });
+            } catch {
+              /* ignore */
+            }
+            return ipPort;
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    onLog(`[Scrcpy Warning] Lỗi tra cứu mDNS: ${err.message}`);
+  }
+
+  // 2. Thử tra cứu IP qua ip route của thiết bị
+  try {
+    const { stdout: routeOut } = await execPromise(
+      `"${adbExe}" -s "${deviceId}" shell ip route`,
+      { windowsHide: true },
+    );
+    const match = routeOut.match(/src\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+    if (match) {
+      const ip = match[1];
+      const { stdout: devOut } = await execPromise(`"${adbExe}" devices`, {
+        windowsHide: true,
+      });
+      const ipMatch = devOut.match(new RegExp(`(${ip.replace(/\./g, "\\.")}:\\d+)`));
+      if (ipMatch) {
+        onLog(`[Scrcpy] Sử dụng IP đã kết nối: ${ipMatch[1]}`);
+        return ipMatch[1];
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return deviceId;
+}
+
+/**
+ * Lấy tên hiển thị đẹp của thiết bị để làm tiêu đề cửa sổ phản chiếu:
+ * Ưu tiên: Tên thương mại (ro.product.marketname) + Model -> Hãng + Model -> Model -> Serial
+ * Ví dụ: "Redmi Note 11 Pro (2201116TG)" hoặc "Samsung Galaxy S23"
+ */
+async function getDeviceDisplayName(
+  serial: string,
+  adbExe: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execPromise(
+      `"${adbExe}" -s "${serial}" shell "getprop ro.product.marketname; getprop ro.product.brand; getprop ro.product.model"`,
+      { windowsHide: true },
+    );
+    const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
+    const marketName = lines[0] || "";
+    const brand = lines[1] || "";
+    const model = lines[2] || "";
+
+    if (marketName) {
+      return model && !marketName.includes(model)
+        ? `${marketName} (${model})`
+        : marketName;
+    }
+    if (brand && model) {
+      return model.toLowerCase().startsWith(brand.toLowerCase())
+        ? model
+        : `${brand} ${model}`;
+    }
+    if (model) return model;
+  } catch {
+    /* ignore */
+  }
+  return serial;
+}
+
+// Bật tính năng phản chiếu màn hình qua ScrcpyContainer.exe (native Win32)
 export async function runScrcpy(
   deviceId: string,
   turnScreenOff: boolean,
   onLog: (log: string) => void,
 ) {
   try {
+    // Dừng tiến trình cũ nếu có
     const existing = activeScrcpyProcesses.get(deviceId);
     if (existing) {
-      try {
-        existing.kill();
-      } catch {
-        // Bỏ qua lỗi khi kill process cũ - có thể process đã thoát rồi
-      }
+      try { existing.kill(); } catch { /* ignore */ }
       activeScrcpyProcesses.delete(deviceId);
     }
+    stopScrcpyWindowController(deviceId);
 
     const binPath = app.isPackaged
       ? path.join(process.resourcesPath, "bin")
       : path.join(__dirname, "../../resources/bin");
-    const scrcpyExe = path.join(binPath, "scrcpy", "scrcpy.exe");
+    const scrcpyDir = path.join(binPath, "scrcpy");
+    const scrcpyExe = path.join(scrcpyDir, "scrcpy.exe");
+    const containerExe = path.join(scrcpyDir, "ScrcpyContainer.exe");
 
-    const args = ["-s", deviceId, "--no-audio"];
-    if (turnScreenOff) args.push("--turn-screen-off");
+    // Phân giải target: nếu là thiết bị mDNS có khoảng trắng thì chuyển sang IP:Port tương ứng
+    const targetSerial = await resolveScrcpyTarget(deviceId, onLog);
 
-    const scrcpyProcess = spawn(scrcpyExe, args);
-    activeScrcpyProcesses.set(deviceId, scrcpyProcess);
+    // Lấy tên hiển thị đẹp của thiết bị để đặt làm tiêu đề cửa sổ phản chiếu
+    const deviceDisplayName = await getDeviceDisplayName(targetSerial, getAdbExe());
 
-    scrcpyProcess.stdout.on("data", (data) => onLog(`[Scrcpy] ${data}`));
-    scrcpyProcess.stderr.on("data", (data) =>
-      onLog(`[Scrcpy Warning] ${data}`),
-    );
-    scrcpyProcess.on("error", (err) => {
+    // Lấy aspect ratio thiết bị
+    const aspectData = await getDeviceAspectRatio(targetSerial);
+
+    // ––– Khởi động ScrcpyContainer.exe (snap-only helper, không can thiệp phím) –––
+    // Điện thoại dùng bàn phím mặc định hệ thống (Gboard, Xiaomi IME...)
+    const containerArgs = [
+      "--serial", targetSerial,
+      "--ratio", aspectData.aspectRatio.toFixed(6),
+      "--scrcpy", scrcpyExe,
+      "--keyboard", "sdk",
+      "--title", deviceDisplayName,
+    ];
+    if (turnScreenOff) containerArgs.push("--turn-screen-off");
+
+    onLog(`[Scrcpy] Khởi động "${deviceDisplayName}" (target=${targetSerial}, ratio=${aspectData.aspectRatio.toFixed(3)}, keyboard=sdk)`);
+    const containerProcess = spawn(containerExe, containerArgs, {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    activeScrcpyProcesses.set(deviceId, containerProcess);
+    if (targetSerial !== deviceId) {
+      activeScrcpyProcesses.set(targetSerial, containerProcess);
+    }
+
+    containerProcess.stdout?.on("data", (data) => onLog(`[Scrcpy] ${data}`));
+    containerProcess.stderr?.on("data", (data) => onLog(`[Scrcpy Warning] ${data}`));
+    containerProcess.on("error", (err) => {
       activeScrcpyProcesses.delete(deviceId);
       onLog(`[Scrcpy Error] ${err.message}`);
     });
-    scrcpyProcess.on("close", (code) => {
+    containerProcess.on("close", (code) => {
       activeScrcpyProcesses.delete(deviceId);
       onLog(`[Scrcpy] Exited with code ${code}`);
     });
@@ -73,6 +221,7 @@ export function cleanupAllProcesses() {
     }
   }
   activeScrcpyProcesses.clear();
+  cleanupAllWindowControllers();
 }
 
 // Bật tính năng kết nối không dây
@@ -91,7 +240,9 @@ export async function connectWifi(
 
     onLog("Đang chuyển đổi sang chế độ Wireless (TCPIP 5555)...");
     await new Promise<void>((resolve, reject) => {
-      const tcpip = spawn(adbExe, ["-s", deviceId, "tcpip", "5555"]);
+      const tcpip = spawn(adbExe, ["-s", deviceId, "tcpip", "5555"], {
+        windowsHide: true,
+      });
       tcpip.on("error", (err) => reject(err));
       tcpip.on("close", (code) => {
         if (code === 0) resolve();
@@ -103,7 +254,9 @@ export async function connectWifi(
 
     onLog(`Đang kết nối tới ${ip}:5555 ...`);
     await new Promise<void>((resolve, reject) => {
-      const connect = spawn(adbExe, ["connect", `${ip}:5555`]);
+      const connect = spawn(adbExe, ["connect", `${ip}:5555`], {
+        windowsHide: true,
+      });
       connect.stdout.on("data", (d) => onLog(d.toString()));
       connect.on("error", (err) => reject(err));
       connect.on("close", (code) => {
@@ -132,7 +285,9 @@ export async function connectIp(ip: string, onLog: (log: string) => void) {
 
     onLog(`Đang kết nối tới ${targetIp} ...`);
     await new Promise<void>((resolve, reject) => {
-      const connect = spawn(adbExe, ["connect", targetIp]);
+      const connect = spawn(adbExe, ["connect", targetIp], {
+        windowsHide: true,
+      });
 
       const timeout = setTimeout(() => {
         try { connect.kill(); } catch { /* ignore */ }
@@ -183,7 +338,9 @@ export async function pairDevice(
 
     onLog(`Đang ghép nối với ${ipPort} bằng mã ${code} ...`);
     await new Promise<void>((resolve, reject) => {
-      const pair = spawn(adbExe, ["pair", ipPort, code]);
+      const pair = spawn(adbExe, ["pair", ipPort, code], {
+        windowsHide: true,
+      });
 
       const timeout = setTimeout(() => {
         try { pair.kill(); } catch { /* ignore */ }
@@ -284,3 +441,82 @@ export async function getStorageStats(
     return null;
   }
 }
+
+// Ngắt kết nối thiết bị mạng / Wi-Fi
+export async function disconnectDevice(
+  deviceId: string,
+  onLog?: (log: string) => void,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Dừng tiến trình scrcpy nếu đang chạy cho thiết bị này
+    const existingScrcpy = activeScrcpyProcesses.get(deviceId);
+    if (existingScrcpy) {
+      try {
+        existingScrcpy.kill();
+      } catch {
+        /* ignore */
+      }
+      activeScrcpyProcesses.delete(deviceId);
+    }
+    stopScrcpyWindowController(deviceId);
+
+    const adbExe = getAdbExe();
+    onLog?.(`Đang ngắt kết nối thiết bị: ${deviceId}...`);
+
+    const tryDisconnect = (target: string) =>
+      new Promise<{ success: boolean; message: string }>((resolve) => {
+        const proc = spawn(adbExe, target ? ["disconnect", target] : ["disconnect"], {
+          windowsHide: true,
+        });
+        let output = "";
+        proc.stdout?.on("data", (d) => (output += d.toString()));
+        proc.stderr?.on("data", (d) => (output += d.toString()));
+        proc.on("error", (err) => {
+          resolve({ success: false, message: err.message });
+        });
+        proc.on("close", (code) => {
+          const msg = output.trim();
+          const isSuccess =
+            code === 0 &&
+            !msg.toLowerCase().includes("error") &&
+            !msg.toLowerCase().includes("failed");
+          resolve({
+            success: isSuccess,
+            message: msg || (isSuccess ? "Ngắt kết nối thành công" : "Ngắt kết nối thất bại"),
+          });
+        });
+      });
+
+    // 1. Thử ngắt kết nối trực tiếp với deviceId chính xác
+    let res = await tryDisconnect(deviceId);
+    if (res.success) {
+      onLog?.(`[ADB Disconnect] ${res.message}`);
+      return res;
+    }
+
+    // 2. Nếu deviceId chứa định dạng IP:Port, thử ngắt bằng IP:Port
+    const ipPortMatch = deviceId.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+)/);
+    if (ipPortMatch) {
+      res = await tryDisconnect(ipPortMatch[1]);
+      if (res.success) {
+        onLog?.(`[ADB Disconnect] ${res.message}`);
+        return res;
+      }
+    }
+
+    // 3. Fallback: Nếu là thiết bị duy nhất hoặc là thiết bị không dây bị kẹt, gọi 'adb disconnect' không tham số
+    // để ngắt toàn bộ kết nối không dây
+    const fallbackAll = await tryDisconnect("");
+    if (fallbackAll.success) {
+      onLog?.(`[ADB Disconnect] ${fallbackAll.message}`);
+      return { success: true, message: "Đã ngắt kết nối thiết bị không dây thành công" };
+    }
+
+    onLog?.(`[ADB Disconnect] ${res.message}`);
+    return res;
+  } catch (err: any) {
+    onLog?.(`Lỗi ngắt kết nối: ${err.message}`);
+    return { success: false, message: err.message };
+  }
+}
+

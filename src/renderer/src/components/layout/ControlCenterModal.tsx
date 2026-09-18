@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Wifi,
   Settings,
@@ -6,6 +6,8 @@ import {
   PowerOff,
   Cast,
   RotateCcw,
+  Unplug,
+  Loader2,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 
@@ -17,6 +19,17 @@ export function ControlCenterModal({
   onClose: () => void;
 }) {
   const { activeDevice } = useDeviceStore();
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (!activeDevice) return;
+    setIsDisconnecting(true);
+    await window.api.disconnectDevice(activeDevice);
+    const devs = await window.api.getDevices();
+    useDeviceStore.getState().setDevices(devs);
+    setIsDisconnecting(false);
+    onClose();
+  };
 
   const runAction = (cmd: string) => {
     if (!activeDevice) return;
@@ -112,6 +125,25 @@ export function ControlCenterModal({
             color="bg-red-50 text-red-600 hover:bg-red-100 col-span-2"
           />
         </div>
+
+        {/* Nút Xóa / Ngắt kết nối thiết bị */}
+        {activeDevice && (
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <button
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors border border-red-200/60 shadow-sm"
+              title="Xóa / Ngắt kết nối thiết bị đang chọn"
+            >
+              {isDisconnecting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+              ) : (
+                <Unplug className="w-3.5 h-3.5" />
+              )}
+              <span>Xóa / Ngắt kết nối thiết bị này</span>
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

@@ -78,6 +78,8 @@ const api = {
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),
   pairDevice: (ipPort: string, code: string) =>
     ipcRenderer.invoke("adb:pair-device", { ipPort, code }),
+  disconnectDevice: (deviceId: string) =>
+    ipcRenderer.invoke("adb:disconnect-device", deviceId),
   getLocalIp: () => ipcRenderer.invoke("adb:get-local-ip"),
   getPackages: (deviceId: string, filter: "all" | "system" | "third") =>
     ipcRenderer.invoke("adb:get-packages", { deviceId, filter }),

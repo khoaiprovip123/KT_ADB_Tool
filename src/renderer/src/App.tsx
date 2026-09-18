@@ -17,9 +17,11 @@ import {
   Minus,
   Square,
   X,
+  Unplug,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
+import { toast } from "./store/toastStore";
 import { LogTerminal } from "./components/layout/LogTerminal";
 import { FloatingQuickBoot } from "./components/layout/FloatingQuickBoot";
 import { Dashboard } from "./components/features/Dashboard";
@@ -359,7 +361,7 @@ function App() {
               <Terminal className="w-4 h-4" />
               <span>Nhật ký</span>
             </button>
-            <div className="relative">
+            <div className="relative flex items-center gap-1.5">
               <button
                 onClick={() => setIsConnManagerOpen(true)}
                 className="flex items-center gap-2.5 bg-indigo-50/90 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 px-4 py-2 rounded-full shadow-sm border border-indigo-200/80 dark:border-indigo-800/80 transition-colors"
@@ -388,6 +390,29 @@ function App() {
                   </>
                 )}
               </button>
+
+              {activeDevice && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const devName =
+                      devices.find((d) => d.id === activeDevice)?.model ||
+                      activeDevice;
+                    const res = await window.api.disconnectDevice(activeDevice);
+                    const devs = await window.api.getDevices();
+                    useDeviceStore.getState().setDevices(devs);
+                    if (res?.success) {
+                      toast.success(`Đã xóa kết nối: ${devName}`);
+                    } else {
+                      toast.info(`Đã ngắt kết nối: ${devName}`);
+                    }
+                  }}
+                  className="p-2 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400 rounded-full transition-colors border border-red-200/60 dark:border-red-800/60 shadow-sm"
+                  title="Xóa / Ngắt kết nối thiết bị hiện tại"
+                >
+                  <Unplug className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div

@@ -131,7 +131,9 @@ export async function initAdb(onProgress: (msg: string) => void) {
     await new Promise((r) => setTimeout(r, 1000));
 
     await new Promise<void>((resolve) => {
-      const child = spawn(currentAdbExe, ["start-server"]);
+      const child = spawn(currentAdbExe, ["start-server"], {
+        windowsHide: true,
+      });
       const timer = setTimeout(() => {
         child.kill();
         resolve();
@@ -172,10 +174,17 @@ export async function getDevices() {
       const lines = stdout.split('\n');
       const devices: any[] = [];
       for (const line of lines) {
-        if (line.includes('List of devices attached')) continue;
-        const parts = line.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          devices.push({ id: parts[0], type: parts[1], status: parts[1] });
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.includes('List of devices attached') || trimmed.startsWith('* daemon')) continue;
+        // Trạng thái (status) luôn là từ cuối cùng ở cuối dòng ("device", "offline", "unauthorized", v.v.)
+        // Serial có thể chứa khoảng trắng và dấu ngoặc (ví dụ mDNS "adb-... (2)._adb-tls-connect._tcp")
+        const match = trimmed.match(/^(.*?)\s+([^\s]+)$/);
+        if (match) {
+          const id = match[1].trim();
+          const status = match[2].trim();
+          if (id && status) {
+            devices.push({ id, type: status, status });
+          }
         }
       }
 
@@ -189,12 +198,14 @@ export async function getDevices() {
           const { stdout: fbOut } = await execPromise(`"${fastbootExe}" devices`);
           const fbLines = fbOut.split('\n');
           for (const line of fbLines) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length >= 2) {
-              // Nếu thiết bị chưa được nhận dạng ở ADB mode thì thêm vào dạng bootloader
-              if (!devices.some((d) => d.id === parts[0])) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            const match = trimmed.match(/^(.*?)\s+([^\s]+)$/);
+            if (match) {
+              const id = match[1].trim();
+              if (id && !devices.some((d) => d.id === id)) {
                 devices.push({
-                  id: parts[0],
+                  id,
                   type: "bootloader",
                   status: "fastboot",
                   model: "Thiết bị Fastboot",

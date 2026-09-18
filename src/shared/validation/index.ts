@@ -4,7 +4,7 @@
  */
 
 // Regex
-export const DEVICE_ID_REGEX = /^[a-zA-Z0-9_.:-]+$/;
+export const DEVICE_ID_REGEX = /^[a-zA-Z0-9_.:()\s-]+$/;
 export const PACKAGE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$/;
 export const SETTINGS_KEY_REGEX = /^[a-zA-Z0-9_.-]+$/;
 export const REMOTE_PATH_DANGEROUS_CHARS =

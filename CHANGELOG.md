@@ -1,5 +1,61 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.14] - 2026-09-16
+
+### Sửa lỗi & Tối ưu hóa Di chuyển Cửa sổ (Fixed & Enhanced)
+- **Khắc phục triệt để lỗi không kéo được cửa sổ xuống nửa màn hình**:
+  - Tách biệt hoàn toàn sự kiện Di chuyển (Move) và Thay đổi kích thước (Resize). Khi người dùng chỉ di chuyển vị trí cửa sổ (`sizeChanged == false`), hệ thống tôn trọng 100% quyền điều khiển của Windows, không can thiệp toạ độ, cho phép người dùng tự do kéo cửa sổ đến bất kỳ vị trí nào trên màn hình (nửa dưới, góc cạnh, đa màn hình).
+  - Tinh chỉnh cơ chế Auto-Shift: Chỉ kích hoạt dịch tọa độ `Top` khi và chỉ khi người dùng đang thao tác kéo to kích thước (`targetClientH > lastClientH`) chạm đáy Taskbar. Loại bỏ hoàn toàn hiện tượng cửa sổ bị "hút dính" hoặc giật ngược lên đỉnh màn hình khi di chuyển hoặc thu nhỏ.
+
+## [2.5.13] - 2026-09-16
+
+### Sửa lỗi & Nâng cấp Trải nghiệm Phản chiếu Màn hình (Fixed & Enhanced)
+- **Tối ưu hóa Phóng to (Scale-Up) & Triệt tiêu Hoàn toàn Viền đen**:
+  - Hỗ trợ phóng to đồng tỉ lệ cả khung lẫn nội dung từ kích thước nhỏ lên cực đại $100\%$ chiều cao màn hình máy tính (từ đỉnh xuống sát Taskbar).
+  - Tích hợp cơ chế **Auto-Shift Position**: Tự động dịch tọa độ `Top` lên đỉnh khi kéo to ở đáy, tận dụng trọn vẹn toàn bộ không gian màn hình PC mà không bị cấn Taskbar.
+  - Khóa cứng tỉ lệ $\frac{W}{H} \equiv \text{deviceRatio}$ trong mọi thao tác kéo chuột, loại bỏ hoàn toàn tình trạng phình ngang sinh ra 2 dải đen (pillarbox).
+- **Khắc phục Race-condition khi khởi chạy**:
+  - Chờ nhận diện Direct3D texture stream (`Texture: WxH`) trước khi kích hoạt Auto-Snap khởi đầu, loại bỏ lỗi cửa sổ bị co rút về kích thước tối thiểu ($160\times 356$).
+- **Vô hiệu hóa nút Maximize (`WS_MAXIMIZEBOX`)**:
+  - Ẩn nút Maximize để ngăn chặn thao tác bấm nhầm bung toàn màn hình 16:9 sinh ra viền đen khổng lồ. Hỗ trợ phím tắt `Alt + F` để vào chế độ Fullscreen chuyên nghiệp.
+- **Tích hợp Windows Job Object**:
+  - Đảm bảo $100\%$ tiến trình `scrcpy.exe` được Windows Kernel tự động giải phóng sạch sẽ khi thoát app hoặc dừng kết nối, triệt tiêu hoàn toàn zombie process.
+- **Nâng cấp Per-Monitor V2 DPI Awareness**:
+  - Toạ độ và kích thước khung viền chuẩn xác từng pixel trên mọi cấu hình màn hình đơn hoặc đa màn hình khác DPI.
+
+## [2.5.12] - 2026-09-15
+
+### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)
+- **Khắc phục triệt để khoảng đen 2 bên (Pillarbox) khi phản chiếu màn hình Scrcpy ngang**:
+  - Chuẩn hóa thuật toán snap tỉ lệ khung hình (Aspect Ratio) dựa trên vùng hiển thị video thực tế (`GetClientRect`) thay vì toàn bộ khung cửa sổ (`GetWindowRect`).
+  - Trừ hao chính xác từng pixel độ dày thanh tiêu đề Title Bar (~32-48px) và viền cửa sổ Windows DWM, triệt tiêu hoàn toàn viền đen thừa ở 2 cạnh trái/phải.
+  - Tự động snap kích thước tối ưu ngay khi nhận diện xoay màn hình (Portrait <-> Landscape) từ stream video mà không cần người dùng phải kéo dãn thủ công.
+  - Thông minh phân biệt hướng kéo (chiều ngang vs chiều dọc) để scale mượt mà, không bị giật ngược kích thước.
+  - Lưu log tiến trình Scrcpy Container tại thư mục `%TEMP%` để tránh lỗi phân quyền ghi file khi cài đặt trong `C:\Program Files`.
+
+## [2.5.11] - 2026-09-14
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- Đổi tiêu đề cửa sổ phản chiếu màn hình Scrcpy thành tên thiết bị thực tế (ví dụ: Redmi Note 11 Pro).
+- Tự động phân giải kết nối mDNS Wireless Debugging sang IP:Port, triệt tiêu lỗi Scrcpy văng exit 0.
+- Bổ sung nút Xóa / Ngắt kết nối thiết bị trực quan: ngay trên thanh Header và trong Trung tâm Điều khiển.
+
+## [2.5.10] - 2026-09-14
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Nâng cấp Phản chiếu Màn hình (Scrcpy Window Architecture)**:
+  - Tự động duy trì và snap đúng tỉ lệ khung hình (Aspect Ratio) của thiết bị sau khi người dùng thay đổi kích thước cửa sổ.
+  - Sử dụng khung viền và thanh tiêu đề Windows mặc định để người dùng dễ dàng kéo di chuyển hoặc căn chỉnh kích thước.
+  - Chuyển sang chế độ phím `--keyboard=sdk`, hỗ trợ gõ phím tiếng Việt có dấu native 100% mượt mà từ máy tính qua các bộ gõ Unikey / EVKey.
+  - Loại bỏ hoàn toàn sự can thiệp của bàn phím ảo bên thứ 3 và hook phím, giữ nguyên vẹn trải nghiệm gốc.
+- **Triệt tiêu cửa sổ Console (CMD/Terminal)**:
+  - Khởi chạy tiến trình Scrcpy ngầm với `CreateNoWindow = true`, `WindowStyle = Hidden` và biên dịch C# dạng `/target:winexe`.
+  - Cấu hình `windowsHide: true` cho toàn bộ các lệnh gọi tiến trình con trong Node.js/Electron, ngăn chặn triệt để tình trạng chớp nháy hoặc bật cửa sổ terminal đen.
+- **Quản lý Kết nối Không dây & Wi-Fi**:
+  - Bổ sung nút **Xóa kết nối** (`Trash2`) cho từng thiết bị trực tiếp trong giao diện danh sách thiết bị đã kết nối của modal Quản lý Kết nối & Mã QR.
+  - Hỗ trợ ngắt kết nối an toàn cho các thiết bị mạng không dây và dịch vụ mDNS.
+  - Cải tiến bộ lọc định danh thiết bị (`DEVICE_ID_REGEX`) hỗ trợ đầy đủ các serial mDNS chứa khoảng trắng và dấu ngoặc đơn `( )`.
+
 ## [2.5.9] - 2026-08-21
 
 ### Sửa lỗi & Tối ưu hóa (Fixed & Optimized)

@@ -16,6 +16,11 @@ import {
 describe("main IPC validation", () => {
   it("accepts valid boundary values", () => {
     expect(() => assertValidDeviceId("ABC123._:-")).not.toThrow();
+    expect(() =>
+      assertValidDeviceId(
+        "adb-BM6HKBHEHQKFEMLR-prj23i (2)._adb-tls-connect._tcp",
+      ),
+    ).not.toThrow();
     expect(() => assertValidPackageName("com.example.my_app")).not.toThrow();
     expect(() => assertValidRemotePath("/sdcard/Download/test file.apk")).not.toThrow();
     const validLocalPath = path.resolve("Downloads", "app.apk");
