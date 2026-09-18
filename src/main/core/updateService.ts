@@ -34,6 +34,135 @@ function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
+export function filterOutGitLinks(content: string): string {
+  if (!content) return "";
+  const lines = content.split("\n");
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (trimmed.toLowerCase().includes("full changelog")) return false;
+    if (trimmed.match(/https?:\/\/github\.com\/[^\s]+\/compare\/[^\s]+/i)) return false;
+    return true;
+  });
+  return filtered.join("\n").trim();
+}
+
+export function extractChangelogFromMarkdown(
+  markdown: string,
+  targetVersion: string,
+): string | null {
+  if (!markdown) return null;
+  const cleanTarget = targetVersion.replace(/^v/, "").trim();
+
+  const lines = markdown.split("\n");
+  let capturing = false;
+  const capturedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const headerMatch = line.match(/^##\s+\[?v?([0-9]+\.[0-9]+\.[0-9]+[^\]\s]*)\]?/i);
+    if (headerMatch) {
+      const ver = headerMatch[1].replace(/^v/, "");
+      if (ver === cleanTarget) {
+        capturing = true;
+        continue;
+      } else if (capturing) {
+        break;
+      }
+    } else if (capturing) {
+      if (line.match(/^#{1,2}\s+/)) {
+        break;
+      }
+      capturedLines.push(line);
+    }
+  }
+
+  if (capturing && capturedLines.length > 0) {
+    const res = capturedLines.join("\n").trim();
+    if (res.length > 0) return res;
+  }
+
+  // Fallback: If specific version header not found, extract first version block
+  let foundFirst = false;
+  const fallbackLines: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.match(/^##\s+\[?v?[0-9]+/i)) {
+      if (!foundFirst) {
+        foundFirst = true;
+        continue;
+      } else {
+        break;
+      }
+    } else if (foundFirst) {
+      if (line.match(/^#{1,2}\s+/)) break;
+      fallbackLines.push(line);
+    }
+  }
+  if (fallbackLines.length > 0) {
+    const res = fallbackLines.join("\n").trim();
+    if (res.length > 0) return res;
+  }
+
+  return null;
+}
+
+export async function resolveRichChangelog(
+  repo: string,
+  version: string,
+  rawBody: string,
+): Promise<string> {
+  const cleanBody = filterOutGitLinks(rawBody);
+
+  // Nếu release body đã có nội dung chi tiết (> 30 ký tự)
+  if (cleanBody && cleanBody.length >= 30) {
+    return cleanBody;
+  }
+
+  // Thử đọc từ local CHANGELOG.md
+  try {
+    const localCandidates = [
+      path.join(process.cwd(), "CHANGELOG.md"),
+      path.join(app.getAppPath(), "CHANGELOG.md"),
+      path.join(app.getAppPath(), "..", "CHANGELOG.md"),
+    ];
+
+    for (const localPath of localCandidates) {
+      if (fs.existsSync(localPath)) {
+        const content = fs.readFileSync(localPath, "utf-8");
+        const extracted = extractChangelogFromMarkdown(content, version);
+        if (extracted && extracted.length > 10) {
+          return filterOutGitLinks(extracted);
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Thử fetch online từ GitHub raw
+  const branches = ["main", "master"];
+  for (const branch of branches) {
+    try {
+      const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/CHANGELOG.md`;
+      const res = await axios.get(rawUrl, {
+        timeout: 5000,
+        headers: { "User-Agent": `KT_ADB_Tool/${app.getVersion()}` },
+      });
+      if (res.data && typeof res.data === "string") {
+        const extracted = extractChangelogFromMarkdown(res.data, version);
+        if (extracted && extracted.length > 10) {
+          return filterOutGitLinks(extracted);
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (cleanBody && cleanBody.length > 0) {
+    return cleanBody;
+  }
+
+  return "• Nâng cấp giao diện người dùng & tối ưu hóa hiệu năng tổng thể.\n• Cải thiện tính ổn định, sửa lỗi kết nối thiết bị và phản chiếu màn hình.";
+}
+
 export async function checkForUpdates(): Promise<UpdateInfo> {
   const currentVersion = app.getVersion();
 
@@ -71,10 +200,16 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
         }
       }
 
+      const richChangelog = await resolveRichChangelog(
+        repo,
+        latestVersion,
+        release.body || "",
+      );
+
       const candidate: UpdateInfo = {
         available: isNewerVersion(latestVersion, currentVersion),
         version: latestVersion,
-        changelog: release.body || "",
+        changelog: richChangelog,
         downloadUrl,
         expectedSize,
       };

@@ -9,6 +9,118 @@ export interface UpdateInfo {
   downloadUrl: string | null;
 }
 
+function renderInlineFormatted(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={idx} className="font-semibold text-slate-900 dark:text-slate-100">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code
+          key={idx}
+          className="px-1.5 py-0.5 mx-0.5 text-[11px] font-mono rounded bg-slate-200/80 dark:bg-slate-750 text-indigo-600 dark:text-indigo-400"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+function FormattedChangelog({ content }: { content: string }) {
+  if (!content || !content.trim()) {
+    return (
+      <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic py-1">
+        • Cải tiến hiệu năng và tối ưu hóa trải nghiệm người dùng.
+      </div>
+    );
+  }
+
+  const rawLines = content.split("\n");
+  const filteredLines = rawLines.filter((l) => {
+    const trimmed = l.trim();
+    if (!trimmed) return true;
+    if (trimmed.toLowerCase().includes("full changelog")) return false;
+    if (trimmed.match(/https?:\/\/github\.com\/[^\s]+\/compare\/[^\s]+/i)) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-2">
+      {filteredLines.map((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+
+        // Header section ### or ##
+        if (line.startsWith("###") || line.startsWith("##")) {
+          const title = line.replace(/^#+\s*/, "");
+          const isFeature = /tính năng|feature|cải tiến|mới/i.test(title);
+          const isFix = /sửa lỗi|fix|tối ưu|enhance|vá lỗi/i.test(title);
+
+          return (
+            <div key={index} className="pt-2 pb-0.5 first:pt-0">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-bold rounded-md border uppercase tracking-wider ${
+                  isFeature
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/50"
+                    : isFix
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200/70 dark:border-blue-800/50"
+                      : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {title}
+              </span>
+            </div>
+          );
+        }
+
+        // Sub bullet (indented with 2+ spaces or \t)
+        const isSubBullet = /^(\s{2,}|\t)[-*•]/.test(line);
+        if (isSubBullet) {
+          const bulletText = line.replace(/^(\s{2,}|\t)[-*•]\s*/, "");
+          return (
+            <div
+              key={index}
+              className="pl-5 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed"
+            >
+              <span className="text-slate-400 mt-1 shrink-0 text-[10px]">•</span>
+              <span className="flex-1">{renderInlineFormatted(bulletText)}</span>
+            </div>
+          );
+        }
+
+        // Top-level bullet
+        const isTopBullet = /^[-*•]/.test(trimmed);
+        if (isTopBullet) {
+          const bulletText = trimmed.replace(/^[-*•]\s*/, "");
+          return (
+            <div
+              key={index}
+              className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed"
+            >
+              <span className="text-indigo-500 dark:text-indigo-400 mt-1 shrink-0 font-bold">•</span>
+              <span className="flex-1">{renderInlineFormatted(bulletText)}</span>
+            </div>
+          );
+        }
+
+        // Standard text line
+        return (
+          <p key={index} className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            {renderInlineFormatted(trimmed)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -72,7 +184,7 @@ export function UpdateModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/40 dark:border-slate-800 shadow-2xl shadow-indigo-500/20 overflow-hidden transform transition-all animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/40 dark:border-slate-800 shadow-2xl shadow-indigo-500/20 overflow-hidden transform transition-all animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Decorative Gradient Accent Bar */}
@@ -112,13 +224,13 @@ export function UpdateModal() {
           </p>
 
           {/* Changelog Card */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/50 space-y-2">
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/50 space-y-2.5">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
               <span>Nội dung cập nhật mới</span>
             </div>
-            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed pr-1 custom-scrollbar">
-              {updateInfo.changelog || "• Cải tiến hiệu năng & nâng cao trải nghiệm người dùng."}
+            <div className="max-h-56 overflow-y-auto pr-1.5 custom-scrollbar">
+              <FormattedChangelog content={updateInfo.changelog} />
             </div>
           </div>
 

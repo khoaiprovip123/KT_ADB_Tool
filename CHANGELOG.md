@@ -1,5 +1,14 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.16] - 2026-09-18
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Nâng cấp Hệ thống Cập nhật & Hiển thị Changelog Phong phú**:
+  - Tự động bóc tách nội dung chi tiết từng phiên bản từ `CHANGELOG.md` thay vì chỉ hiển thị link git so sánh thô.
+  - Thiết kế lại hộp thoại cập nhật mới với huy hiệu phân loại (Tính năng mới, Sửa lỗi & Tối ưu), hiển thị danh sách bullet mượt mà, hỗ trợ in đậm và mã code trực quan.
+  - Loại bỏ triệt để các đường dẫn `**Full Changelog**` gây rối mắt.
+  - Tích hợp tự động trích xuất release notes từ `CHANGELOG.md` vào quy trình CI/CD GitHub Actions khi xuất bản bản phát hành công khai.
+
 ## [2.5.15] - 2026-09-18
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)

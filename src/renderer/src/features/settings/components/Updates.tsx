@@ -16,6 +16,14 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.16",
+    date: "18/09/2026",
+    highlights: [
+      "✨ Nâng cấp hiển thị nội dung cập nhật mới: bóc tách changelog chi tiết, render badge phân loại và danh sách bullet trực quan.",
+      "🛡️ Loại bỏ triệt để các link so sánh git thô và tự động xuất bản ghi chú cập nhật trên GitHub Actions.",
+    ],
+  },
+  {
     version: "v2.5.15",
     date: "18/09/2026",
     highlights: [
@@ -170,7 +178,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.15");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.16");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );
@@ -213,6 +221,12 @@ export default function Updates() {
           const rawBody = rel.body || "";
           const rawLines = rawBody
             .split("\n")
+            .filter((l: string) => {
+              const lower = l.toLowerCase();
+              if (lower.includes("full changelog")) return false;
+              if (l.match(/https?:\/\/github\.com\/[^\s]+\/compare\/[^\s]+/i)) return false;
+              return true;
+            })
             .map((l: string) =>
               l
                 .replace(/^[\s*\-#]+/, "")

@@ -71,17 +71,47 @@ jobs:
       - name: Build Windows Executable
         run: npm run build && npx electron-builder --win --publish never
 
+      - name: Extract Release Notes from CHANGELOG.md
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION.replace(/^v/, '');
+            const content = fs.readFileSync('CHANGELOG.md', 'utf-8');
+            const lines = content.split('\n');
+            let capturing = false;
+            const captured = [];
+            for (const line of lines) {
+              const m = line.match(/^##\s+\[?v?([0-9]+\.[0-9]+\.[0-9]+[^\]\s]*)\]?/i);
+              if (m) {
+                const v = m[1].replace(/^v/, '');
+                if (v === version) {
+                  capturing = true;
+                  continue;
+                } else if (capturing) {
+                  break;
+                }
+              } else if (capturing) {
+                if (line.match(/^#{1,2}\s+/)) break;
+                captured.push(line);
+              }
+            }
+            const notes = captured.join('\n').trim();
+            fs.writeFileSync('RELEASE_NOTES.md', notes || 'Cải tiến hiệu năng và sửa lỗi.');
+          "
+
       - name: Publish Public GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
           name: KT ADB Tool Pro v${{ env.VERSION }}
+          body_path: RELEASE_NOTES.md
           files: |
             dist/*.exe
             dist/*.blockmap
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
