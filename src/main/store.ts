@@ -7,5 +7,6 @@ export const store = new Store({
     autoBackupApk: false,
     downloadPath: "",
     adbPath: "",
+    minimizeToTray: true,
   },
 });

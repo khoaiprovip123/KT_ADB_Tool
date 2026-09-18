@@ -7,6 +7,7 @@ import {
   RefreshCw,
   FolderDown,
   Sliders,
+  Minimize2,
 } from "lucide-react";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { toast } from "../../../store/toastStore";
@@ -39,6 +40,16 @@ export default function Customization() {
     const nextVal = !settings.autoBackupApk;
     updateSettings({ autoBackupApk: nextVal });
     toast.info(nextVal ? "Đã bật tự động sao lưu APK khi trích xuất" : "Đã tắt tự động sao lưu APK");
+  };
+
+  const handleToggleMinimizeToTray = () => {
+    const nextVal = settings.minimizeToTray === false ? true : false;
+    updateSettings({ minimizeToTray: nextVal });
+    toast.info(
+      nextVal
+        ? "Đã bật thu nhỏ xuống Khay Hệ Thống khi đóng ứng dụng"
+        : "Đã tắt thu nhỏ xuống Khay Hệ Thống (bấm [X] sẽ thoát app hoàn toàn)",
+    );
   };
 
   return (
@@ -195,6 +206,34 @@ export default function Customization() {
               <div
                 className={`w-5 h-5 rounded-full bg-white transition-transform ${
                   settings.autoBackupApk ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Minimize2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs text-slate-800 dark:text-slate-100">
+                  Thu nhỏ xuống Khay Hệ Thống (System Tray)
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Khi đóng ứng dụng hoặc phản chiếu màn hình, app sẽ chạy ngầm ở góc taskbar thay vì tắt hẳn
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleMinimizeToTray}
+              className={`w-12 h-6 rounded-full transition-colors p-0.5 relative shrink-0 ${
+                settings.minimizeToTray !== false ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                  settings.minimizeToTray !== false ? "translate-x-6" : "translate-x-0"
                 }`}
               />
             </button>

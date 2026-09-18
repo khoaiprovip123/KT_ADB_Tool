@@ -387,16 +387,38 @@ namespace KT_ADB_Tool.Native {
             bool isLandscape = (texW > texH);
 
             if (orientationChanged) {
-                // Tự động căn chỉnh kích thước khởi đầu tối ưu khi mở cửa sổ hoặc đổi hướng Portrait <-> Landscape
-                if (isLandscape) {
-                    targetClientH = Math.Min(600, (int)(workArea.Height * 0.60));
-                    targetClientW = (int)Math.Round(targetClientH * deviceRatio);
-                    if (targetClientW > maxClientW) {
-                        targetClientW = maxClientW;
+                int prevLongSide = (lastClientW > 0 && lastClientH > 0)
+                    ? Math.Max(lastClientW, lastClientH)
+                    : Math.Max(clientW, clientH);
+
+                if (prevLongSide > 120) {
+                    // Khi xoay màn hình (Dọc <-> Ngang), bảo tồn nguyên vẹn kích thước thu phóng mà user đã kéo:
+                    // Chiều dài thân máy (long side) giữ nguyên, xoay 90 độ
+                    if (isLandscape) {
+                        targetClientW = prevLongSide;
                         targetClientH = (int)Math.Round(targetClientW / deviceRatio);
+                    } else {
+                        targetClientH = prevLongSide;
+                        targetClientW = (int)Math.Round(targetClientH * deviceRatio);
                     }
                 } else {
-                    targetClientH = Math.Min(maxClientH, (int)(workArea.Height * 0.82));
+                    // Tự động căn chỉnh kích thước khởi đầu tối ưu ở lần mở đầu tiên
+                    if (isLandscape) {
+                        targetClientH = Math.Min(600, (int)(workArea.Height * 0.60));
+                        targetClientW = (int)Math.Round(targetClientH * deviceRatio);
+                    } else {
+                        targetClientH = Math.Min(maxClientH, (int)(workArea.Height * 0.82));
+                        targetClientW = (int)Math.Round(targetClientH * deviceRatio);
+                    }
+                }
+
+                // Bảo vệ không bị tràn màn hình khi xoay
+                if (targetClientW > maxClientW) {
+                    targetClientW = maxClientW;
+                    targetClientH = (int)Math.Round(targetClientW / deviceRatio);
+                }
+                if (targetClientH > maxClientH) {
+                    targetClientH = maxClientH;
                     targetClientW = (int)Math.Round(targetClientH * deviceRatio);
                 }
             } else {
@@ -470,6 +492,12 @@ namespace KT_ADB_Tool.Native {
                 }
                 if (newTop + newWinH > workArea.Bottom) {
                     newTop = Math.Max(workArea.Top, workArea.Bottom - newWinH);
+                }
+                if (newLeft < workArea.Left) {
+                    newLeft = workArea.Left;
+                }
+                if (newTop < workArea.Top) {
+                    newTop = workArea.Top;
                 }
             } else if (targetClientH > lastClientH && lastClientH > 0) {
                 // CHỈ KHI KÉO TO RA mà bị cấn Taskbar ở dưới thì mới tự đẩy Top lên trên

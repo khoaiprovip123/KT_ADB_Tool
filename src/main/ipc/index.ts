@@ -28,6 +28,9 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
   ipcMain.handle("win:close", () => {
     if (!mainWindow.isDestroyed()) mainWindow.close();
   });
+  ipcMain.handle("win:minimize-to-tray", () => {
+    if (!mainWindow.isDestroyed()) mainWindow.hide();
+  });
 
   // ── Core ADB ──────────────────────────────────────────────────────────────
   ipcMain.handle("adb:init", async () => {
@@ -89,6 +92,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     "downloadPath",
     "adbPath",
     "cleanerWhitelist",
+    "minimizeToTray",
   ]);
 
   ipcMain.handle("store:get", (_event, key: string) => {

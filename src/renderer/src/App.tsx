@@ -423,7 +423,11 @@ function App() {
                 type="button"
                 onClick={() => void window.api.closeWindow()}
                 className="group flex h-[18px] w-[18px] items-center justify-center rounded-full border border-red-500/30 bg-[#ff5f57] text-red-950 shadow-sm transition-transform hover:scale-110"
-                title="Đóng ứng dụng"
+                title={
+                  settings.minimizeToTray !== false
+                    ? "Thu nhỏ xuống khay hệ thống"
+                    : "Đóng ứng dụng"
+                }
                 aria-label="Đóng ứng dụng"
               >
                 <X className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-70" />

@@ -16,6 +16,15 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.15",
+    date: "18/09/2026",
+    highlights: [
+      "📌 Tích hợp khay hệ thống (System Tray): cho phép ứng dụng thu nhỏ xuống góc taskbar khi đóng hoặc chiếu màn hình.",
+      "🔄 Giữ nguyên 100% kích thước thu phóng (Scale) khi xoay màn hình Dọc <-> Ngang, loại bỏ hoàn toàn việc bị reset kích thước cứng.",
+      "🛡️ Chống tràn lề màn hình khi xoay góc cạnh và tối ưu timeout kết nối mạng ADB.",
+    ],
+  },
+  {
     version: "v2.5.14",
     date: "16/09/2026",
     highlights: [
@@ -161,7 +170,7 @@ const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
 ];
 
 export default function Updates() {
-  const [currentVersion, setCurrentVersion] = useState("v2.5.10");
+  const [currentVersion, setCurrentVersion] = useState("v2.5.15");
   const [releaseHistory, setReleaseHistory] = useState<ReleaseItem[]>(
     DEFAULT_RELEASE_HISTORY,
   );

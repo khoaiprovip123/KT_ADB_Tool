@@ -2,6 +2,15 @@ import { app, BrowserWindow, dialog, shell } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipc";
 import { cleanupAllProcesses } from "./core/deviceService";
+import {
+  setupTray,
+  notifyMinimizedToTray,
+  getIsQuitting,
+  setIsQuitting,
+  destroyTray,
+  updateTrayMenu,
+} from "./tray";
+import { store } from "./store";
 
 function isIgnorableError(error: any): boolean {
   if (!error) return false;
@@ -124,6 +133,27 @@ function createWindow(): void {
 
   // Đăng ký toàn bộ IPC listener
   registerIpcHandlers(mainWindow);
+
+  // Khởi tạo khay hệ thống (System Tray)
+  setupTray(mainWindow);
+
+  mainWindow.on("show", () => {
+    updateTrayMenu(mainWindow);
+  });
+  mainWindow.on("hide", () => {
+    updateTrayMenu(mainWindow);
+  });
+
+  mainWindow.on("close", (event) => {
+    const minimizeToTray = (store as any).get("minimizeToTray", true);
+    if (!getIsQuitting() && minimizeToTray) {
+      event.preventDefault();
+      mainWindow.hide();
+      notifyMinimizedToTray();
+      return false;
+    }
+    return true;
+  });
 }
 
 app.whenReady().then(() => {
@@ -142,5 +172,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  setIsQuitting(true);
   cleanupAllProcesses();
+  destroyTray();
 });

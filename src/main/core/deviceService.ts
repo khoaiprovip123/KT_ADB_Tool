@@ -48,6 +48,7 @@ async function resolveScrcpyTarget(
   try {
     const { stdout } = await execPromise(`"${adbExe}" mdns services`, {
       windowsHide: true,
+      timeout: 3000,
     });
     const lines = stdout.split("\n");
     for (const line of lines) {
@@ -68,6 +69,7 @@ async function resolveScrcpyTarget(
             try {
               await execPromise(`"${adbExe}" connect ${ipPort}`, {
                 windowsHide: true,
+                timeout: 3000,
               });
             } catch {
               /* ignore */
@@ -85,13 +87,14 @@ async function resolveScrcpyTarget(
   try {
     const { stdout: routeOut } = await execPromise(
       `"${adbExe}" -s "${deviceId}" shell ip route`,
-      { windowsHide: true },
+      { windowsHide: true, timeout: 3000 },
     );
     const match = routeOut.match(/src\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
     if (match) {
       const ip = match[1];
       const { stdout: devOut } = await execPromise(`"${adbExe}" devices`, {
         windowsHide: true,
+        timeout: 3000,
       });
       const ipMatch = devOut.match(new RegExp(`(${ip.replace(/\./g, "\\.")}:\\d+)`));
       if (ipMatch) {
@@ -118,7 +121,7 @@ async function getDeviceDisplayName(
   try {
     const { stdout } = await execPromise(
       `"${adbExe}" -s "${serial}" shell "getprop ro.product.marketname; getprop ro.product.brand; getprop ro.product.model"`,
-      { windowsHide: true },
+      { windowsHide: true, timeout: 3000 },
     );
     const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
     const marketName = lines[0] || "";
@@ -222,6 +225,14 @@ export function cleanupAllProcesses() {
   }
   activeScrcpyProcesses.clear();
   cleanupAllWindowControllers();
+}
+
+export function stopAllScrcpy(): void {
+  cleanupAllProcesses();
+}
+
+export function isScrcpyActive(): boolean {
+  return activeScrcpyProcesses.size > 0;
 }
 
 // Bật tính năng kết nối không dây
@@ -504,12 +515,14 @@ export async function disconnectDevice(
       }
     }
 
-    // 3. Fallback: Nếu là thiết bị duy nhất hoặc là thiết bị không dây bị kẹt, gọi 'adb disconnect' không tham số
-    // để ngắt toàn bộ kết nối không dây
-    const fallbackAll = await tryDisconnect("");
-    if (fallbackAll.success) {
-      onLog?.(`[ADB Disconnect] ${fallbackAll.message}`);
-      return { success: true, message: "Đã ngắt kết nối thiết bị không dây thành công" };
+    // 3. Fallback: Nếu là thiết bị không dây (chứa ':' hoặc '._tcp') bị kẹt, gọi 'adb disconnect' không tham số
+    const isNetworkDevice = deviceId.includes(":") || deviceId.includes("._tcp");
+    if (isNetworkDevice) {
+      const fallbackAll = await tryDisconnect("");
+      if (fallbackAll.success) {
+        onLog?.(`[ADB Disconnect] ${fallbackAll.message}`);
+        return { success: true, message: "Đã ngắt kết nối thiết bị không dây thành công" };
+      }
     }
 
     onLog?.(`[ADB Disconnect] ${res.message}`);

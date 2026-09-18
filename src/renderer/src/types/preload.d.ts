@@ -14,6 +14,7 @@ export interface IADBAPI {
   minimizeWindow: () => Promise<void>;
   maximizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
+  minimizeToTray: () => Promise<void>;
   initAdb: () => Promise<boolean>;
   fixConnection: () => Promise<any>;
   getDeviceInfo: (deviceId: string) => Promise<DeviceInfo>;

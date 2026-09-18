@@ -25,6 +25,7 @@ const api = {
   minimizeWindow: () => ipcRenderer.invoke("win:minimize"),
   maximizeWindow: () => ipcRenderer.invoke("win:maximize"),
   closeWindow: () => ipcRenderer.invoke("win:close"),
+  minimizeToTray: () => ipcRenderer.invoke("win:minimize-to-tray"),
   initAdb: () => ipcRenderer.invoke("adb:init"),
   fixConnection: () => ipcRenderer.invoke("adb:fix-connection"),
   getDeviceInfo: (deviceId: string) =>

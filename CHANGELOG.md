@@ -1,5 +1,23 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.15] - 2026-09-18
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Tích hợp Chạy ngầm dưới Khay Hệ Thống (System Tray)**:
+  - Cho phép ứng dụng tự động thu nhỏ xuống khay hệ thống (góc taskbar cạnh đồng hồ) khi bấm nút đóng `[X]` hoặc khi đang phản chiếu màn hình, giúp màn hình làm việc luôn gọn gàng và không làm tắt cửa sổ Scrcpy.
+  - Chuột trái / Double-click vào icon khay hệ thống để bật/tắt khôi phục cửa sổ ngay lập tức.
+  - Menu chuột phải tiện lợi: *Hiện giao diện chính*, *Ẩn xuống khay hệ thống*, *Tắt phản chiếu màn hình (Scrcpy)*, *Thoát hoàn toàn*.
+  - Bổ sung tùy chọn bật/tắt hành vi chạy ngầm tại *Trung tâm Cài đặt > Giao diện & Hành vi*.
+
+### Sửa lỗi & Tối ưu hóa Phản chiếu Màn hình (Fixed & Enhanced)
+- **Bảo tồn tỉ lệ thu phóng (Scale) khi xoay màn hình Dọc <-> Ngang**:
+  - Khắc phục triệt để lỗi khi thu nhỏ màn hình dọc rồi xoay sang màn hình ngang bị nhảy về kích thước cứng cố định.
+  - Hệ thống giờ đây bảo tồn 100% tỷ lệ thu phóng của người dùng: chiều dài và chiều rộng thân máy điện thoại tự động xoay 90 độ mượt mà mà không làm thay đổi kích thước hiển thị.
+  - Chống tràn lề trái và lề trên màn hình máy tính khi xoay ở các góc cạnh.
+- **Tối ưu kết nối mạng ADB**:
+  - Thêm timeout an toàn cho các tác vụ tra cứu IP/mDNS, chống treo luồng khi thiết bị chập chờn.
+  - Tinh chỉnh logic ngắt kết nối: ngắt thiết bị USB không làm ảnh hưởng đến các thiết bị không dây khác.
+
 ## [2.5.14] - 2026-09-16
 
 ### Sửa lỗi & Tối ưu hóa Di chuyển Cửa sổ (Fixed & Enhanced)

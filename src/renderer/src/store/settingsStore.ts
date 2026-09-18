@@ -6,6 +6,7 @@ export interface AppSettings {
   autoBackupApk: boolean;
   downloadPath: string;
   adbPath: string;
+  minimizeToTray: boolean;
 }
 
 interface SettingsStore {
@@ -21,6 +22,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoBackupApk: false,
   downloadPath: "",
   adbPath: "",
+  minimizeToTray: true,
 };
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -35,6 +37,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         "autoBackupApk",
         "downloadPath",
         "adbPath",
+        "minimizeToTray",
       ];
       const loaded: Partial<AppSettings> = {};
 
