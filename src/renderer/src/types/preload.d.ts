@@ -106,6 +106,67 @@ export interface IADBAPI {
   restoreAllNotifications: (
     deviceId: string,
   ) => Promise<{ success: boolean; count: number; message: string }>;
+  scanNotificationApps: (
+    deviceId: string,
+  ) => Promise<
+    Array<{
+      packageName: string;
+      name: string;
+      category: "chat" | "banking" | "shopping" | "utility" | "other";
+      isRecommended: boolean;
+      dozeWhitelisted: boolean;
+      standbyActive: boolean;
+      postNotificationAllowed: boolean;
+      appOps10008Allowed: boolean;
+      appOps10053Allowed: boolean;
+      backgroundAllowed: boolean;
+      isFixed: boolean;
+    }>
+  >;
+  fixSingleNotification: (
+    deviceId: string,
+    packageName: string,
+  ) => Promise<{
+    packageName: string;
+    name: string;
+    success: boolean;
+    steps: {
+      doze: boolean;
+      standbyBucket: boolean;
+      postNotification: boolean;
+      appOps10008: boolean;
+      appOps10053: boolean;
+      backgroundOps: boolean;
+    };
+    message?: string;
+  }>;
+  fixBatchNotifications: (
+    deviceId: string,
+    targetPackages?: string[],
+  ) => Promise<{
+    success: boolean;
+    count: number;
+    total: number;
+    results: Array<{
+      packageName: string;
+      name: string;
+      success: boolean;
+      steps: {
+        doze: boolean;
+        standbyBucket: boolean;
+        postNotification: boolean;
+        appOps10008: boolean;
+        appOps10053: boolean;
+        backgroundOps: boolean;
+      };
+      message?: string;
+    }>;
+    message: string;
+  }>;
+  restoreBatchNotifications: (
+    deviceId: string,
+    packageNames?: string[],
+  ) => Promise<{ success: boolean; count: number; message: string }>;
   onFixNotificationsProgress: (
     cb: (data: { current: number; total: number; pkgName: string }) => void,
   ) => () => void;

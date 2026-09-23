@@ -1,10 +1,12 @@
 import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
 import { join } from "path";
-import { stopAllScrcpy, isScrcpyActive } from "./core/deviceService";
+import { stopAllScrcpy, isScrcpyActive, runScrcpy } from "./core/deviceService";
+import { getDevices } from "./core/adbCore";
 
 let tray: Tray | null = null;
 let hasShownBalloon = false;
 let isQuitting = false;
+let cachedDevices: any[] = [];
 
 export function getIsQuitting(): boolean {
   return isQuitting;
@@ -12,6 +14,13 @@ export function getIsQuitting(): boolean {
 
 export function setIsQuitting(val: boolean): void {
   isQuitting = val;
+}
+
+export function setTrayDevices(devices: any[], mainWindow?: BrowserWindow): void {
+  cachedDevices = Array.isArray(devices) ? devices : [];
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    updateTrayMenu(mainWindow);
+  }
 }
 
 function getTrayIcon(): Electron.NativeImage {
@@ -28,8 +37,13 @@ function getTrayIcon(): Electron.NativeImage {
 
 export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
   const mirroring = isScrcpyActive();
+  const onlineDevices = cachedDevices.filter(
+    (d) => d.status === "device" || d.type === "device",
+  );
+  const hasDevice = onlineDevices.length > 0;
+  const firstDevice = onlineDevices[0];
 
-  return Menu.buildFromTemplate([
+  const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: "KT ADB Tool Pro",
       enabled: false,
@@ -53,16 +67,65 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
       },
     },
     { type: "separator" },
-    {
-      label: mirroring
-        ? "Tắt phản chiếu màn hình (Scrcpy)"
-        : "Không có phản chiếu đang chạy",
-      enabled: mirroring,
+  ];
+
+  if (mirroring) {
+    template.push({
+      label: "🛑 Dừng chiếu màn hình (Scrcpy)",
       click: () => {
         stopAllScrcpy();
         updateTrayMenu(mainWindow);
       },
-    },
+    });
+  } else if (hasDevice) {
+    template.push({
+      label: `📱 Chiếu màn hình (Tắt màn hình ĐT)${onlineDevices.length === 1 ? ` - ${firstDevice.id}` : ""}`,
+      click: async () => {
+        await runScrcpy(firstDevice.id, true, (log) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("adb:log-stream", log);
+          }
+        });
+        updateTrayMenu(mainWindow);
+      },
+    });
+
+    if (onlineDevices.length > 1) {
+      template.push({
+        label: "📱 Chiếu màn hình (Tắt màn hình ĐT) - Chọn máy",
+        submenu: onlineDevices.map((dev) => ({
+          label: `${dev.id} (${dev.model || "Thiết bị"})`,
+          click: async () => {
+            await runScrcpy(dev.id, true, (log) => {
+              if (!mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("adb:log-stream", log);
+              }
+            });
+            updateTrayMenu(mainWindow);
+          },
+        })),
+      });
+    }
+
+    template.push({
+      label: "🖥️ Chiếu màn hình (Màn hình ĐT vẫn bật)",
+      click: async () => {
+        await runScrcpy(firstDevice.id, false, (log) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("adb:log-stream", log);
+          }
+        });
+        updateTrayMenu(mainWindow);
+      },
+    });
+  } else {
+    template.push({
+      label: "📱 Chiếu màn hình (Chưa kết nối ĐT)",
+      enabled: false,
+    });
+  }
+
+  template.push(
     { type: "separator" },
     {
       label: "Thoát hoàn toàn",
@@ -71,7 +134,9 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
         app.quit();
       },
     },
-  ]);
+  );
+
+  return Menu.buildFromTemplate(template);
 }
 
 export function updateTrayMenu(mainWindow: BrowserWindow): void {
@@ -130,8 +195,14 @@ export function setupTray(mainWindow: BrowserWindow): Tray {
   });
 
   // Right-click: Cập nhật menu động trước khi popup
-  tray.on("right-click", () => {
+  tray.on("right-click", async () => {
     if (!mainWindow.isDestroyed()) {
+      try {
+        const devs = await getDevices();
+        cachedDevices = Array.isArray(devs) ? devs : [];
+      } catch {
+        /* ignore */
+      }
       updateTrayMenu(mainWindow);
     }
   });

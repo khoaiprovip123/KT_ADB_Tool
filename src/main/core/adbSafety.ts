@@ -155,22 +155,22 @@ export function evaluateCommand(cmd: string): EvaluationResult {
     };
   }
 
-  // Chỉ cho phép đọc hoặc đặt một AppOp cụ thể với mode hữu hạn.
+  // Chỉ cho phép đọc hoặc đặt một AppOp cụ thể với mode hữu hạn (hỗ trợ cả op name và opcode số như 10008, 10053).
   if (
-    /^cmd appops get [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ [A-Z][A-Z0-9_]{1,63}$/.test(
+    /^(?:cmd )?appops get [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ (?:\d{1,6}|[A-Z][A-Z0-9_]{1,63})$/.test(
       trimmed,
     )
   ) {
     return { allowed: true, risk: "SAFE", mode: "READ_ONLY" };
   }
   if (
-    /^cmd appops set [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ [A-Z][A-Z0-9_]{1,63} (?:allow|deny|ignore|default|foreground)$/.test(
+    /^(?:cmd )?appops set [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+ (?:\d{1,6}|[A-Z][A-Z0-9_]{1,63}) (?:allow|deny|ignore|default|foreground)$/.test(
       trimmed,
     )
   ) {
     return { allowed: true, risk: "RISKY", mode: "PACKAGE_OP" };
   }
-  if (trimmed.startsWith("cmd appops ")) {
+  if (trimmed.startsWith("cmd appops ") || trimmed.startsWith("appops ")) {
     return {
       allowed: false,
       risk: "DANGEROUS",

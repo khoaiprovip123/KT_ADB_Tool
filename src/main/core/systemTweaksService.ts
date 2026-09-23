@@ -749,6 +749,17 @@ export async function applyTweak(
   }
 }
 
+export {
+  scanInstalledAppsForNotification,
+  fixSingleAppNotification,
+  fixBatchAppNotifications,
+  restoreBatchAppNotifications,
+  type NotificationAppItem,
+  type NotificationAppResult,
+  type NotificationBatchSummary,
+  type NotificationFixStepDetail,
+} from "./notificationFixService";
+
 const NOTIFICATION_TARGET_PACKAGES = [
   "com.google.android.gms",
   "com.zing.zalo",

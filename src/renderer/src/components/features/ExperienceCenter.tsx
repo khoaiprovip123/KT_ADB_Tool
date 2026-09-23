@@ -34,10 +34,12 @@ import {
   Zap,
   Globe,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { toast } from "../../store/toastStore";
 import { validateDpi, validateResolution } from "../../utils/validation";
+import { NotificationFixModal } from "../../features/notification-fix/NotificationFixModal";
 
 type SectionId =
   | "overview"
@@ -310,6 +312,8 @@ export function ExperienceCenter() {
   const [notificationBatchStatus, setNotificationBatchStatus] = useState<
     "idle" | "running" | "success" | "error"
   >("idle");
+  const [isNotificationFixModalOpen, setIsNotificationFixModalOpen] =
+    useState(false);
   const refreshToken = useRef(0);
 
   useEffect(() => {
@@ -1160,12 +1164,12 @@ export function ExperienceCenter() {
     0,
     workspaceWidth -
       (showCategoryRail ? 176 : 0) -
-      (hasDockedInspector ? 300 : 0),
+      (hasDockedInspector ? 380 : 0),
   );
   const compactMainPane = workspaceWidth === 0 || mainPaneWidth < 900;
   const stackDisplayControls = workspaceWidth === 0 || mainPaneWidth < 780;
   const workspaceColumns = hasDockedInspector
-    ? "176px minmax(0, 1fr) 300px"
+    ? "176px minmax(0, 1fr) 380px"
     : showCategoryRail
       ? "176px minmax(0, 1fr)"
       : "minmax(0, 1fr)";
@@ -1321,6 +1325,9 @@ export function ExperienceCenter() {
                             onSelect={handleSelectAction}
                             onToggle={handleToggleAction}
                             onRollback={handleRollbackExperience}
+                            onOpenNotificationFixModal={() =>
+                              setIsNotificationFixModalOpen(true)
+                            }
                           />
                         ))}
                       </div>
@@ -1348,6 +1355,9 @@ export function ExperienceCenter() {
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
                 onRestoreAllNotifications={handleRestoreAllAppNotifications}
+                onOpenNotificationFixModal={() =>
+                  setIsNotificationFixModalOpen(true)
+                }
               />
             </div>
           )}
@@ -1377,6 +1387,9 @@ export function ExperienceCenter() {
                 onApplyNotification={handleApplyAndVerifyNotification}
                 onOptimizeAllNotifications={handleOptimizeAllAppNotifications}
                 onRestoreAllNotifications={handleRestoreAllAppNotifications}
+                onOpenNotificationFixModal={() =>
+                  setIsNotificationFixModalOpen(true)
+                }
               />
             </div>
           </div>
@@ -1388,6 +1401,12 @@ export function ExperienceCenter() {
             onCancel={() => setConfirmState(null)}
           />
         )}
+
+        <NotificationFixModal
+          isOpen={isNotificationFixModalOpen}
+          onClose={() => setIsNotificationFixModalOpen(false)}
+          activeDevice={activeDevice ?? ""}
+        />
       </div>
     </>
   );
@@ -1496,6 +1515,7 @@ function ActionInspector({
   onApplyNotification,
   onOptimizeAllNotifications,
   onRestoreAllNotifications,
+  onOpenNotificationFixModal,
 }: {
   action: UnifiedAction;
   verification: NotificationVerification;
@@ -1513,6 +1533,7 @@ function ActionInspector({
   onApplyNotification: () => void;
   onOptimizeAllNotifications: () => void;
   onRestoreAllNotifications: () => void;
+  onOpenNotificationFixModal?: () => void;
 }) {
   const isNotification = action.id === notificationTweakId;
   const notificationVerified = [
@@ -1524,7 +1545,7 @@ function ActionInspector({
     isNotification && !verification.loading && !notificationVerified;
 
   return (
-    <aside className="flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden px-4 py-4 pr-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+    <aside className="flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden px-4 py-4 pb-8 pr-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-[17px] font-extrabold leading-snug text-slate-950">
@@ -1539,16 +1560,17 @@ function ActionInspector({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="group flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-[#ff5f57] text-red-950 shadow-sm transition-transform hover:scale-110 active:scale-95"
+          title="Đóng bảng chi tiết"
           aria-label="Đóng bảng chi tiết"
         >
-          <X className="h-4 w-4" />
+          <X className="h-2.5 w-2.5 opacity-70 transition-opacity group-hover:opacity-100" />
         </button>
       </div>
 
       {isNotification ? (
         <>
-          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3.5">
             <div
               className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-extrabold ${
                 verification.loading
@@ -1579,54 +1601,85 @@ function ActionInspector({
                     ? "Đã xác minh"
                     : "Đang tắt"}
             </div>
-            <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-600">
+            <p className="mt-2.5 text-[12px] font-medium leading-relaxed text-slate-600">
               {action.description}
             </p>
           </div>
 
-          <h4 className="mt-4 text-[12px] font-extrabold text-slate-900">
-            Nền tảng thông báo FCM
-          </h4>
-          <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <VerificationRow
-              icon={<BadgeCheck className="h-4 w-4" />}
-              label="Google Play Services"
-              detail="GCM/Firebase Cloud Messaging"
-              value={verification.gmsInstalled}
-              loading={verification.loading}
-            />
-            <VerificationRow
-              icon={<BatteryCharging className="h-4 w-4" />}
-              label="Doze Whitelist"
-              detail="GMS và GSF được cho phép"
-              value={verification.dozeWhitelisted}
-              loading={verification.loading}
-            />
-            <VerificationRow
-              icon={<Activity className="h-4 w-4" />}
-              label="Quyền chạy nền"
-              detail="Wake lock và AppOps"
-              value={verification.backgroundAllowed}
-              loading={verification.loading}
-              last
-            />
+          {/* Khối 1: Nền tảng FCM hệ thống */}
+          <div className="mt-3.5 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-[12px] font-extrabold text-slate-900">
+                Nền tảng thông báo FCM
+              </h4>
+              <button
+                type="button"
+                onClick={onApplyNotification}
+                disabled={busy || bulkBusy || verification.loading}
+                title="Kích hoạt FCM và đọc lại trạng thái xác minh"
+                className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 text-[10px] font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-wait disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Zap className="h-3 w-3 text-blue-600" />
+                )}
+                <span>Bật / Kiểm tra FCM</span>
+              </button>
+            </div>
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-100 bg-slate-50/50">
+              <VerificationRow
+                icon={<BadgeCheck className="h-4 w-4" />}
+                label="Google Play Services"
+                detail="GCM/Firebase Cloud Messaging"
+                value={verification.gmsInstalled}
+                loading={verification.loading}
+              />
+              <VerificationRow
+                icon={<BatteryCharging className="h-4 w-4" />}
+                label="Doze Whitelist"
+                detail="GMS và GSF được cho phép"
+                value={verification.dozeWhitelisted}
+                loading={verification.loading}
+              />
+              <VerificationRow
+                icon={<Activity className="h-4 w-4" />}
+                label="Quyền chạy nền"
+                detail="Wake lock và AppOps"
+                value={verification.backgroundAllowed}
+                loading={verification.loading}
+                last
+              />
+            </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-3.5">
+          {/* Khối 2: Tối ưu ứng dụng (Xiaomi / HyperOS) */}
+          <div className="mt-3.5 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
             <div className="flex items-start gap-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                 <Bell className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <h4 className="text-[12px] font-extrabold text-slate-900">
-                  Tối ưu toàn bộ ứng dụng
+                  Khắc phục trễ thông báo ứng dụng
                 </h4>
                 <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
-                  Mở Doze, AppOps và WakeLock cho ứng dụng người dùng để nhận
-                  thông báo kịp thời khi tắt màn hình.
+                  Hỗ trợ Zalo, Messenger, Telegram... qua AppOps 10053 (HyperOS 3 / Android 16) & AppOps 10008 (MIUI 12–14).
                 </p>
               </div>
             </div>
+
+            {onOpenNotificationFixModal && (
+              <button
+                type="button"
+                onClick={onOpenNotificationFixModal}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-2.5 text-xs font-black text-white shadow-md shadow-blue-500/20 transition hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
+              >
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                <span>Quét & Quản lý ứng dụng cần fix</span>
+                <ChevronRight className="h-4 w-4 ml-auto opacity-70" />
+              </button>
+            )}
 
             {(bulkBusy || bulkProgress) && (
               <div className="mt-3 rounded-lg bg-slate-50 p-2.5">
@@ -1666,64 +1719,49 @@ function ActionInspector({
               </div>
             )}
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={onOptimizeAllNotifications}
                 disabled={bulkBusy || busy || verification.loading}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-[10px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+                title="Tối ưu nhanh danh sách 6 ứng dụng phổ biến mặc định"
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-2 text-[10px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
               >
                 {bulkBusy ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <Bell className="h-3.5 w-3.5 text-cyan-300" />
+                  <Zap className="h-3 w-3 text-cyan-300" />
                 )}
-                Tối ưu app hỗ trợ
+                Tối ưu nhanh (6 app)
               </button>
               <button
                 type="button"
                 onClick={onRestoreAllNotifications}
                 disabled={bulkBusy || busy || verification.loading}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                title="Khôi phục trạng thái app từ bản lưu gần nhất"
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
               >
-                <Undo2 className="h-3.5 w-3.5" />
+                <Undo2 className="h-3 w-3" />
                 Hoàn tác snapshot
               </button>
             </div>
           </div>
 
-          <div className="mt-6">
-            <h4 className="text-[13px] font-extrabold text-slate-900">
-              Khuyến nghị
+          {/* Khối 3: Khuyến nghị sau khi áp dụng */}
+          <div className="mt-3.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+            <h4 className="text-[11px] font-extrabold text-slate-900">
+              Khuyến nghị sau khi áp dụng
             </h4>
-            <p className="mt-2 text-[11px] font-medium leading-relaxed text-slate-500">
-              Sau khi áp dụng, hãy khóa ứng dụng gần đây và kiểm tra nhận thông
-              báo sau 2–5 phút.
+            <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
+              Khóa ứng dụng trong màn hình đa nhiệm (Recent Apps) và kiểm tra nhận thông báo sau 2–5 phút.
             </p>
           </div>
 
           {verification.error && (
-            <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+            <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
               {verification.error}
             </p>
           )}
-
-          <button
-            type="button"
-            onClick={onApplyNotification}
-            disabled={busy || bulkBusy || verification.loading}
-            className="mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            Áp dụng & kiểm tra lại
-          </button>
-          <p className="mt-2 text-center text-[10px] font-medium leading-relaxed text-slate-400">
-            Thao tác sẽ áp dụng lại cấu hình rồi đọc trạng thái thực tế.
-          </p>
         </>
       ) : (
         <div className="mt-5 space-y-4">
@@ -2172,6 +2210,7 @@ function ActionRow({
   onSelect,
   onToggle,
   onRollback,
+  onOpenNotificationFixModal,
 }: {
   action: UnifiedAction;
   busy: boolean;
@@ -2180,6 +2219,7 @@ function ActionRow({
   onSelect: (action: UnifiedAction) => void;
   onToggle: (action: UnifiedAction) => void;
   onRollback: (action: UnifiedAction) => void;
+  onOpenNotificationFixModal?: () => void;
 }) {
   const isOn = action.status === "SUPPORTED_ON";
   const isExperimental = action.status === "EXPERIMENTAL";
@@ -2252,6 +2292,20 @@ function ActionRow({
         </div>
 
         <div className="flex items-center gap-2">
+          {action.id === notificationTweakId && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenNotificationFixModal?.();
+              }}
+              title="Quét và lựa chọn ứng dụng cần fix thông báo"
+              className="flex h-8 items-center gap-1.5 px-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-all text-xs font-black shadow-sm shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>Quét app</span>
+            </button>
+          )}
           {action.source === "experience" && !isUnsupported && !isUnknown && (
             <IconButton
               title="Khôi phục trạng thái đã sao lưu"

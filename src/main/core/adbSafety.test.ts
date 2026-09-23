@@ -339,6 +339,15 @@ describe("ADB Safety Layer Tests", () => {
         ),
       ).toMatchObject({ allowed: true, risk: "RISKY" });
       expect(
+        evaluateCommand("cmd appops set com.zing.zalo 10008 allow"),
+      ).toMatchObject({ allowed: true, risk: "RISKY" });
+      expect(
+        evaluateCommand("cmd appops set com.zing.zalo 10053 allow"),
+      ).toMatchObject({ allowed: true, risk: "RISKY" });
+      expect(
+        evaluateCommand("appops set com.zing.zalo 10053 allow"),
+      ).toMatchObject({ allowed: true, risk: "RISKY" });
+      expect(
         evaluateCommand(
           "cmd appops set com.google.android.gms WAKE_LOCK unrestricted",
         ),

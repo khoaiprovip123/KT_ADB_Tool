@@ -16,6 +16,10 @@ import {
   setAnimationScale,
   fixAllNotifications,
   restoreAllNotifications,
+  scanInstalledAppsForNotification,
+  fixSingleAppNotification,
+  fixBatchAppNotifications,
+  restoreBatchAppNotifications,
 } from "../core/systemTweaksService";
 import {
   assertValidAnimationScale,
@@ -229,6 +233,86 @@ export function registerSystemTweaksHandlers(
       try {
         assertValidDeviceId(deviceId);
         return restoreAllNotifications(deviceId);
+      } catch (err: any) {
+        return { success: false, count: 0, message: err.message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:scan-notification-apps",
+    async (_event, deviceId: string) => {
+      try {
+        assertValidDeviceId(deviceId);
+        return await scanInstalledAppsForNotification(deviceId);
+      } catch (err: any) {
+        return [];
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:fix-single-notification",
+    async (_event, deviceId: string, packageName: string) => {
+      try {
+        assertValidDeviceId(deviceId);
+        assertValidPackageName(packageName);
+        return await fixSingleAppNotification(deviceId, packageName);
+      } catch (err: any) {
+        return {
+          packageName,
+          name: packageName,
+          success: false,
+          steps: {
+            doze: false,
+            standbyBucket: false,
+            postNotification: false,
+            appOps10008: false,
+            appOps10053: false,
+            backgroundOps: false,
+          },
+          message: err.message,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:fix-batch-notifications",
+    async (_event, deviceId: string, targetPackages?: string[]) => {
+      try {
+        assertValidDeviceId(deviceId);
+        return await fixBatchAppNotifications(
+          deviceId,
+          targetPackages,
+          (current, total, pkgName) => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("adb:fix-notifications-progress", {
+                current,
+                total,
+                pkgName,
+              });
+            }
+          },
+        );
+      } catch (err: any) {
+        return {
+          success: false,
+          count: 0,
+          total: 0,
+          results: [],
+          message: err.message,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:restore-batch-notifications",
+    async (_event, deviceId: string, packageNames?: string[]) => {
+      try {
+        assertValidDeviceId(deviceId);
+        return await restoreBatchAppNotifications(deviceId, packageNames);
       } catch (err: any) {
         return { success: false, count: 0, message: err.message };
       }

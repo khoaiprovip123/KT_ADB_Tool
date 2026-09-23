@@ -18,6 +18,7 @@ import {
   Square,
   X,
   Unplug,
+  Smartphone,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -340,6 +341,32 @@ function App() {
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             className="flex items-center gap-4"
           >
+            {activeDevice && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const devName =
+                    devices.find((d) => d.id === activeDevice)?.model ||
+                    activeDevice;
+                  try {
+                    await window.api.runScrcpy(activeDevice, true);
+                    toast.success(
+                      `Đang chiếu màn hình: ${devName} (Màn hình máy đã tắt)`,
+                    );
+                  } catch (err: any) {
+                    toast.error(`Lỗi chiếu màn hình: ${err?.message || err}`);
+                  }
+                }}
+                className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 active:scale-95 shrink-0"
+                title="Chiếu màn hình điện thoại lên máy tính & tắt màn hình gốc để tiết kiệm pin, chống nóng"
+                aria-label="Chiếu màn hình và tắt màn hình điện thoại"
+              >
+                <Smartphone className="w-4 h-4 text-cyan-200" />
+                <span className="hidden xl:inline">Chiếu màn hình (Tắt màn hình ĐT)</span>
+                <span className="xl:hidden">Chiếu tắt màn</span>
+              </button>
+            )}
+
             <div className="relative">
               <button
                 onClick={() => setIsCcOpen(!isCcOpen)}
@@ -454,7 +481,7 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden relative p-4 lg:p-6 flex flex-col h-full">
+        <div className="flex-1 min-h-0 overflow-hidden relative p-4 lg:p-6 flex flex-col">
           <ErrorBoundary>
             <React.Suspense fallback={<TabLoading />}>
               {activeTab === "dashboard" && <Dashboard />}

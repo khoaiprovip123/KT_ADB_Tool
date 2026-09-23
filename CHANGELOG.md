@@ -1,5 +1,26 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.17] - 2026-09-23
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Công cụ Khắc phục Trễ Thông Báo Toàn Diện (Xiaomi / HyperOS / MIUI Notification Fixer)**:
+  - Hỗ trợ chống trễ tin nhắn và mất thông báo cho Zalo, Messenger, Telegram, MoMo, Shopee, App Ngân hàng... trên HyperOS 1/2/3 (Android 14–16) và MIUI 12–14.
+  - Hỗ trợ cơ chế AppOps 10053 mới nhất trên HyperOS 3 / Android 16 và AppOps 10008 trên MIUI.
+  - Tự động cấu hình Doze Whitelist, Standby Bucket về active, và cấp quyền POST_NOTIFICATIONS.
+  - Quét và lựa chọn thông minh các app đã cài trên thiết bị với chế độ fix từng app hoặc fix toàn bộ app cùng cơ chế snapshot rollback an toàn.
+- **Thao tác Nhanh Chiếu Màn Hình Tắt Màn Hình Gốc (Screen Mirroring with Screen Off)**:
+  - Bổ sung nút 1 chạm trên thanh Header: *Chiếu màn hình (Tắt màn hình ĐT)*.
+  - Tích hợp menu nhanh vào Khay hệ thống (System Tray): tự động nhận diện thiết bị kết nối và cho phép chiếu màn hình ngay cả khi ứng dụng đang thu nhỏ chạy ngầm.
+  - Sử dụng cờ `--turn-screen-off` tắt hẳn màn hình vật lý của điện thoại, giúp tiết kiệm pin tối đa, chống nóng máy và bảo mật riêng tư trong khi vẫn điều khiển toàn diện trên PC.
+
+### Sửa lỗi & Tối ưu hóa Giao diện (Fixed & Enhanced)
+- **Sửa lỗi tràn layout & cắt đáy thanh bên khi phóng to toàn màn hình**:
+  - Loại bỏ xung đột CSS `h-full` kết hợp `flex-1` tại container chính, giải quyết triệt để lỗi mất 80px mép dưới thanh bên ActionInspector.
+  - Đồng bộ kích thước docked column chuẩn 380px cho cả grid template và container con.
+- **Gom gọn & Tinh giản Bố cục ActionInspector**:
+  - Gộp nút kích hoạt và kiểm tra FCM trực tiếp vào thẻ *Nền tảng thông báo FCM*, loại bỏ nút áp dụng trùng lặp ở đáy.
+  - Đồng bộ nút đóng [X] sang kiểu nút tròn đỏ macOS `#ff5f57` thống nhất toàn diện với giao diện hệ thống.
+
 ## [2.5.16] - 2026-09-18
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)

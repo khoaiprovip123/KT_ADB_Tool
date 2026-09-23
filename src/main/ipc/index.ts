@@ -1,5 +1,6 @@
 import { ipcMain, app, dialog } from "electron";
 import { initAdb, watchDevices, runAdbCommandDetailed } from "../core/adbCore";
+import { setTrayDevices } from "../tray";
 import { registerDeviceHandlers } from "./deviceHandlers";
 import { registerAppHandlers } from "./appHandlers";
 import { registerFileHandlers } from "./fileHandlers";
@@ -45,6 +46,7 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
         if (!mainWindow.isDestroyed()) {
           mainWindow.webContents.send("adb:device-update", devices);
         }
+        setTrayDevices(devices, mainWindow);
       });
     }
     return success;

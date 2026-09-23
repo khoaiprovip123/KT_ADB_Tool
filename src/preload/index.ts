@@ -174,6 +174,14 @@ const api = {
     ipcRenderer.invoke("adb:fix-all-notifications", deviceId),
   restoreAllNotifications: (deviceId: string) =>
     ipcRenderer.invoke("adb:restore-all-notifications", deviceId),
+  scanNotificationApps: (deviceId: string) =>
+    ipcRenderer.invoke("adb:scan-notification-apps", deviceId),
+  fixSingleNotification: (deviceId: string, packageName: string) =>
+    ipcRenderer.invoke("adb:fix-single-notification", deviceId, packageName),
+  fixBatchNotifications: (deviceId: string, targetPackages?: string[]) =>
+    ipcRenderer.invoke("adb:fix-batch-notifications", deviceId, targetPackages),
+  restoreBatchNotifications: (deviceId: string, packageNames?: string[]) =>
+    ipcRenderer.invoke("adb:restore-batch-notifications", deviceId, packageNames),
   onFixNotificationsProgress: (
     cb: (data: { current: number; total: number; pkgName: string }) => void,
   ) => {
