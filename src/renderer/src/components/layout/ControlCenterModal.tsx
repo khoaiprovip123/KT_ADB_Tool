@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Wifi,
   Settings,
@@ -9,9 +9,17 @@ import {
   Unplug,
   Loader2,
   Maximize2,
+  Volume2,
+  Camera,
+  Video,
+  ChevronLeft,
+  Circle,
+  Square,
+  FolderOpen,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { toast } from "../../store/toastStore";
 
 export function ControlCenterModal({
   isOpen,
@@ -23,7 +31,17 @@ export function ControlCenterModal({
   const { activeDevice } = useDeviceStore();
   const { settings, updateSettings } = useSettingsStore();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+
   const borderless = !!settings.scrcpyBorderless;
+  const audio = !!settings.scrcpyAudio;
+
+  useEffect(() => {
+    if (isOpen && activeDevice && window.api?.isScreenRecording) {
+      window.api.isScreenRecording(activeDevice).then((rec) => setIsRecording(rec));
+    }
+  }, [isOpen, activeDevice]);
 
   const handleDisconnect = async () => {
     if (!activeDevice) return;
@@ -46,10 +64,61 @@ export function ControlCenterModal({
     updateSettings({ scrcpyBorderless: !borderless });
   };
 
+  const toggleAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateSettings({ scrcpyAudio: !audio });
+  };
+
   const runScrcpy = (turnScreenOff: boolean) => {
     if (!activeDevice) return;
-    window.api.runScrcpy(activeDevice, turnScreenOff, borderless);
+    window.api.runScrcpy(activeDevice, turnScreenOff, borderless, audio);
     onClose();
+  };
+
+  const handleTakeScreenshot = async () => {
+    if (!activeDevice || isCapturing) return;
+    setIsCapturing(true);
+    try {
+      const res = await window.api.takeScreenshot(activeDevice);
+      if (res.success && res.filePath) {
+        toast.success("Đã chụp màn hình và sao chép vào bộ nhớ tạm (Clipboard)!");
+      } else {
+        toast.error(`Lỗi chụp màn hình: ${res.error || "Không xác định"}`);
+      }
+    } catch (e: any) {
+      toast.error(`Lỗi chụp màn hình: ${e.message}`);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleToggleRecording = async () => {
+    if (!activeDevice) return;
+    if (isRecording) {
+      setIsRecording(false);
+      try {
+        const res = await window.api.stopScreenRecord(activeDevice);
+        if (res.success && res.filePath) {
+          toast.success("Đã lưu video quay màn hình vào thư mục Videos!");
+        } else {
+          toast.error(`Lỗi lưu video: ${res.error || "Không thành công"}`);
+        }
+      } catch (e: any) {
+        toast.error(`Lỗi dừng quay video: ${e.message}`);
+      }
+    } else {
+      try {
+        const res = await window.api.startScreenRecord(activeDevice);
+        if (res.success) {
+          setIsRecording(true);
+          toast.info("Đang quay video màn hình thiết bị...");
+        } else {
+          toast.error(res.error || "Không thể bắt đầu quay video");
+        }
+      } catch (e: any) {
+        toast.error(`Lỗi quay video: ${e.message}`);
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -57,121 +126,218 @@ export function ControlCenterModal({
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose}></div>
-      <div className="absolute top-16 right-8 w-80 bg-white/90 backdrop-blur-3xl rounded-3xl border border-white/50 shadow-2xl shadow-blue-900/10 p-6 z-50 animate-in fade-in slide-in-from-top-4">
-        <h3 className="text-lg font-bold mb-4 text-slate-800 border-b border-slate-100 pb-2">
-          Trung tâm Điều khiển
-        </h3>
+      <div className="absolute top-16 right-8 w-84 bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl rounded-3xl border border-white/50 dark:border-slate-800 shadow-2xl shadow-blue-900/20 p-5 z-50 animate-in fade-in slide-in-from-top-4 max-h-[88vh] overflow-y-auto custom-scrollbar">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            Trung tâm Điều khiển
+          </h3>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            {activeDevice ? activeDevice.slice(0, 16) : "Chưa chọn thiết bị"}
+          </span>
+        </div>
 
         {/* Scrcpy Screen Mirroring Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={() => runScrcpy(false)}
-            className="col-span-2 flex items-center gap-3 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl transition-all shadow-md hover:shadow-lg"
+            className="col-span-2 flex items-center gap-3 p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
           >
-            <Cast className="w-5 h-5" />
+            <Cast className="w-5 h-5 shrink-0" />
             <div className="text-left">
-              <span className="block font-semibold text-sm">
-                Phản chiếu Màn hình
+              <span className="block font-semibold text-xs">
+                Phản chiếu Màn hình (Scrcpy)
               </span>
-              <span className="block text-xs text-blue-200">
-                Bật Scrcpy (Bình thường)
+              <span className="block text-[11px] text-blue-200">
+                Chiếu màn hình lên máy tính
               </span>
             </div>
           </button>
 
           <button
             onClick={() => runScrcpy(true)}
-            className="col-span-2 flex items-center gap-3 p-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl transition-all shadow-md"
+            className="col-span-2 flex items-center gap-3 p-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl transition-all shadow-md active:scale-[0.98]"
           >
-            <Smartphone className="w-5 h-5" />
+            <Smartphone className="w-5 h-5 shrink-0 text-slate-400" />
             <div className="text-left">
-              <span className="block font-semibold text-sm">
-                Phản chiếu Bí mật
+              <span className="block font-semibold text-xs">
+                Phản chiếu Bí mật (Tiết kiệm Pin)
               </span>
-              <span className="block text-xs text-slate-400">
-                Phản chiếu nhưng tắt màn hình điện thoại
+              <span className="block text-[11px] text-slate-400">
+                Chiếu PC nhưng tắt màn hình điện thoại
               </span>
             </div>
           </button>
         </div>
 
-        {/* Scrcpy Borderless Mode Toggle */}
-        <div className="flex items-center justify-between p-2.5 px-3 bg-slate-100/90 rounded-2xl mb-4 border border-slate-200/60 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-1.5 rounded-lg transition-colors ${borderless ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-500"}`}>
-              <Maximize2 className="w-3.5 h-3.5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-xs font-semibold text-slate-700">
+        {/* Scrcpy Feature Toggles */}
+        <div className="space-y-1.5 p-2 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl mb-3 border border-slate-200/60 dark:border-slate-700/60">
+          {/* Borderless */}
+          <div className="flex items-center justify-between p-1.5 px-2">
+            <div className="flex items-center gap-2">
+              <Maximize2 className={`w-3.5 h-3.5 ${borderless ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`} />
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Chiếu không viền
               </span>
-              <span className="block text-[10px] text-slate-400">
-                Borderless (Giữ Alt kéo cửa sổ)
+            </div>
+            <button
+              type="button"
+              onClick={toggleBorderless}
+              className={`w-8 h-4.5 rounded-full transition-colors p-0.5 relative shrink-0 ${
+                borderless ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
+              }`}
+            >
+              <div
+                className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                  borderless ? "translate-x-3.5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Audio Forwarding */}
+          <div className="flex items-center justify-between p-1.5 px-2">
+            <div className="flex items-center gap-2">
+              <Volume2 className={`w-3.5 h-3.5 ${audio ? "text-violet-600 dark:text-violet-400" : "text-slate-400"}`} />
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Truyền âm thanh ra PC
               </span>
             </div>
+            <button
+              type="button"
+              onClick={toggleAudio}
+              className={`w-8 h-4.5 rounded-full transition-colors p-0.5 relative shrink-0 ${
+                audio ? "bg-violet-600" : "bg-slate-300 dark:bg-slate-600"
+              }`}
+            >
+              <div
+                className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                  audio ? "translate-x-3.5" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
+        </div>
+
+        {/* 1-Click Screen Capture & Record */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            onClick={handleTakeScreenshot}
+            disabled={isCapturing || !activeDevice}
+            className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition-all border border-sky-200/60 dark:border-sky-800/60 active:scale-95"
+            title="Chụp ảnh màn hình lưu vào Pictures và sao chép vào Clipboard"
+          >
+            {isCapturing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}
+            <span className="text-xs font-semibold">Chụp màn hình</span>
+          </button>
+
+          <button
+            onClick={handleToggleRecording}
+            disabled={!activeDevice}
+            className={`flex items-center justify-center gap-2 p-2.5 rounded-xl transition-all border active:scale-95 ${
+              isRecording
+                ? "bg-red-600 text-white animate-pulse border-red-700"
+                : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 border-rose-200/60 dark:border-rose-800/60"
+            }`}
+            title={isRecording ? "Đang quay màn hình - Bấm để kết thúc và lưu" : "Bắt đầu quay video màn hình (.mp4)"}
+          >
+            <Video className="w-4 h-4" />
+            <span className="text-xs font-semibold">
+              {isRecording ? "Dừng quay" : "Quay video"}
+            </span>
+          </button>
+        </div>
+
+        {/* Mở nhanh thư mục lưu trữ */}
+        <div className="flex items-center justify-between px-1 mb-3 text-[11px] text-slate-500 dark:text-slate-400">
           <button
             type="button"
-            onClick={toggleBorderless}
-            className={`w-9 h-5 rounded-full transition-colors p-0.5 relative shrink-0 ${
-              borderless ? "bg-blue-600" : "bg-slate-300"
-            }`}
+            onClick={() => window.api.openCaptureFolder("screenshots")}
+            className="flex items-center gap-1 hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
+            title="Mở thư mục chứa ảnh chụp màn hình"
           >
-            <div
-              className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                borderless ? "translate-x-4" : "translate-x-0"
-              }`}
-            />
+            <FolderOpen className="w-3.5 h-3.5" /> Mở thư mục ảnh
           </button>
+          <button
+            type="button"
+            onClick={() => window.api.openCaptureFolder("videos")}
+            className="flex items-center gap-1 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+            title="Mở thư mục chứa video quay màn hình"
+          >
+            <FolderOpen className="w-3.5 h-3.5" /> Mở thư mục video
+          </button>
+        </div>
+
+        {/* Android Navigation Keys */}
+        <div className="flex items-center justify-between p-1.5 px-3 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl mb-3 border border-slate-200/60 dark:border-slate-700/60">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+            Phím ảo:
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => runAction("input keyevent 4")}
+              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+              title="Quay lại (Back)"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Back
+            </button>
+            <button
+              onClick={() => runAction("input keyevent 3")}
+              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+              title="Trang chính (Home)"
+            >
+              <Circle className="w-3 h-3" /> Home
+            </button>
+            <button
+              onClick={() => runAction("input keyevent 187")}
+              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+              title="Đa nhiệm (Recents)"
+            >
+              <Square className="w-3 h-3" /> Menu
+            </button>
+          </div>
         </div>
 
         {/* Quick Settings Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <ActionBtn
             icon={<Wifi />}
             label="Bật/Tắt WiFi"
             onClick={() => runAction("svc wifi enable")}
-            color="bg-blue-50 text-blue-600 hover:bg-blue-100"
-          />
-          <ActionBtn
-            icon={<Wifi className="rotate-45" />}
-            label="Phát WiFi"
-            onClick={() => runAction("cmd tethering tether wifi")}
-            color="bg-orange-50 text-orange-600 hover:bg-orange-100"
+            color="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
           />
           <ActionBtn
             icon={<RotateCcw />}
             label="Tự động Xoay"
             onClick={() =>
-              runAction(
-                "settings put system accelerometer_rotation 1",
-              )
+              runAction("settings put system accelerometer_rotation 1")
             }
-            color="bg-purple-50 text-purple-600 hover:bg-purple-100"
+            color="bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 hover:bg-purple-100"
           />
           <ActionBtn
             icon={<Settings />}
-            label="Cài đặt"
-            onClick={() =>
-              runAction("am start -a android.settings.SETTINGS")
-            }
-            color="bg-slate-100 text-slate-700 hover:bg-slate-200"
+            label="Cài đặt Android"
+            onClick={() => runAction("am start -a android.settings.SETTINGS")}
+            color="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
           />
           <ActionBtn
             icon={<PowerOff />}
             label="Tắt màn hình"
             onClick={() => runAction("input keyevent 26")}
-            color="bg-red-50 text-red-600 hover:bg-red-100 col-span-2"
+            color="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100"
           />
         </div>
 
         {/* Nút Xóa / Ngắt kết nối thiết bị */}
         {activeDevice && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <button
               onClick={handleDisconnect}
               disabled={isDisconnecting}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs transition-colors border border-red-200/60 shadow-sm"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold text-xs transition-colors border border-red-200/60 dark:border-red-800/60 shadow-sm"
               title="Xóa / Ngắt kết nối thiết bị đang chọn"
             >
               {isDisconnecting ? (
@@ -202,9 +368,9 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 p-3 rounded-xl transition-all ${color} border border-transparent hover:border-black/5`}
+      className={`flex items-center gap-2 p-2.5 rounded-xl transition-all ${color} border border-transparent hover:border-black/5 active:scale-95`}
     >
-      {React.cloneElement(icon, { className: "w-4 h-4" })}
+      {React.cloneElement(icon, { className: "w-4 h-4 shrink-0" })}
       <span className="text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
         {label}
       </span>

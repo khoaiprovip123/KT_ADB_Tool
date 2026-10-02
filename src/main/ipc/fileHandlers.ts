@@ -9,6 +9,7 @@ import {
   listDirectory,
   createDirectory,
   deleteFile,
+  deleteFiles,
   renameFile,
   pushFile,
   pullFile,
@@ -55,6 +56,26 @@ export function registerFileHandlers(mainWindow: Electron.BrowserWindow) {
       } catch (err) {
         console.warn("[SECURITY] adb:delete-file rejected:", err);
         return false;
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "adb:delete-files",
+    async (_event, { deviceId, remotePaths }) => {
+      try {
+        assertValidDeviceId(deviceId);
+        if (!Array.isArray(remotePaths)) {
+          return { success: false, deletedCount: 0, errors: ["Invalid remotePaths array"] };
+        }
+        const normalized = remotePaths.map((p) => {
+          assertValidRemotePath(p);
+          return normalizeRemotePath(p);
+        });
+        return await deleteFiles(deviceId, normalized);
+      } catch (err: any) {
+        console.warn("[SECURITY] adb:delete-files rejected:", err);
+        return { success: false, deletedCount: 0, errors: [err?.message || "Lỗi quyền hoặc đường dẫn"] };
       }
     },
   );
@@ -163,5 +184,13 @@ export function registerFileHandlers(mainWindow: Electron.BrowserWindow) {
       properties: ["openFile"],
     });
     return result.filePaths[0];
+  });
+
+  ipcMain.handle("dialog:open-files", async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ["openFile", "multiSelections"],
+      title: "Chọn tệp tin để tải lên điện thoại",
+    });
+    return result.filePaths;
   });
 }

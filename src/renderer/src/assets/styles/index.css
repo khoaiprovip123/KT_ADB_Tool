@@ -62,6 +62,37 @@ body {
   backdrop-filter: blur(30px) saturate(125%);
 }
 
+/* Liquid Glassmorphism with Blurred Wallpaper */
+.app-shell.has-custom-wallpaper {
+  background: rgba(255, 255, 255, 0.68) !important;
+  backdrop-filter: blur(32px) saturate(135%) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+html.dark .app-shell.has-custom-wallpaper {
+  background: rgba(15, 23, 42, 0.62) !important;
+  backdrop-filter: blur(32px) saturate(135%) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.has-custom-wallpaper .app-sidebar,
+.has-custom-wallpaper .app-header {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(24px) !important;
+}
+
+html.dark .has-custom-wallpaper .app-sidebar,
+html.dark .has-custom-wallpaper .app-header {
+  background: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(24px) !important;
+}
+
+.has-custom-wallpaper .app-main {
+  background: transparent !important;
+}
+
 .app-sidebar {
   background:
     linear-gradient(180deg, rgba(247, 252, 255, 0.88), rgba(233, 243, 249, 0.82));

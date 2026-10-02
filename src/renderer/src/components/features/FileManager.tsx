@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Folder,
   File,
@@ -22,6 +22,8 @@ import {
   Monitor,
   Smartphone,
   Search,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDeviceStore } from "../../store/deviceStore";
@@ -41,9 +43,15 @@ export function FileManager() {
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const confirmDeleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const confirmBulkTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSelectedFileRef = useRef<string | null>(null);
   const [history, setHistory] = useState<string[]>(["HOME"]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [isFileDragging, setIsFileDragging] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -239,20 +247,207 @@ export function FileManager() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!activeDevice) return;
-    if (selectedFiles.size === 0) return;
-    if (
-      !window.confirm(
-        `Xóa ${selectedFiles.size} mục đã chọn? Thao tác này không thể hoàn tác.`,
-      )
-    )
-      return;
+  // Clear any armed confirmation timer
+  const clearConfirmTimers = () => {
+    if (confirmDeleteTimerRef.current) {
+      clearTimeout(confirmDeleteTimerRef.current);
+      confirmDeleteTimerRef.current = null;
+    }
+    if (confirmBulkTimerRef.current) {
+      clearTimeout(confirmBulkTimerRef.current);
+      confirmBulkTimerRef.current = null;
+    }
+    setConfirmDeleteFile(null);
+    setConfirmBulkDelete(false);
+  };
 
+  useEffect(() => {
+    return () => {
+      clearConfirmTimers();
+    };
+  }, []);
+
+  // Multi-select helpers
+  const toggleSelectFile = (fileName: string) => {
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileName)) {
+        next.delete(fileName);
+      } else {
+        next.add(fileName);
+      }
+      return next;
+    });
+    lastSelectedFileRef.current = fileName;
+    clearConfirmTimers();
+  };
+
+  const rangeSelectFiles = (targetName: string) => {
+    const last = lastSelectedFileRef.current;
+    if (!last) {
+      toggleSelectFile(targetName);
+      return;
+    }
+    const names = paginatedFiles.map((f) => f.name);
+    const idxA = names.indexOf(last);
+    const idxB = names.indexOf(targetName);
+    if (idxA === -1 || idxB === -1) {
+      toggleSelectFile(targetName);
+      return;
+    }
+    const [start, end] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      for (let i = start; i <= end; i++) {
+        next.add(names[i]);
+      }
+      return next;
+    });
+    lastSelectedFileRef.current = targetName;
+    clearConfirmTimers();
+  };
+
+  const isAllSelected = useMemo(() => {
+    if (paginatedFiles.length === 0) return false;
+    return paginatedFiles.every((f) => selectedFiles.has(f.name));
+  }, [paginatedFiles, selectedFiles]);
+
+  const isSomeSelected = useMemo(() => {
+    return selectedFiles.size > 0 && !isAllSelected;
+  }, [selectedFiles.size, isAllSelected]);
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(filteredFiles.map((f) => f.name)));
+    }
+    clearConfirmTimers();
+  };
+
+  // Keyboard shortcuts (Ctrl+A to select all, Esc to deselect, Delete to arm bulk delete)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        if (currentPath !== "HOME" && filteredFiles.length > 0) {
+          e.preventDefault();
+          setSelectedFiles(new Set(filteredFiles.map((f) => f.name)));
+          clearConfirmTimers();
+        }
+      } else if (e.key === "Escape") {
+        if (selectedFiles.size > 0 || confirmBulkDelete || confirmDeleteFile) {
+          setSelectedFiles(new Set());
+          clearConfirmTimers();
+        }
+      } else if (e.key === "Delete") {
+        if (selectedFiles.size > 0) {
+          setConfirmBulkDelete(true);
+          if (confirmBulkTimerRef.current) clearTimeout(confirmBulkTimerRef.current);
+          confirmBulkTimerRef.current = setTimeout(() => setConfirmBulkDelete(false), 4000);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentPath, filteredFiles, selectedFiles.size, confirmBulkDelete, confirmDeleteFile]);
+
+  // 2-Step Definitive Delete on Single Row
+  const handleSingleDeleteClick = (e: React.MouseEvent, fileName: string) => {
+    e.stopPropagation();
+
+    // If already armed for this file -> 2nd click! Execute deletion immediately
+    if (confirmDeleteFile === fileName) {
+      if (confirmDeleteTimerRef.current) {
+        clearTimeout(confirmDeleteTimerRef.current);
+        confirmDeleteTimerRef.current = null;
+      }
+      setConfirmDeleteFile(null);
+      executeSingleDelete(fileName);
+      return;
+    }
+
+    // First click: arm confirmation with 3.5s timeout
+    clearConfirmTimers();
+    setConfirmDeleteFile(fileName);
+    confirmDeleteTimerRef.current = setTimeout(() => {
+      setConfirmDeleteFile(null);
+    }, 3500);
+  };
+
+  const executeSingleDelete = async (fileName: string) => {
+    if (!activeDevice) return;
+    toast.info(`Đang xóa "${fileName}"...`);
     setLoading(true);
     try {
-      for (const name of selectedFiles) {
-        await window.api.deleteFile(activeDevice, `${currentPath}/${name}`);
+      const ok = await window.api.deleteFile(
+        activeDevice,
+        `${currentPath}/${fileName}`,
+      );
+      if (ok) {
+        toast.success(`Đã xóa vĩnh viễn: ${fileName}`);
+        setSelectedFiles((prev) => {
+          const next = new Set(prev);
+          next.delete(fileName);
+          return next;
+        });
+        loadFiles(currentPath);
+      } else {
+        toast.error(`Không thể xóa "${fileName}".`);
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi khi xóa: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2-Step Definitive Bulk Deletion
+  const handleBulkDeleteClick = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    // If already armed -> 2nd click! Execute bulk deletion immediately
+    if (confirmBulkDelete) {
+      if (confirmBulkTimerRef.current) {
+        clearTimeout(confirmBulkTimerRef.current);
+        confirmBulkTimerRef.current = null;
+      }
+      setConfirmBulkDelete(false);
+      executeBulkDelete();
+      return;
+    }
+
+    // First click: arm confirmation with 4s timeout
+    clearConfirmTimers();
+    setConfirmBulkDelete(true);
+    confirmBulkTimerRef.current = setTimeout(() => {
+      setConfirmBulkDelete(false);
+    }, 4000);
+  };
+
+  const executeBulkDelete = async () => {
+    if (!activeDevice || selectedFiles.size === 0) return;
+    const count = selectedFiles.size;
+    const paths = Array.from(selectedFiles).map((name) => `${currentPath}/${name}`);
+
+    toast.info(`Đang xóa dứt điểm ${count} mục...`);
+    setLoading(true);
+    try {
+      if (window.api.deleteFiles) {
+        const result = await window.api.deleteFiles(activeDevice, paths);
+        if (result.success || result.deletedCount > 0) {
+          toast.success(`Đã xóa thành công ${result.deletedCount}/${count} mục!`);
+        } else {
+          toast.error(`Xóa thất bại: ${result.errors.join("; ") || "Lỗi quyền hoặc đường dẫn"}`);
+        }
+      } else {
+        for (const p of paths) {
+          await window.api.deleteFile(activeDevice, p);
+        }
+        toast.success(`Đã xóa thành công ${count} mục!`);
       }
       setSelectedFiles(new Set());
       loadFiles(currentPath);
@@ -263,18 +458,86 @@ export function FileManager() {
     }
   };
 
+  const handleFileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isFileDragging) setIsFileDragging(true);
+  };
+
+  const handleFileDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsFileDragging(false);
+  };
+
+  const handleFileDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsFileDragging(false);
+
+    if (!activeDevice) {
+      toast.warning("Vui lòng kết nối thiết bị trước.");
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    const targetDir = currentPath === "HOME" ? "/sdcard/Download" : currentPath;
+    let uploadedCount = 0;
+
+    for (const file of files) {
+      const localPath = window.api?.getPathForFile
+        ? window.api.getPathForFile(file)
+        : ((file as any).path || "");
+      if (!localPath) {
+        toast.error(`Không thể đọc đường dẫn tệp: ${file.name}`);
+        continue;
+      }
+      toast.info(`Đang tải lên: ${file.name}...`);
+      try {
+        const ok = await window.api.pushFile(activeDevice, localPath, targetDir);
+        if (ok) uploadedCount++;
+      } catch (err: any) {
+        toast.error(`Lỗi tải "${file.name}": ${err.message}`);
+      }
+    }
+
+    if (uploadedCount > 0) {
+      toast.success(`Đã tải lên ${uploadedCount} tệp tin thành công!`);
+      if (currentPath !== "HOME") {
+        loadFiles(currentPath);
+      } else {
+        navigateTo("/sdcard/Download");
+      }
+    }
+  };
+
   const handleUpload = async () => {
     if (!activeDevice) return;
     try {
-      const localPath = await window.api.openFileDialog();
-      if (!localPath) return;
-      const fileName = localPath.split(/[\\/]/).pop();
-      await window.api.pushFile(
-        activeDevice,
-        localPath,
-        `${currentPath}/${fileName}`,
-      );
-      loadFiles(currentPath);
+      const localPaths = window.api.openFilesDialog
+        ? await window.api.openFilesDialog()
+        : [await window.api.openFileDialog()];
+      if (!localPaths || localPaths.length === 0) return;
+      const targetDir = currentPath === "HOME" ? "/sdcard/Download" : currentPath;
+      let count = 0;
+      for (const localPath of localPaths) {
+        if (!localPath) continue;
+        const fileName = localPath.split(/[\\/]/).pop();
+        toast.info(`Đang tải lên: ${fileName}...`);
+        const ok = await window.api.pushFile(activeDevice, localPath, targetDir);
+        if (ok) count++;
+      }
+      if (count > 0) {
+        toast.success(`Đã tải lên ${count} tệp tin thành công!`);
+        if (currentPath !== "HOME") {
+          loadFiles(currentPath);
+        } else {
+          navigateTo("/sdcard/Download");
+        }
+      }
     } catch (err: any) {
       toast.error(`Lỗi tải lên: ${err.message}`);
     }
@@ -489,15 +752,15 @@ export function FileManager() {
             <button
               onClick={handleNewFolder}
               disabled={currentPath === "HOME"}
-              className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm disabled:opacity-30"
+              className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 transition-all shadow-sm disabled:opacity-30"
               title="Thư mục mới"
             >
               <FolderPlus size={18} />
             </button>
             <button
               onClick={handleUpload}
-              disabled={currentPath === "HOME"}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-30"
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
+              title="Tải tệp từ máy tính lên thư mục hiện tại"
             >
               <Upload size={16} />
               <span>Tải lên</span>
@@ -507,21 +770,62 @@ export function FileManager() {
       </div>
 
       {/* FILE LIST / HOME VIEW */}
-      <div className="flex-1 bg-white/60 backdrop-blur-3xl rounded-3xl border border-white/50 shadow-xl shadow-blue-900/5 flex flex-col relative z-0 overflow-hidden">
+      <div
+        onDragOver={handleFileDragOver}
+        onDragLeave={handleFileDragLeave}
+        onDrop={handleFileDrop}
+        className="flex-1 bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-3xl border border-white/50 dark:border-slate-800 shadow-xl shadow-blue-900/5 flex flex-col relative z-0 overflow-hidden"
+      >
+        {/* Drop zone overlay inside FileManager */}
+        {isFileDragging && (
+          <div
+            onDragOver={handleFileDragOver}
+            onDragLeave={handleFileDragLeave}
+            onDrop={handleFileDrop}
+            className="absolute inset-0 z-50 bg-blue-600/90 dark:bg-blue-700/90 backdrop-blur-md border-4 border-dashed border-white rounded-3xl m-3 flex flex-col items-center justify-center gap-3 text-white pointer-events-auto animate-in fade-in zoom-in-95 duration-150 select-none"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-white shadow-xl animate-bounce">
+              <Upload className="w-8 h-8" />
+            </div>
+            <h4 className="text-xl font-bold">Thả tệp vào đây để tải lên điện thoại</h4>
+            <p className="text-sm text-blue-100 font-medium">
+              Vị trí lưu: <span className="font-mono bg-white/20 px-2.5 py-1 rounded-lg text-white font-bold">{currentPath === "HOME" ? "/sdcard/Download" : currentPath}</span>
+            </p>
+          </div>
+        )}
         {currentPath === "HOME" ? (
           renderHomeView()
         ) : (
           <>
-            <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0 items-center">
+            <div className="grid grid-cols-12 gap-3 px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 shrink-0 items-center select-none text-xs font-bold text-slate-500 uppercase tracking-wider">
               <div className="col-span-7 flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Tên tệp
-                </span>
+                {/* Checkbox chọn tất cả */}
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                    isAllSelected
+                      ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                      : isSomeSelected
+                        ? "bg-blue-500 border-blue-500 text-white shadow-sm"
+                        : "border-slate-300 dark:border-slate-600 hover:border-blue-500 bg-white dark:bg-slate-700"
+                  }`}
+                  title={isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả (Ctrl+A)"}
+                >
+                  {isAllSelected && <Check size={12} strokeWidth={3} />}
+                  {isSomeSelected && <Minus size={12} strokeWidth={3} />}
+                </button>
+                <span>Tên tệp</span>
+                {selectedFiles.size > 0 && (
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 normal-case bg-blue-50 dark:bg-blue-900/40 px-2 py-0.5 rounded-full">
+                    Đã chọn {selectedFiles.size}/{filteredFiles.length}
+                  </span>
+                )}
               </div>
-              <div className="col-span-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="col-span-2">
                 Kích thước
               </div>
-              <div className="col-span-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+              <div className="col-span-3 text-right">
                 Ngày sửa đổi
               </div>
             </div>
@@ -567,22 +871,56 @@ export function FileManager() {
                     return (
                       <div
                         key={file.name}
-                        className={`grid grid-cols-12 gap-4 px-6 py-3 items-center transition-all cursor-pointer group ${isSelected ? "bg-blue-50/80" : "hover:bg-slate-50/50"}`}
-                        onClick={() =>
-                          file.isDir
-                            ? navigateTo(`${currentPath}/${file.name}`)
-                            : navigateTo(`${currentPath}/${file.name}`, true)
-                        }
+                        className={`grid grid-cols-12 gap-3 px-6 py-2.5 items-center transition-all cursor-pointer group border-b border-slate-50 dark:border-slate-800/40 ${
+                          isSelected
+                            ? "bg-blue-50/90 dark:bg-blue-950/40 text-blue-900 dark:text-blue-100 border-blue-100 dark:border-blue-900/50"
+                            : "hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-200"
+                        }`}
+                        onClick={(e) => {
+                          if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            toggleSelectFile(file.name);
+                          } else if (e.shiftKey) {
+                            e.preventDefault();
+                            rangeSelectFiles(file.name);
+                          } else {
+                            file.isDir
+                              ? navigateTo(`${currentPath}/${file.name}`)
+                              : navigateTo(`${currentPath}/${file.name}`, true);
+                          }
+                        }}
                         onDoubleClick={() =>
                           file.isDir &&
                           navigateTo(`${currentPath}/${file.name}`)
                         }
                       >
                         <div className="col-span-7 flex items-center gap-3 truncate">
+                          {/* Row Checkbox */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (e.shiftKey) {
+                                rangeSelectFiles(file.name);
+                              } else {
+                                toggleSelectFile(file.name);
+                              }
+                            }}
+                            className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
+                              isSelected
+                                ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                                : "border-slate-300 dark:border-slate-600 hover:border-blue-500 bg-white dark:bg-slate-700 opacity-60 group-hover:opacity-100"
+                            }`}
+                            title={isSelected ? "Bỏ chọn" : "Chọn tệp"}
+                          >
+                            {isSelected && <Check size={12} strokeWidth={3} />}
+                          </button>
+
                           <div className="shrink-0">{getFileIcon(file)}</div>
-                          <div className="flex flex-col truncate">
+
+                          <div className="flex flex-col truncate min-w-0">
                             <span
-                              className={`text-sm font-bold truncate ${isSelected ? "text-blue-900" : "text-slate-700"}`}
+                              className={`text-sm truncate ${isSelected ? "font-bold text-blue-700 dark:text-blue-300" : "font-semibold"}`}
                             >
                               {file.name}
                             </span>
@@ -593,14 +931,17 @@ export function FileManager() {
                             )}
                           </div>
                         </div>
-                        <div className="col-span-2 text-xs font-medium text-slate-500">
+
+                        <div className="col-span-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                           {file.isDir ? "--" : formatSize(file.size)}
                         </div>
+
                         <div className="col-span-3 text-xs font-medium text-slate-400 text-right group-hover:hidden">
                           {formatDate(file.mtime)}
                         </div>
+
                         {/* Hover Actions */}
-                        <div className="col-span-3 hidden group-hover:flex items-center justify-end gap-1 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <div className="col-span-3 hidden group-hover:flex items-center justify-end gap-1.5 animate-in fade-in duration-150">
                           {!file.isDir && (
                             <ActionBtn
                               icon={<Download />}
@@ -609,17 +950,28 @@ export function FileManager() {
                                 handleDownload(file);
                               }}
                               color="hover:bg-blue-100 text-blue-600"
+                              title="Tải về máy tính"
                             />
                           )}
-                          <ActionBtn
-                            icon={<Trash2 />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFiles(new Set([file.name]));
-                              handleDelete();
-                            }}
-                            color="hover:bg-red-100 text-red-600"
-                          />
+
+                          {/* 2-Step Row Delete Button */}
+                          {confirmDeleteFile === file.name ? (
+                            <button
+                              onClick={(e) => handleSingleDeleteClick(e, file.name)}
+                              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-black flex items-center gap-1 shadow-md shadow-red-600/30 animate-pulse transition-all active:scale-95"
+                              title="Bấm lần nữa để xóa hẳn ngay!"
+                            >
+                              <AlertTriangle size={13} />
+                              <span>Xóa hẳn?</span>
+                            </button>
+                          ) : (
+                            <ActionBtn
+                              icon={<Trash2 />}
+                              onClick={(e) => handleSingleDeleteClick(e, file.name)}
+                              color="hover:bg-red-100 text-red-600 hover:text-red-700"
+                              title="Bấm để xóa (Cần bấm 2 lần xác nhận)"
+                            />
+                          )}
                         </div>
                       </div>
                     );
@@ -659,34 +1011,62 @@ export function FileManager() {
         <AnimatePresence>
           {selectedFiles.size > 0 && (
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-2xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 z-50 border border-white/10"
+              initial={{ y: 80, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 80, opacity: 0, scale: 0.95 }}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 dark:bg-slate-900/95 backdrop-blur-2xl text-white px-5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-4 z-50 border border-white/10 select-none ring-1 ring-black/20"
             >
-              <div className="flex items-center gap-3 border-r border-white/10 pr-6">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black">
+              <div className="flex items-center gap-2.5 border-r border-white/15 pr-4">
+                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-black shadow-inner">
                   {selectedFiles.size}
                 </div>
-                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
                   Đã chọn
                 </span>
               </div>
-              <div className="flex items-center gap-4">
+
+              <button
+                onClick={toggleSelectAll}
+                className="text-xs font-semibold text-slate-300 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                {isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              </button>
+
+              <div className="w-px h-4 bg-white/15" />
+
+              {/* 2-Step Bulk Delete Button */}
+              {confirmBulkDelete ? (
                 <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 text-xs font-bold hover:text-red-400 transition-colors uppercase tracking-wider"
+                  onClick={handleBulkDeleteClick}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-red-600/40 ring-2 ring-red-400 animate-pulse active:scale-95"
+                  title="Bấm lần nữa để xóa hẳn tất cả mục đã chọn"
                 >
-                  <Trash2 size={14} /> Xóa
+                  <AlertTriangle size={14} />
+                  <span>Bấm lại để xóa hẳn ({selectedFiles.size}) mục!</span>
                 </button>
-                <div className="w-px h-4 bg-white/10" />
+              ) : (
                 <button
-                  onClick={() => setSelectedFiles(new Set())}
-                  className="text-xs font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-wider"
+                  onClick={handleBulkDeleteClick}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-500/15 hover:bg-red-600 text-red-300 hover:text-white rounded-xl text-xs font-bold transition-all border border-red-500/30 hover:border-transparent active:scale-95"
+                  title="Xóa các mục đã chọn (Bấm 2 lần)"
                 >
-                  Hủy
+                  <Trash2 size={14} />
+                  <span>Xóa ({selectedFiles.size})</span>
                 </button>
-              </div>
+              )}
+
+              <div className="w-px h-4 bg-white/15" />
+
+              <button
+                onClick={() => {
+                  setSelectedFiles(new Set());
+                  clearConfirmTimers();
+                }}
+                className="text-xs font-semibold text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+                title="Bỏ chọn (Esc)"
+              >
+                Hủy
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -834,14 +1214,17 @@ function ActionBtn({
   icon,
   onClick,
   color,
+  title,
 }: {
   icon: React.ReactElement;
   onClick: (e: React.MouseEvent) => void;
   color: string;
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={`p-2 rounded-lg transition-colors ${color}`}
     >
       {React.cloneElement(icon, { className: "w-4 h-4" })}

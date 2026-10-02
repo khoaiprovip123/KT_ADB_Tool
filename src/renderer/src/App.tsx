@@ -18,6 +18,9 @@ import {
   Square,
   X,
   Unplug,
+  Camera,
+  Cast,
+  Upload,
 } from "lucide-react";
 import { useDeviceStore } from "./store/deviceStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -30,6 +33,7 @@ import { ConnectionManagerModal } from "./components/layout/ConnectionManagerMod
 import { UpdateModal } from "./components/layout/UpdateModal";
 import { ToastProvider } from "./components/layout/ToastProvider";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+import { WALLPAPER_PRESETS } from "./features/settings/constants/wallpapers";
 import logoImg from "./assets/images/logo.png";
 
 const AppManager = React.lazy(() =>
@@ -81,6 +85,7 @@ function App() {
   const [isConnManagerOpen, setIsConnManagerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [hasUpdate, setHasUpdate] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const { settings, loadSettings } = useSettingsStore();
   const { devices, activeDevice, setDevices, addLog } = useDeviceStore();
 
@@ -177,9 +182,155 @@ function App() {
     }
   }, [settings.theme]);
 
+  const isDarkTheme =
+    settings.theme === "dark" ||
+    (settings.theme === "system" &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const activePreset =
+    WALLPAPER_PRESETS.find(
+      (p) => p.id === (settings.wallpaperPreset || "aurora"),
+    ) || WALLPAPER_PRESETS[0];
+
+  const hasWallpaper =
+    settings.wallpaperType && settings.wallpaperType !== "none";
+
+  const wallpaperBackground =
+    settings.wallpaperType === "preset"
+      ? activePreset.gradient
+      : settings.wallpaperType === "custom" && settings.wallpaperCustomDataUrl
+        ? `url(${settings.wallpaperCustomDataUrl}) center/cover no-repeat`
+        : activePreset.gradient;
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (activeTab === "files") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (activeTab === "files") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    if (activeTab === "files") return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    if (!activeDevice) {
+      toast.warning("Vui lòng kết nối và chọn một thiết bị trước khi kéo thả file.");
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      const filePath = window.api?.getPathForFile
+        ? window.api.getPathForFile(file)
+        : ((file as any).path || "");
+      if (!filePath) {
+        toast.error(`Không thể đọc đường dẫn tệp: ${file.name}`);
+        continue;
+      }
+      const isApk = file.name.toLowerCase().endsWith(".apk");
+
+      if (isApk) {
+        toast.info(`Đang cài đặt APK: ${file.name}...`);
+        try {
+          const res = await window.api.installApk(activeDevice, filePath);
+          if (res && res.success !== false) {
+            toast.success(`Cài đặt thành công: ${file.name}`);
+          } else {
+            toast.error(`Cài đặt thất bại: ${res?.error || file.name}`);
+          }
+        } catch (err: any) {
+          toast.error(`Lỗi cài đặt ${file.name}: ${err.message}`);
+        }
+      } else {
+        toast.info(`Đang chuyển file ${file.name} vào /sdcard/Download/...`);
+        try {
+          const res = await window.api.pushFile(activeDevice, filePath, "/sdcard/Download/");
+          if (res && res.success !== false) {
+            toast.success(`Đã sao chép ${file.name} vào Download!`);
+          } else {
+            toast.error(`Lỗi chuyển file ${file.name}`);
+          }
+        } catch (err: any) {
+          toast.error(`Lỗi chuyển file: ${err.message}`);
+        }
+      }
+    }
+  };
+
   return (
-    <div className="app-shell flex h-full w-full text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
-      <ToastProvider />
+    <>
+      {/* Kéo thả cài đặt APK / Push file Overlay */}
+      {isDraggingOver && (
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className="fixed inset-0 z-50 bg-slate-900/85 backdrop-blur-2xl border-4 border-dashed border-blue-500 rounded-3xl m-4 flex flex-col items-center justify-center gap-4 text-white animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-400 shadow-2xl animate-bounce">
+            <Upload className="w-10 h-10" />
+          </div>
+          <div className="text-center space-y-1">
+            <h3 className="text-xl font-bold">Thả file vào đây</h3>
+            <p className="text-sm text-blue-200 font-medium">
+              File <span className="font-mono text-amber-300 font-bold">.apk</span> sẽ được tự động cài đặt ngay vào thiết bị
+            </p>
+            <p className="text-xs text-slate-400">
+              Các file khác (ảnh, zip, data) sẽ được đẩy vào <span className="font-mono text-emerald-300">/sdcard/Download/</span>
+            </p>
+          </div>
+          {activeDevice && (
+            <span className="text-xs px-3.5 py-1.5 rounded-full bg-white/10 text-slate-200 border border-white/20">
+              Thiết bị nhận: {devices.find((d) => d.id === activeDevice)?.model || activeDevice}
+            </span>
+          )}
+        </div>
+      )}
+
+      {hasWallpaper && (
+        <div
+          className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <div
+            className="absolute -inset-10 transition-all duration-700 ease-out"
+            style={{
+              background: wallpaperBackground,
+              filter: `blur(${settings.wallpaperBlur ?? 20}px)`,
+              transform: "scale(1.12)",
+            }}
+          />
+          {/* Contrast Tint Overlay */}
+          <div
+            className="absolute inset-0 transition-opacity duration-300"
+            style={{
+              backgroundColor: isDarkTheme ? "#020617" : "#f8fafc",
+              opacity: (settings.wallpaperOverlay ?? 35) / 100,
+            }}
+          />
+        </div>
+      )}
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`app-shell ${hasWallpaper ? "has-custom-wallpaper" : ""} relative z-10 flex h-full w-full text-slate-800 dark:text-slate-100 overflow-hidden font-sans`}
+      >
+        <ToastProvider />
       <ConnectionManagerModal
         isOpen={isConnManagerOpen}
         onClose={() => setIsConnManagerOpen(false)}
@@ -338,8 +489,49 @@ function App() {
 
           <div
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-            className="flex items-center gap-4"
+            className="flex items-center gap-2.5"
           >
+            {/* Quick Action Buttons for Active Device */}
+            {activeDevice && (
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-800/90 rounded-full border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                {/* 1-Click Screenshot */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await window.api.takeScreenshot(activeDevice);
+                      if (res.success) {
+                        toast.success("Đã chụp màn hình và sao chép vào Clipboard!");
+                      } else {
+                        toast.error(res.error || "Lỗi chụp ảnh màn hình");
+                      }
+                    } catch (e: any) {
+                      toast.error(`Lỗi: ${e.message}`);
+                    }
+                  }}
+                  className="p-1.5 rounded-full text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                  title="1-Click Chụp ảnh màn hình (Lưu file & Copy clipboard)"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+
+                {/* 1-Click Scrcpy */}
+                <button
+                  onClick={() => {
+                    window.api.runScrcpy(
+                      activeDevice,
+                      false,
+                      settings.scrcpyBorderless,
+                      settings.scrcpyAudio,
+                    );
+                  }}
+                  className="p-1.5 rounded-full text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                  title="Chiếu màn hình (Scrcpy)"
+                >
+                  <Cast className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <div className="relative">
               <button
                 onClick={() => setIsCcOpen(!isCcOpen)}
@@ -488,7 +680,8 @@ function App() {
         <UpdateModal />
       </main>
     </div>
-  );
+  </>
+);
 }
 
 function NavItem({

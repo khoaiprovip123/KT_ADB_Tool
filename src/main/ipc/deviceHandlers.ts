@@ -71,12 +71,16 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
 
   ipcMain.handle(
     "adb:run-scrcpy",
-    async (_event, { deviceId, turnScreenOff, borderless }) => {
+    async (_event, { deviceId, turnScreenOff, borderless, audio }) => {
       if (!isValidDeviceId(deviceId)) return "FAILED";
       const useBorderless =
         typeof borderless === "boolean"
           ? borderless
           : ((store.get("scrcpyBorderless") as boolean) ?? false);
+      const useAudio =
+        typeof audio === "boolean"
+          ? audio
+          : ((store.get("scrcpyAudio") as boolean) ?? false);
       return await runScrcpy(
         deviceId,
         turnScreenOff,
@@ -86,6 +90,7 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
           }
         },
         useBorderless,
+        useAudio,
       );
     },
   );

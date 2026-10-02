@@ -151,6 +151,7 @@ export async function runScrcpy(
   turnScreenOff: boolean,
   onLog: (log: string) => void,
   borderless: boolean = false,
+  audio: boolean = false,
 ) {
   try {
     // Dừng tiến trình cũ nếu có
@@ -188,8 +189,9 @@ export async function runScrcpy(
     ];
     if (turnScreenOff) containerArgs.push("--turn-screen-off");
     if (borderless) containerArgs.push("--borderless");
+    if (audio) containerArgs.push("--audio");
 
-    onLog(`[Scrcpy] Khởi động "${deviceDisplayName}" (target=${targetSerial}, ratio=${aspectData.aspectRatio.toFixed(3)}, keyboard=sdk, borderless=${borderless})`);
+    onLog(`[Scrcpy] Khởi động "${deviceDisplayName}" (target=${targetSerial}, ratio=${aspectData.aspectRatio.toFixed(3)}, keyboard=sdk, borderless=${borderless}, audio=${audio})`);
     const containerProcess = spawn(containerExe, containerArgs, {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],

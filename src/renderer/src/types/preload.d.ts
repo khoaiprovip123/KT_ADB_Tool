@@ -37,6 +37,7 @@ export interface IADBAPI {
     deviceId: string,
     turnScreenOff: boolean,
     borderless?: boolean,
+    audio?: boolean,
   ) => Promise<any>;
   connectWifi: (deviceId: string, ip: string) => Promise<any>;
   connectIp: (ip: string) => Promise<any>;
@@ -64,6 +65,10 @@ export interface IADBAPI {
   listDirectory: (deviceId: string, remotePath: string) => Promise<FileInfo[]>;
   createDirectory: (deviceId: string, remotePath: string) => Promise<any>;
   deleteFile: (deviceId: string, remotePath: string) => Promise<any>;
+  deleteFiles: (
+    deviceId: string,
+    remotePaths: string[],
+  ) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>;
   renameFile: (
     deviceId: string,
     oldPath: string,
@@ -332,6 +337,37 @@ export interface IADBAPI {
     }) => void,
   ) => () => void;
   onFastbootFlashLog: (cb: (log: string) => void) => () => void;
+  selectWallpaper: () => Promise<{
+    dataUrl: string;
+    fileName: string;
+  } | null>;
+  getCustomWallpaper: () => Promise<string | null>;
+  removeCustomWallpaper: () => Promise<boolean>;
+
+  // Screen capture & recording
+  takeScreenshot: (deviceId: string) => Promise<{
+    success: boolean;
+    filePath?: string;
+    message?: string;
+    error?: string;
+  }>;
+  startScreenRecord: (deviceId: string) => Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  stopScreenRecord: (deviceId: string) => Promise<{
+    success: boolean;
+    filePath?: string;
+    message?: string;
+    error?: string;
+  }>;
+  isScreenRecording: (deviceId: string) => Promise<boolean>;
+  openCaptureFolder: (type: "screenshots" | "videos") => Promise<boolean>;
+
+  // File drag & drop / selection utilities
+  getPathForFile: (file: File) => string;
+  openFilesDialog: () => Promise<string[]>;
 }
 
 declare global {

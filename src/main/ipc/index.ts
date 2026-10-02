@@ -1,4 +1,6 @@
 import { ipcMain, app, dialog } from "electron";
+import * as path from "path";
+import * as fs from "fs";
 import { initAdb, watchDevices, runAdbCommandDetailed } from "../core/adbCore";
 import { setTrayDevices } from "../tray";
 import { registerDeviceHandlers } from "./deviceHandlers";
@@ -9,6 +11,13 @@ import { registerXiaomiExperienceHandlers } from "./xiaomiExperienceHandlers";
 import { registerAdvancedAdbHandlers } from "./advancedAdbHandlers";
 import { registerQuickCleanerHandlers } from "./quickCleanerHandlers";
 import { registerFastbootRomHandlers } from "./fastbootRomHandlers";
+import {
+  captureDeviceScreenshot,
+  startDeviceRecording,
+  stopDeviceRecording,
+  isScreenRecording,
+  openCaptureFolder,
+} from "../core/screenCaptureService";
 import { store } from "../store";
 import { assertValidDeviceId, assertValidShellCommand } from "./validate";
 
@@ -95,6 +104,12 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
     "adbPath",
     "cleanerWhitelist",
     "minimizeToTray",
+    "scrcpyBorderless",
+    "scrcpyAudio",
+    "wallpaperType",
+    "wallpaperPreset",
+    "wallpaperBlur",
+    "wallpaperOverlay",
   ]);
 
   ipcMain.handle("store:get", (_event, key: string) => {
@@ -123,6 +138,102 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
       return;
     }
     (store as any).delete(key);
+  });
+
+  // ── Wallpaper Handlers ───────────────────────────────────────────────────
+  ipcMain.handle("wallpaper:select", async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: "Chọn hình nền",
+        filters: [
+          {
+            name: "Hình ảnh (JPG, PNG, WebP, BMP)",
+            extensions: ["jpg", "jpeg", "png", "webp", "bmp"],
+          },
+        ],
+        properties: ["openFile"],
+      });
+
+      if (result.canceled || !result.filePaths[0]) return null;
+      const sourcePath = result.filePaths[0];
+      const ext = path.extname(sourcePath).toLowerCase();
+      const userData = app.getPath("userData");
+      const destPath = path.join(userData, `custom_wallpaper${ext}`);
+
+      // Dọn dẹp wallpaper cũ
+      const exts = [".jpg", ".jpeg", ".png", ".webp", ".bmp"];
+      for (const e of exts) {
+        const oldFile = path.join(userData, `custom_wallpaper${e}`);
+        if (fs.existsSync(oldFile)) {
+          try {
+            fs.unlinkSync(oldFile);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      await fs.promises.copyFile(sourcePath, destPath);
+      const buffer = await fs.promises.readFile(destPath);
+      const mime =
+        ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "image/jpeg";
+      const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+
+      return {
+        dataUrl,
+        fileName: path.basename(sourcePath),
+      };
+    } catch (err: any) {
+      console.error("Lỗi chọn hình nền:", err);
+      return null;
+    }
+  });
+
+  ipcMain.handle("wallpaper:get-custom", async () => {
+    try {
+      const userData = app.getPath("userData");
+      const exts = [".jpg", ".jpeg", ".png", ".webp", ".bmp"];
+      for (const e of exts) {
+        const p = path.join(userData, `custom_wallpaper${e}`);
+        if (fs.existsSync(p)) {
+          const buffer = await fs.promises.readFile(p);
+          const mime =
+            e === ".png"
+              ? "image/png"
+              : e === ".webp"
+                ? "image/webp"
+                : "image/jpeg";
+          return `data:${mime};base64,${buffer.toString("base64")}`;
+        }
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  });
+
+  ipcMain.handle("wallpaper:remove-custom", async () => {
+    try {
+      const userData = app.getPath("userData");
+      const exts = [".jpg", ".jpeg", ".png", ".webp", ".bmp"];
+      for (const e of exts) {
+        const p = path.join(userData, `custom_wallpaper${e}`);
+        if (fs.existsSync(p)) {
+          try {
+            fs.unlinkSync(p);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
   });
 
   // ── App Version & Update Handlers ─────────────────────────────────────────
@@ -175,5 +286,30 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
 
   ipcMain.on("app:fatal-error", (_event, { title, message }) => {
     dialog.showErrorBox(title || "Lỗi ứng dụng nghiêm trọng", message || "Lỗi không xác định");
+  });
+
+  // ── Screen Capture & Recording Handlers ────────────────────────────────
+  ipcMain.handle("screen:screenshot", async (_event, { deviceId }: { deviceId: string }) => {
+    assertValidDeviceId(deviceId);
+    return await captureDeviceScreenshot(deviceId);
+  });
+
+  ipcMain.handle("screen:start-record", async (_event, { deviceId }: { deviceId: string }) => {
+    assertValidDeviceId(deviceId);
+    return await startDeviceRecording(deviceId);
+  });
+
+  ipcMain.handle("screen:stop-record", async (_event, { deviceId }: { deviceId: string }) => {
+    assertValidDeviceId(deviceId);
+    return await stopDeviceRecording(deviceId);
+  });
+
+  ipcMain.handle("screen:is-recording", (_event, { deviceId }: { deviceId: string }) => {
+    assertValidDeviceId(deviceId);
+    return isScreenRecording(deviceId);
+  });
+
+  ipcMain.handle("screen:open-folder", async (_event, { type }: { type: "screenshots" | "videos" }) => {
+    return await openCaptureFolder(type);
   });
 }

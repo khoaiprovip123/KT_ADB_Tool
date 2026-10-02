@@ -1,5 +1,22 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.19] - 2026-10-02
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Nâng cấp Quản lý Tệp tin (File Manager) & Chọn nhiều / Xóa hàng loạt**:
+  - Bổ sung ô chọn (Checkbox) riêng cho từng hàng tệp/thư mục và Checkbox "Chọn tất cả" trên thanh tiêu đề bảng (hỗ trợ đầy đủ trạng thái Checked / Indeterminate / Unchecked).
+  - Tích hợp phím tắt nhanh: `Ctrl + A` (chọn tất cả tệp), `Esc` (hủy chọn), `Shift + Click` (chọn dải tệp liên tiếp), `Ctrl / Cmd + Click` (chọn riêng lẻ).
+  - Bổ sung thanh công cụ thao tác nổi (Floating Action Bar) khi có tệp được chọn: hiển thị số lượng tệp đã chọn, chuyển đổi chọn tất cả / bỏ chọn, và nút xóa hàng loạt.
+- **Cơ chế Xóa 2 Bước Dứt Điểm (Two-Step Definitive Deletion)**:
+  - Loại bỏ hoàn toàn hộp thoại `window.confirm` gây gián đoạn trải nghiệm người dùng.
+  - Áp dụng cơ chế bấm 2 lần xác nhận: lần 1 nút chuyển sang trạng thái cảnh báo đỏ (tự động khôi phục sau 3.5s - 4s nếu không xác nhận), lần 2 bấm lại để xóa dứt điểm ngay lập tức.
+  - Tối ưu hóa lệnh xóa tầng sâu: hỗ trợ xóa hàng loạt (batch `rm -rf`), cơ chế fallback `su` cho máy root và tự động cập nhật MediaStore để xóa sạch cache ảnh/video trên Android.
+- **Kéo Thả Tệp/Thư Mục Trực Tiếp từ PC vào Điện Thoại**:
+  - Hỗ trợ kéo thả trực tiếp tệp tin hoặc thư mục từ máy tính thả vào thư mục hiện tại trong Quản lý Tệp Tin.
+  - Tích hợp `webUtils.getPathForFile` tương thích hoàn toàn với Electron 28+ trong môi trường Context Isolation.
+- **Tập trung Toàn bộ Điều khiển Scrcpy vào Trung tâm Điều khiển (Control Center)**:
+  - Tinh giản giao diện: gỡ bỏ thanh nổi phụ (Floating HUD) rườm rà, tập trung 100% các tính năng Scrcpy (chế độ không viền, tắt màn hình gốc, âm thanh, điều hướng ảo, chụp/quay màn hình) vào Trung tâm Điều khiển tiện lợi.
+
 ## [2.5.18] - 2026-10-02
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)

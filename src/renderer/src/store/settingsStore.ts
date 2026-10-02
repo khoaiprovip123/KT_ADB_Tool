@@ -8,6 +8,12 @@ export interface AppSettings {
   adbPath: string;
   minimizeToTray: boolean;
   scrcpyBorderless: boolean;
+  scrcpyAudio: boolean;
+  wallpaperType: "none" | "preset" | "custom";
+  wallpaperPreset: string;
+  wallpaperCustomDataUrl?: string;
+  wallpaperBlur: number;
+  wallpaperOverlay: number;
 }
 
 interface SettingsStore {
@@ -25,6 +31,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   adbPath: "",
   minimizeToTray: true,
   scrcpyBorderless: false,
+  scrcpyAudio: false,
+  wallpaperType: "none",
+  wallpaperPreset: "aurora",
+  wallpaperCustomDataUrl: undefined,
+  wallpaperBlur: 20,
+  wallpaperOverlay: 35,
 };
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -41,6 +53,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         "adbPath",
         "minimizeToTray",
         "scrcpyBorderless",
+        "scrcpyAudio",
+        "wallpaperType",
+        "wallpaperPreset",
+        "wallpaperBlur",
+        "wallpaperOverlay",
       ];
       const loaded: Partial<AppSettings> = {};
 
@@ -48,6 +65,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         const val = await window.api.storeGet(key);
         if (val !== undefined && val !== null) {
           loaded[key] = val as never;
+        }
+      }
+
+      if (window.api?.getCustomWallpaper) {
+        const customUrl = await window.api.getCustomWallpaper();
+        if (customUrl) {
+          loaded.wallpaperCustomDataUrl = customUrl;
         }
       }
 
@@ -68,10 +92,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     // Lưu vào Zustand trước để UI react
     set({ settings: updated });
 
-    // Lưu xuống Electron Store vĩnh viễn
+    // Lưu xuống Electron Store vĩnh viễn (ngoại trừ dataUrl của wallpaper tránh phình config)
     try {
       for (const key of Object.keys(newSettings) as (keyof AppSettings)[]) {
-        await window.api.storeSet(key, updated[key]);
+        if (key !== "wallpaperCustomDataUrl") {
+          await window.api.storeSet(key, updated[key]);
+        }
       }
     } catch (error) {
       console.error("Failed to save settings:", error);

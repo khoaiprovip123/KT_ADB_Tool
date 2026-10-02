@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 // Validate input before sending to main process
 const validateCommand = (deviceId: string, command: string): boolean => {
@@ -72,8 +72,18 @@ const api = {
       timeoutMs,
     });
   },
-  runScrcpy: (deviceId: string, turnScreenOff: boolean, borderless?: boolean) =>
-    ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff, borderless }),
+  runScrcpy: (
+    deviceId: string,
+    turnScreenOff: boolean,
+    borderless?: boolean,
+    audio?: boolean,
+  ) =>
+    ipcRenderer.invoke("adb:run-scrcpy", {
+      deviceId,
+      turnScreenOff,
+      borderless,
+      audio,
+    }),
   connectWifi: (deviceId: string, ip: string) =>
     ipcRenderer.invoke("adb:connect-wifi", { deviceId, ip }),
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),
@@ -124,6 +134,8 @@ const api = {
     ipcRenderer.invoke("adb:create-directory", { deviceId, remotePath }),
   deleteFile: (deviceId: string, remotePath: string) =>
     ipcRenderer.invoke("adb:delete-file", { deviceId, remotePath }),
+  deleteFiles: (deviceId: string, remotePaths: string[]) =>
+    ipcRenderer.invoke("adb:delete-files", { deviceId, remotePaths }),
   renameFile: (deviceId: string, oldPath: string, newPath: string) =>
     ipcRenderer.invoke("adb:rename-file", { deviceId, oldPath, newPath }),
   pushFile: (deviceId: string, localPath: string, remotePath: string) =>
@@ -337,6 +349,34 @@ const api = {
     ipcRenderer.on("fastboot:flash-log", listener);
     return () => ipcRenderer.removeListener("fastboot:flash-log", listener);
   },
+  selectWallpaper: () => ipcRenderer.invoke("wallpaper:select"),
+  getCustomWallpaper: () => ipcRenderer.invoke("wallpaper:get-custom"),
+  removeCustomWallpaper: () => ipcRenderer.invoke("wallpaper:remove-custom"),
+
+  // Screen capture & recording
+  takeScreenshot: (deviceId: string) =>
+    ipcRenderer.invoke("screen:screenshot", { deviceId }),
+  startScreenRecord: (deviceId: string) =>
+    ipcRenderer.invoke("screen:start-record", { deviceId }),
+  stopScreenRecord: (deviceId: string) =>
+    ipcRenderer.invoke("screen:stop-record", { deviceId }),
+  isScreenRecording: (deviceId: string) =>
+    ipcRenderer.invoke("screen:is-recording", { deviceId }),
+  openCaptureFolder: (type: "screenshots" | "videos") =>
+    ipcRenderer.invoke("screen:open-folder", { type }),
+
+  // File drag & drop / selection utilities
+  getPathForFile: (file: File): string => {
+    try {
+      if (webUtils && typeof webUtils.getPathForFile === "function") {
+        return webUtils.getPathForFile(file);
+      }
+    } catch {
+      // fallback
+    }
+    return (file as any).path || "";
+  },
+  openFilesDialog: () => ipcRenderer.invoke("dialog:open-files"),
 };
 
 if (process.contextIsolated) {

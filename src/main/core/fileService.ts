@@ -155,24 +155,129 @@ export async function createDirectory(deviceId: string, remotePath: string) {
   }
 }
 
-export async function deleteFile(deviceId: string, remotePath: string) {
+export async function deleteFile(deviceId: string, remotePath: string): Promise<boolean> {
   try {
     assertSafeRemotePath(remotePath, false);
-    await new Promise<void>((resolve, reject) => {
+    return await new Promise<boolean>((resolve, reject) => {
+      let output = "";
       adbState.client
         .shell(deviceId, `rm -rf ${shellQuote(remotePath)}`)
         .then((stream: any) => {
-          stream.on("data", () => {});
-          stream.on("end", resolve);
+          stream.on("data", (chunk: any) => {
+            output += chunk?.toString() || "";
+          });
+          stream.on("end", () => {
+            if (output.trim() && /permission denied|read-only/i.test(output)) {
+              // Thử lại với su nếu máy đã root
+              adbState.client
+                .shell(deviceId, `su -c "rm -rf ${shellQuote(remotePath)}"`)
+                .then((suStream: any) => {
+                  suStream.on("data", () => {});
+                  suStream.on("end", () => resolve(true));
+                  suStream.on("error", () => resolve(false));
+                })
+                .catch(() => resolve(false));
+            } else {
+              // Cập nhật lại media scanner để Android xóa cache ảnh/video
+              adbState.client
+                .shell(deviceId, `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file://${shellQuote(remotePath)}"`)
+                .then((s: any) => s.on("data", () => {}))
+                .catch(() => {});
+              resolve(true);
+            }
+          });
           stream.on("error", reject);
         })
         .catch(reject);
     });
-    return true;
   } catch (err) {
     console.error(`Failed to delete ${remotePath}:`, err);
     return false;
   }
+}
+
+export async function deleteFiles(
+  deviceId: string,
+  remotePaths: string[],
+): Promise<{ success: boolean; deletedCount: number; errors: string[] }> {
+  const validPaths: string[] = [];
+  const errors: string[] = [];
+
+  for (const p of remotePaths) {
+    try {
+      assertSafeRemotePath(p, false);
+      validPaths.push(p);
+    } catch (e: any) {
+      errors.push(`${p}: ${e.message}`);
+    }
+  }
+
+  if (validPaths.length === 0) {
+    return { success: false, deletedCount: 0, errors };
+  }
+
+  let deletedCount = 0;
+  const CHUNK_SIZE = 50;
+
+  for (let i = 0; i < validPaths.length; i += CHUNK_SIZE) {
+    const chunk = validPaths.slice(i, i + CHUNK_SIZE);
+    const quoted = chunk.map((p) => shellQuote(p)).join(" ");
+    const cmd = `rm -rf ${quoted}`;
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let output = "";
+        adbState.client
+          .shell(deviceId, cmd)
+          .then((stream: any) => {
+            stream.on("data", (data: any) => {
+              output += data?.toString() || "";
+            });
+            stream.on("end", () => {
+              if (output.trim() && /permission denied|read-only/i.test(output)) {
+                adbState.client
+                  .shell(deviceId, `su -c "rm -rf ${quoted}"`)
+                  .then((suStream: any) => {
+                    suStream.on("data", () => {});
+                    suStream.on("end", () => {
+                      deletedCount += chunk.length;
+                      resolve();
+                    });
+                    suStream.on("error", () => {
+                      errors.push(output.trim());
+                      resolve();
+                    });
+                  })
+                  .catch(() => {
+                    errors.push(output.trim());
+                    resolve();
+                  });
+              } else {
+                deletedCount += chunk.length;
+                resolve();
+              }
+            });
+            stream.on("error", reject);
+          })
+          .catch(reject);
+      });
+
+      for (const p of chunk) {
+        adbState.client
+          .shell(deviceId, `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file://${shellQuote(p)}"`)
+          .then((s: any) => s.on("data", () => {}))
+          .catch(() => {});
+      }
+    } catch (err: any) {
+      errors.push(err?.message || String(err));
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    deletedCount,
+    errors,
+  };
 }
 
 export async function renameFile(
@@ -207,12 +312,17 @@ export async function pushFile(
   onLog: (log: string) => void,
 ) {
   try {
-    assertSafeRemotePath(remotePath, false);
-    onLog(`Đang tải lên: ${path.basename(localPath)} -> ${remotePath}`);
+    const fileName = path.basename(localPath);
+    let targetRemote = remotePath.replace(/\\/g, "/");
+    if (targetRemote.endsWith("/") || !path.posix.basename(targetRemote).includes(".")) {
+      targetRemote = targetRemote.replace(/\/+$/, "") + "/" + fileName;
+    }
+    assertSafeRemotePath(targetRemote, false);
+    onLog(`Đang tải lên: ${fileName} -> ${targetRemote}`);
     const transfer = await adbState.client.push(
       deviceId,
       localPath,
-      remotePath,
+      targetRemote,
     );
     return new Promise((resolve, reject) => {
       transfer.on("progress", (stats: any) => {

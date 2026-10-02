@@ -9,5 +9,10 @@ export const store = new Store({
     adbPath: "",
     minimizeToTray: true,
     scrcpyBorderless: false,
+    scrcpyAudio: false,
+    wallpaperType: "none",
+    wallpaperPreset: "aurora",
+    wallpaperBlur: 20,
+    wallpaperOverlay: 35,
   },
 });

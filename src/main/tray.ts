@@ -80,6 +80,7 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
     });
   } else if (hasDevice) {
     const useBorderless = (store.get("scrcpyBorderless") as boolean) ?? false;
+    const useAudio = (store.get("scrcpyAudio") as boolean) ?? false;
     template.push({
       label: `📱 Chiếu màn hình (Tắt màn hình ĐT)${onlineDevices.length === 1 ? ` - ${firstDevice.id}` : ""}`,
       click: async () => {
@@ -92,6 +93,7 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
             }
           },
           useBorderless,
+          useAudio,
         );
         updateTrayMenu(mainWindow);
       },
@@ -112,6 +114,7 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
                 }
               },
               useBorderless,
+              useAudio,
             );
             updateTrayMenu(mainWindow);
           },
@@ -131,6 +134,7 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
             }
           },
           useBorderless,
+          useAudio,
         );
         updateTrayMenu(mainWindow);
       },
