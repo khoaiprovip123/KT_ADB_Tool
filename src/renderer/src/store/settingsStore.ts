@@ -7,6 +7,7 @@ export interface AppSettings {
   downloadPath: string;
   adbPath: string;
   minimizeToTray: boolean;
+  scrcpyBorderless: boolean;
 }
 
 interface SettingsStore {
@@ -23,6 +24,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   downloadPath: "",
   adbPath: "",
   minimizeToTray: true,
+  scrcpyBorderless: false,
 };
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -38,6 +40,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         "downloadPath",
         "adbPath",
         "minimizeToTray",
+        "scrcpyBorderless",
       ];
       const loaded: Partial<AppSettings> = {};
 

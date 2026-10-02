@@ -8,8 +8,10 @@ import {
   RotateCcw,
   Unplug,
   Loader2,
+  Maximize2,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
+import { useSettingsStore } from "../../store/settingsStore";
 
 export function ControlCenterModal({
   isOpen,
@@ -19,7 +21,9 @@ export function ControlCenterModal({
   onClose: () => void;
 }) {
   const { activeDevice } = useDeviceStore();
+  const { settings, updateSettings } = useSettingsStore();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const borderless = !!settings.scrcpyBorderless;
 
   const handleDisconnect = async () => {
     if (!activeDevice) return;
@@ -37,9 +41,14 @@ export function ControlCenterModal({
     onClose();
   };
 
+  const toggleBorderless = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateSettings({ scrcpyBorderless: !borderless });
+  };
+
   const runScrcpy = (turnScreenOff: boolean) => {
     if (!activeDevice) return;
-    window.api.runScrcpy(activeDevice, turnScreenOff);
+    window.api.runScrcpy(activeDevice, turnScreenOff, borderless);
     onClose();
   };
 
@@ -83,6 +92,36 @@ export function ControlCenterModal({
                 Phản chiếu nhưng tắt màn hình điện thoại
               </span>
             </div>
+          </button>
+        </div>
+
+        {/* Scrcpy Borderless Mode Toggle */}
+        <div className="flex items-center justify-between p-2.5 px-3 bg-slate-100/90 rounded-2xl mb-4 border border-slate-200/60 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-1.5 rounded-lg transition-colors ${borderless ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-500"}`}>
+              <Maximize2 className="w-3.5 h-3.5" />
+            </div>
+            <div className="text-left">
+              <span className="block text-xs font-semibold text-slate-700">
+                Chiếu không viền
+              </span>
+              <span className="block text-[10px] text-slate-400">
+                Borderless (Giữ Alt kéo cửa sổ)
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={toggleBorderless}
+            className={`w-9 h-5 rounded-full transition-colors p-0.5 relative shrink-0 ${
+              borderless ? "bg-blue-600" : "bg-slate-300"
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                borderless ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
           </button>
         </div>
 

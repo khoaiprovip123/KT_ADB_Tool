@@ -72,8 +72,8 @@ const api = {
       timeoutMs,
     });
   },
-  runScrcpy: (deviceId: string, turnScreenOff: boolean) =>
-    ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff }),
+  runScrcpy: (deviceId: string, turnScreenOff: boolean, borderless?: boolean) =>
+    ipcRenderer.invoke("adb:run-scrcpy", { deviceId, turnScreenOff, borderless }),
   connectWifi: (deviceId: string, ip: string) =>
     ipcRenderer.invoke("adb:connect-wifi", { deviceId, ip }),
   connectIp: (ip: string) => ipcRenderer.invoke("adb:connect-ip", ip),

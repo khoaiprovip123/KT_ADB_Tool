@@ -113,6 +113,7 @@ namespace KT_ADB_Tool.Native {
         static string scrcpyExe     = "";
         static string keyboardMode  = "sdk";
         static bool   turnScreenOff = false;
+        static bool   borderless    = false;
         static string windowTitle   = "";
 
         // Aspect ratio cập nhật ĐỘNG từ "Texture: WxH" stdout
@@ -179,9 +180,10 @@ namespace KT_ADB_Tool.Native {
                 else if (args[i] == "--scrcpy"   && i+1 < args.Length) scrcpyExe    = args[++i];
                 else if (args[i] == "--keyboard" && i+1 < args.Length) keyboardMode  = args[++i];
                 else if (args[i] == "--turn-screen-off") turnScreenOff = true;
+                else if (args[i] == "--borderless" || args[i] == "--window-borderless") borderless = true;
                 else if (args[i] == "--title"    && i+1 < args.Length) windowTitle   = args[++i];
             }
-            Log(string.Format("serial={0} initRatio={1:F4} keyboard={2} title={3}", serial, deviceRatio, keyboardMode, windowTitle));
+            Log(string.Format("serial={0} initRatio={1:F4} keyboard={2} borderless={3} title={4}", serial, deviceRatio, keyboardMode, borderless, windowTitle));
         }
 
         // ============================================================
@@ -201,6 +203,7 @@ namespace KT_ADB_Tool.Native {
                 "-s \"{0}\" --no-audio --window-title=\"{1}\" --keyboard={2}",
                 serial, childTitle, keyboard);
             if (turnScreenOff) scrcpyArgs += " --turn-screen-off";
+            if (borderless)    scrcpyArgs += " --window-borderless";
             Log("Launch: " + scrcpyArgs);
 
             ProcessStartInfo psi = new ProcessStartInfo();

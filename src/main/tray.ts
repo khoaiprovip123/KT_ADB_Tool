@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
 import { join } from "path";
 import { stopAllScrcpy, isScrcpyActive, runScrcpy } from "./core/deviceService";
 import { getDevices } from "./core/adbCore";
+import { store } from "./store";
 
 let tray: Tray | null = null;
 let hasShownBalloon = false;
@@ -78,14 +79,20 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
       },
     });
   } else if (hasDevice) {
+    const useBorderless = (store.get("scrcpyBorderless") as boolean) ?? false;
     template.push({
       label: `📱 Chiếu màn hình (Tắt màn hình ĐT)${onlineDevices.length === 1 ? ` - ${firstDevice.id}` : ""}`,
       click: async () => {
-        await runScrcpy(firstDevice.id, true, (log) => {
-          if (!mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("adb:log-stream", log);
-          }
-        });
+        await runScrcpy(
+          firstDevice.id,
+          true,
+          (log) => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("adb:log-stream", log);
+            }
+          },
+          useBorderless,
+        );
         updateTrayMenu(mainWindow);
       },
     });
@@ -96,11 +103,16 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
         submenu: onlineDevices.map((dev) => ({
           label: `${dev.id} (${dev.model || "Thiết bị"})`,
           click: async () => {
-            await runScrcpy(dev.id, true, (log) => {
-              if (!mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("adb:log-stream", log);
-              }
-            });
+            await runScrcpy(
+              dev.id,
+              true,
+              (log) => {
+                if (!mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send("adb:log-stream", log);
+                }
+              },
+              useBorderless,
+            );
             updateTrayMenu(mainWindow);
           },
         })),
@@ -110,11 +122,16 @@ export function buildTrayContextMenu(mainWindow: BrowserWindow): Menu {
     template.push({
       label: "🖥️ Chiếu màn hình (Màn hình ĐT vẫn bật)",
       click: async () => {
-        await runScrcpy(firstDevice.id, false, (log) => {
-          if (!mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("adb:log-stream", log);
-          }
-        });
+        await runScrcpy(
+          firstDevice.id,
+          false,
+          (log) => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("adb:log-stream", log);
+            }
+          },
+          useBorderless,
+        );
         updateTrayMenu(mainWindow);
       },
     });

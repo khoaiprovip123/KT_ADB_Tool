@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { store } from "../store";
 import { getDevices, killAdbServer, initAdb, fastbootReboot, fastbootBypassFrp } from "../core/adbCore";
 import {
   runScrcpy,
@@ -70,13 +71,22 @@ export function registerDeviceHandlers(mainWindow: Electron.BrowserWindow) {
 
   ipcMain.handle(
     "adb:run-scrcpy",
-    async (_event, { deviceId, turnScreenOff }) => {
+    async (_event, { deviceId, turnScreenOff, borderless }) => {
       if (!isValidDeviceId(deviceId)) return "FAILED";
-      return await runScrcpy(deviceId, turnScreenOff, (log) => {
-        if (!mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("adb:log-stream", log);
-        }
-      });
+      const useBorderless =
+        typeof borderless === "boolean"
+          ? borderless
+          : ((store.get("scrcpyBorderless") as boolean) ?? false);
+      return await runScrcpy(
+        deviceId,
+        turnScreenOff,
+        (log) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("adb:log-stream", log);
+          }
+        },
+        useBorderless,
+      );
     },
   );
 

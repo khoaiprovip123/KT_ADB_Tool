@@ -16,6 +16,23 @@ interface ReleaseItem {
 
 const DEFAULT_RELEASE_HISTORY: ReleaseItem[] = [
   {
+    version: "v2.5.18",
+    date: "02/10/2026",
+    highlights: [
+      "🪟 Bổ sung chế độ phản chiếu Scrcpy Không Viền (Borderless) loại bỏ thanh tiêu đề và viền cửa sổ.",
+      "🎯 Tích hợp phím tắt Alt + chuột trái tự do kéo di chuyển cửa sổ phản chiếu khi không viền.",
+      "⚙️ Tùy chọn chuyển đổi nhanh tại Trung tâm Điều khiển và trang Cài đặt Giao diện.",
+    ],
+  },
+  {
+    version: "v2.5.17",
+    date: "23/09/2026",
+    highlights: [
+      "🔔 Công cụ Khắc phục Trễ Thông Báo Toàn Diện (Xiaomi / HyperOS / MIUI Notification Fixer).",
+      "⚡ Tích hợp phím tắt chiếu màn hình tắt màn hình điện thoại tiết kiệm pin.",
+    ],
+  },
+  {
     version: "v2.5.16",
     date: "18/09/2026",
     highlights: [

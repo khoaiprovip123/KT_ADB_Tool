@@ -1,5 +1,13 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.18] - 2026-10-02
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Tùy chọn Chiếu Scrcpy Không Viền (Borderless Mirroring)**:
+  - Bổ sung tùy chọn phản chiếu màn hình không viền (loại bỏ hoàn toàn thanh tiêu đề và khung viền cửa sổ) ngay tại Trung tâm Điều khiển và Cài đặt Giao diện.
+  - Tích hợp phím tắt native `Alt` + chuột trái để tự do kéo di chuyển cửa sổ phản chiếu mọi nơi trên màn hình.
+  - Bổ sung cờ `--borderless` (`--window-borderless`) vào container native `ScrcpyContainer.exe` và tự động lưu tùy chọn người dùng.
+
 ## [2.5.17] - 2026-09-23
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)

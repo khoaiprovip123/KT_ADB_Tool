@@ -8,5 +8,6 @@ export const store = new Store({
     downloadPath: "",
     adbPath: "",
     minimizeToTray: true,
+    scrcpyBorderless: false,
   },
 });
