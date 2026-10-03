@@ -53,6 +53,7 @@ import {
   runAdbCommand,
   runAdbCommandDetailed,
   execAdb,
+  isAdbFailureOutput,
 } from "./adbCore";
 
 describe("adbCore", () => {
@@ -62,6 +63,25 @@ describe("adbCore", () => {
     vi.mocked((execFile as any)[util.promisify.custom]).mockResolvedValue({
       stdout: "mock output",
       stderr: "",
+    });
+  });
+
+  describe("isAdbFailureOutput", () => {
+    it("should detect Java Exception occurred at start of line", () => {
+      const output =
+        "Exception occurred while executing 'keyevent':\njava.lang.SecurityException: Injecting input events requires INJECT_EVENTS";
+      expect(isAdbFailureOutput(output)).toBe(true);
+    });
+
+    it("should detect SecurityException anywhere in output", () => {
+      const output =
+        "at com.android.server.input.InputManagerService.injectInputEventToTarget\njava.lang.SecurityException: denied";
+      expect(isAdbFailureOutput(output)).toBe(true);
+    });
+
+    it("should not flag normal adb output as failure", () => {
+      expect(isAdbFailureOutput("Broadcasting: Intent { act=android.intent.action.MAIN }\n")).toBe(false);
+      expect(isAdbFailureOutput("Success\n")).toBe(false);
     });
   });
 

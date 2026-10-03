@@ -2,6 +2,14 @@ import { ipcMain, app, dialog } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { initAdb, watchDevices, runAdbCommandDetailed } from "../core/adbCore";
+import {
+  navHome,
+  navBack,
+  navRecents,
+  navScreenOff,
+  navOpenDeveloperSettings,
+  checkAdbInputPermission,
+} from "../core/navigationService";
 import { setTrayDevices } from "../tray";
 import { registerDeviceHandlers } from "./deviceHandlers";
 import { registerAppHandlers } from "./appHandlers";
@@ -81,6 +89,27 @@ export function registerIpcHandlers(mainWindow: Electron.BrowserWindow) {
         };
       } catch (err: any) {
         return { success: false, output: err.message };
+      }
+    },
+  );
+
+  // ── Navigation Actions (Fallback-aware) ───────────────────────────────────
+  ipcMain.handle(
+    "device:nav-action",
+    async (_event, { deviceId, action }: { deviceId: string; action: string }) => {
+      assertValidDeviceId(deviceId);
+      switch (action) {
+        case "home":     return navHome(deviceId);
+        case "back":     return navBack(deviceId);
+        case "recents":  return navRecents(deviceId);
+        case "screenOff": return navScreenOff(deviceId);
+        case "openDevSettings": return navOpenDeveloperSettings(deviceId);
+        case "checkPermission": {
+          const ok = await checkAdbInputPermission(deviceId);
+          return { success: true, hasPermission: ok, method: "intent", output: String(ok), usedFallback: false };
+        }
+        default:
+          return { success: false, method: "error", output: `Unknown nav action: ${action}`, usedFallback: false };
       }
     },
   );

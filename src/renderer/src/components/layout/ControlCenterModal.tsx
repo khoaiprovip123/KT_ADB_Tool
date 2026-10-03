@@ -16,6 +16,8 @@ import {
   Circle,
   Square,
   FolderOpen,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import { useDeviceStore } from "../../store/deviceStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -33,6 +35,8 @@ export function ControlCenterModal({
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [injectDenied, setInjectDenied] = useState(false);
+
 
   const borderless = !!settings.scrcpyBorderless;
   const audio = !!settings.scrcpyAudio;
@@ -57,6 +61,37 @@ export function ControlCenterModal({
     if (!activeDevice) return;
     window.api.runAdbCommand(activeDevice, cmd);
     onClose();
+  };
+
+  /**
+   * Gọi navAction với cơ chế Fallback Intent.
+   * Hiển thị toast nếu dùng fallback hoặc nếu bị từ chối quyền.
+   */
+  const runNavAction = async (
+    action: "home" | "back" | "recents" | "screenOff",
+  ) => {
+    if (!activeDevice) return;
+    try {
+      const result = await window.api.navAction(activeDevice, action);
+      if (result.success) {
+        if (result.usedFallback) {
+          toast.info(
+            `Đã dùng Intent fallback (Home). Để bật phím ảo đầy đủ, hãy bật "Gỡ lỗi USB (Bảo mật)" trong Tùy chọn nhà phát triển.`,
+          );
+        }
+        setInjectDenied(false);
+        onClose();
+      } else if (result.output === "INJECT_EVENTS_DENIED") {
+        setInjectDenied(true);
+        toast.error(
+          "Thiết bị chưa cấp quyền INJECT_EVENTS. Nhấn nút \"Mở cài đặt bảo mật\" bên dưới để bật.",
+        );
+      } else {
+        toast.error(`Thao tác thất bại: ${result.output}`);
+      }
+    } catch (e: any) {
+      toast.error(`Lỗi: ${e?.message ?? "Unknown error"}`);
+    }
   };
 
   const toggleBorderless = (e: React.MouseEvent) => {
@@ -272,33 +307,55 @@ export function ControlCenterModal({
         </div>
 
         {/* Android Navigation Keys */}
-        <div className="flex items-center justify-between p-1.5 px-3 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl mb-3 border border-slate-200/60 dark:border-slate-700/60">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-            Phím ảo:
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => runAction("input keyevent 4")}
-              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
-              title="Quay lại (Back)"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" /> Back
-            </button>
-            <button
-              onClick={() => runAction("input keyevent 3")}
-              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
-              title="Trang chính (Home)"
-            >
-              <Circle className="w-3 h-3" /> Home
-            </button>
-            <button
-              onClick={() => runAction("input keyevent 187")}
-              className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
-              title="Đa nhiệm (Recents)"
-            >
-              <Square className="w-3 h-3" /> Menu
-            </button>
+        <div className="flex flex-col gap-2 mb-3">
+          <div className="flex items-center justify-between p-1.5 px-3 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              Phím ảo:
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => runNavAction("back")}
+                className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+                title="Quay lại (Back)"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Back
+              </button>
+              <button
+                onClick={() => runNavAction("home")}
+                className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+                title="Trang chính (Home)"
+              >
+                <Circle className="w-3 h-3" /> Home
+              </button>
+              <button
+                onClick={() => runNavAction("recents")}
+                className="p-1.5 px-2 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-600 transition-all text-xs font-semibold shadow-sm flex items-center gap-1 active:scale-90"
+                title="Đa nhiệm (Recents)"
+              >
+                <Square className="w-3 h-3" /> Menu
+              </button>
+            </div>
           </div>
+
+          {/* Banner 1-click mở Dev Settings khi thiếu quyền INJECT_EVENTS */}
+          {injectDenied && activeDevice && (
+            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Chưa bật &quot;Gỡ lỗi USB (Bảo mật)&quot;</span>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!activeDevice) return;
+                  await window.api.navAction(activeDevice, "openDevSettings");
+                  toast.info("Đã mở Tùy chọn nhà phát triển trên thiết bị. Bật \"Gỡ lỗi USB (Cài đặt bảo mật)\" và kết nối lại.");
+                }}
+                className="flex items-center gap-1 shrink-0 font-bold underline hover:no-underline text-amber-700 dark:text-amber-400"
+              >
+                <ExternalLink className="w-3 h-3" /> Mở cài đặt
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Quick Settings Grid */}
@@ -326,7 +383,7 @@ export function ControlCenterModal({
           <ActionBtn
             icon={<PowerOff />}
             label="Tắt màn hình"
-            onClick={() => runAction("input keyevent 26")}
+            onClick={() => runNavAction("screenOff")}
             color="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100"
           />
         </div>

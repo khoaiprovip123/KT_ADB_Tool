@@ -377,6 +377,16 @@ const api = {
     return (file as any).path || "";
   },
   openFilesDialog: () => ipcRenderer.invoke("dialog:open-files"),
+
+  /**
+   * Thực thi hành động điều hướng với cơ chế Fallback Intent tự động.
+   * @param deviceId - ID thiết bị ADB
+   * @param action   - "home" | "back" | "recents" | "screenOff" | "openDevSettings" | "checkPermission"
+   */
+  navAction: (
+    deviceId: string,
+    action: "home" | "back" | "recents" | "screenOff" | "openDevSettings" | "checkPermission",
+  ) => ipcRenderer.invoke("device:nav-action", { deviceId, action }),
 };
 
 if (process.contextIsolated) {

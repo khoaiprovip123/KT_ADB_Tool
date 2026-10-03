@@ -368,6 +368,23 @@ export interface IADBAPI {
   // File drag & drop / selection utilities
   getPathForFile: (file: File) => string;
   openFilesDialog: () => Promise<string[]>;
+
+  /**
+   * Thực thi hành động điều hướng với cơ chế Fallback Intent tự động.
+   */
+  navAction: (
+    deviceId: string,
+    action: "home" | "back" | "recents" | "screenOff" | "openDevSettings" | "checkPermission",
+  ) => Promise<NavActionResult>;
+}
+
+export interface NavActionResult {
+  success: boolean;
+  method: "keyevent" | "intent" | "error";
+  output: string;
+  usedFallback: boolean;
+  /** Chỉ có khi action là "checkPermission" */
+  hasPermission?: boolean;
 }
 
 declare global {

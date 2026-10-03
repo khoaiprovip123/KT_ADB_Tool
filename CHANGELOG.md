@@ -1,5 +1,15 @@
 # Nhật ký thay đổi (Changelog) - KT ADB Tool
 
+## [2.5.20] - 2026-10-03
+
+### Tính năng mới & Cải tiến (New Features & Improvements)
+- **Cơ chế Phím ảo Thông minh & Tự động Fallback Intent (Smart Navigation Fallback)**:
+  - Bổ sung cơ chế Fallback Intent tự động cho các phím điều hướng ảo (Home, Back, Recents, Screen Off): khi gặp lỗi `SecurityException` (`INJECT_EVENTS` bị chặn trên Xiaomi/HyperOS/MIUI hoặc thiết bị chưa cấp quyền nhập liệu), hệ thống tự động chuyển sang Android Intent (`am start -a android.intent.action.MAIN -c android.intent.category.HOME`) để đưa về màn hình chính ngay lập tức mà không bị gián đoạn hay kẹt lệnh.
+  - Tích hợp phát hiện quyền tự động `persist.security.adbinput` và hiển thị cảnh báo thông minh kèm nút **"Mở cài đặt"** 1-Click (`APPLICATION_DEVELOPMENT_SETTINGS`) giúp người dùng mở ngay Tùy chọn nhà phát triển để bật "Gỡ lỗi USB (Cài đặt bảo mật)".
+  - Phím Screen Off hỗ trợ fallback linh hoạt giữa `KEYCODE_POWER` (26) và `KEYCODE_SLEEP` (223).
+- **Khắc phục Triệt để Nhận diện Lỗi Java Exception trong Lõi ADB**:
+  - Nâng cấp `isAdbFailureOutput`: bổ sung khả năng bắt các ngoại lệ Java dạng stack trace (`Exception occurred`, `SecurityException`) ở mọi vị trí chuỗi output, ngăn chặn hiện tượng ADB trả exit code 0 nhưng shell bị lỗi ngầm mà hệ thống vẫn báo thành công.
+
 ## [2.5.19] - 2026-10-02
 
 ### Tính năng mới & Cải tiến (New Features & Improvements)

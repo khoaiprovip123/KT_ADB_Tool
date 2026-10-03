@@ -30,7 +30,10 @@ export function CenterActionPanel() {
         <ActionBtn
           icon={<PowerOff />}
           label="Screen Off"
-          onClick={() => runAction("adb shell input keyevent 26")}
+          onClick={() => {
+            if (!activeDevice) return;
+            window.api.navAction(activeDevice, "screenOff");
+          }}
           color="bg-slate-100 text-slate-700"
         />
         <ActionBtn
