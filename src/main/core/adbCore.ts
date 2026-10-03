@@ -44,21 +44,34 @@ export function getRecommendedTimeout(
 export function isAdbFailureOutput(output: string): boolean {
   const normalized = output.trim().toLowerCase();
   if (!normalized) return false;
+
+  // Fast-path: common error prefixes at the start of output
   if (
     normalized.startsWith("error:") ||
     normalized.startsWith("critical error:") ||
-    normalized === "failed" ||
-    normalized.startsWith("[blocked by safety layer]")
+    normalized.startsWith("[blocked by safety layer]") ||
+    // Java Exception headers (e.g. "Exception occurred while executing 'keyevent':")
+    normalized.startsWith("exception occurred")
   ) {
     return true;
   }
 
-  // Fatal ADB errors or permission issues
+  // Exact match for bare "failed"
+  if (normalized === "failed") {
+    return true;
+  }
+
+  // Fatal ADB errors or permission issues (line-anchored patterns)
   if (
-    /(^|\n)(unknown command|securityexception\b|permission denied\b|not found:|.*inaccessible or not found)/i.test(
+    /(^|\n)(unknown command|permission denied\b|not found:|.*inaccessible or not found)/i.test(
       normalized,
     )
   ) {
+    return true;
+  }
+
+  // SecurityException can appear anywhere in a Java stack trace
+  if (/securityexception\b/i.test(normalized)) {
     return true;
   }
 
